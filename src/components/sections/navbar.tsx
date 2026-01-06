@@ -3,23 +3,27 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Menu, X } from "lucide-react"
+import { Menu, X, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { AnimatePresence, motion } from "framer-motion"
 import { InteractiveElement } from "@/components/ui/interactive-element"
+import { useLanguage } from "@/lib/language-context"
 
-const navItems = [
-    { name: "소개", href: "#intro" },
-    { name: "진료분야", href: "#departments" },
-    { name: "아카이브", href: "#archive" },
-    { name: "오시는 길", href: "/location" },
-]
+
 
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isScrolled, setIsScrolled] = React.useState(false)
     const [isLogoHovered, setIsLogoHovered] = React.useState(false)
+    const { language, toggleLanguage, t } = useLanguage()
+
+    const navItems = [
+        { name: t.navbar.menu.intro, href: "#intro" },
+        { name: t.navbar.menu.departments, href: "#departments" },
+        { name: t.navbar.menu.archive, href: "#archive" },
+        { name: t.navbar.menu.location, href: "/location" },
+    ]
 
     React.useEffect(() => {
         const handleScroll = () => {
@@ -48,9 +52,21 @@ export function Navbar() {
                         >
                             <InteractiveElement href="/">
                                 <span className="text-xl md:text-2xl font-semibold tracking-tight relative z-10 transition-colors duration-300">
-                                    miryang<span className="font-bold">os</span>
+                                    {t.navbar.logoText}<span className="font-bold">{t.navbar.logoSuffix}</span>
                                 </span>
                             </InteractiveElement>
+                        </div>
+
+                        {/* Language Toggle Button - Next to Logo */}
+                        <div className="ml-4 mr-auto md:ml-6">
+                            <button
+                                onClick={toggleLanguage}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-xs font-medium text-gray-600"
+                                aria-label="Toggle Language"
+                            >
+                                <Globe className="w-3.5 h-3.5" />
+                                <span>{language === 'ko' ? 'En' : '한글'}</span>
+                            </button>
                         </div>
 
                         {/* Desktop Nav */}
@@ -64,7 +80,7 @@ export function Navbar() {
                             ))}
                             <InteractiveElement>
                                 <Button variant="default" size="sm">
-                                    예약 / 로그인
+                                    {t.navbar.menu.reservation}
                                 </Button>
                             </InteractiveElement>
                         </nav>
@@ -75,7 +91,7 @@ export function Navbar() {
                                 onClick={() => setIsOpen(!isOpen)}
                                 className="p-2 text-gray-600 hover:text-black transition-colors"
                             >
-                                <span className="sr-only">메뉴 열기</span>
+                                <span className="sr-only">{t.navbar.mobileMenuOpen}</span>
                                 {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                             </button>
                         </div>
@@ -97,7 +113,7 @@ export function Navbar() {
                                 </Link>
                             ))}
                             <div className="pt-4 mt-4 border-t border-gray-100">
-                                <Button className="w-full">예약 / 로그인</Button>
+                                <Button className="w-full">{t.navbar.menu.reservation}</Button>
                             </div>
                         </div>
                     </div>

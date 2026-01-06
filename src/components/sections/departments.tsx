@@ -6,51 +6,56 @@ import { motion } from "framer-motion"
 import { Layers, CircleDot, Syringe, Accessibility, Hand } from "lucide-react"
 import { InteractiveElement } from "@/components/ui/interactive-element"
 
-const departments = [
-    {
-        title: "척추 클리닉",
-        icon: Layers, // Represents vertebrae segments
-        desc: "허리디스크, 목디스크, 척추관협착증. 물리치료 약물치료 주사치료 및 선택신경 차단술.",
-        id: "spine"
-    },
-    {
-        title: "관절 클리닉",
-        icon: CircleDot, // Represents a joint socket
-        desc: "무릎, 어깨, 고관절 통증. 물리치료, 연골주사, 관절주사 및 DNA(PN) 주사",
-        id: "joint"
-    },
-    {
-        title: "통증 클리닉",
-        icon: Syringe,
-        desc: "만성 통증, 신경 통증. 주사 치료 및 신경 차단술.",
-        id: "pain"
-    },
-    {
-        title: "노인성 질환",
-        icon: Accessibility, // Represents elderly/care
-        desc: "골다공증, 근감소증. 어르신들의 편안한 노후를 위한 관리.",
-        id: "geriatric"
-    },
-    {
-        title: "물리치료/도수치료",
-        icon: Hand,
-        desc: "숙련된 치료사의 1:1 맞춤 도수치료 및 재활 프로그램.",
-        id: "pt"
-    },
-]
+import { useLanguage } from "@/lib/language-context"
 
 export function Departments() {
+    const { t } = useLanguage()
+
+    const departments = [
+        {
+            title: t.departments.spine.title,
+            icon: Layers,
+            desc: t.departments.spine.desc,
+            id: "spine"
+        },
+        {
+            title: t.departments.joint.title,
+            icon: CircleDot,
+            desc: t.departments.joint.desc,
+            id: "joint"
+        },
+        {
+            title: t.departments.pain.title,
+            icon: Syringe,
+            desc: t.departments.pain.desc,
+            id: "pain"
+        },
+        {
+            title: t.departments.geriatric.title,
+            icon: Accessibility,
+            desc: t.departments.geriatric.desc,
+            id: "geriatric"
+        },
+        {
+            title: t.departments.pt.title,
+            icon: Hand,
+            desc: t.departments.pt.desc,
+            id: "pt"
+        },
+    ]
+
+
     return (
         <Section id="departments" className="bg-white">
             <div className="text-center mb-16 flex flex-col items-center">
                 <InteractiveElement href="/departments">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
-                        전문 진료 분야
+                        {t.departments.title}
                     </h2>
                 </InteractiveElement>
                 <InteractiveElement href="/departments">
                     <p className="text-lg text-gray-500">
-                        대학병원에서의 경험과 전문적인 지식으로 정확하게 진단하고 치료합니다.
+                        {t.departments.subtitle}
                     </p>
                 </InteractiveElement>
             </div>
@@ -82,6 +87,6 @@ export function Departments() {
                     </motion.div>
                 ))}
             </div>
-        </Section>
+        </Section >
     )
 }
