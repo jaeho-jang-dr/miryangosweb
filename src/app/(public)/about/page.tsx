@@ -59,28 +59,33 @@ export default function AboutPage() {
             <section className="py-20 bg-slate-50 dark:bg-slate-900/50">
                 <div className="container mx-auto px-4">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
-                        <div className="h-[400px] bg-slate-200 dark:bg-slate-800 rounded-2xl flex items-center justify-center relative overflow-hidden">
-                            {/* Placeholder for Map. Ideally use Google Maps Embed API or similar. */}
-                            <div className="absolute inset-0 bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-slate-500">
-                                <span className="flex items-center gap-2"><MapPin /> 지도 영역 (API 연동 필요)</span>
-                            </div>
+                        <div className="h-[400px] bg-slate-200 dark:bg-slate-800 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-lg">
+                            <iframe
+                                src="https://maps.google.com/maps?q=경남%20밀양시%20중앙로%20451&t=m&z=17&output=embed&iwloc=near"
+                                className="w-full h-full border-0"
+                                loading="lazy"
+                                aria-label="Google Map"
+                            />
                         </div>
                         <div className="space-y-8">
                             <div>
                                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">오시는 길</h2>
+                                <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+                                    밀양정형외과는 시외버스주차장 인근에 있으며, 밀양 5일장 근처에 위치 하여 내원하시기에 편리 합니다
+                                </p>
                                 <div className="space-y-4">
                                     <div className="flex items-start gap-4">
                                         <MapPin className="w-6 h-6 text-blue-600 mt-1" />
                                         <div>
                                             <h4 className="font-bold text-slate-900 dark:text-white">주소</h4>
-                                            <p className="text-slate-600 dark:text-slate-400">경상남도 밀양시 시청로 123 (내이동)</p>
+                                            <p className="text-slate-600 dark:text-slate-400">경상남도 밀양시 중앙로 451</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-4">
                                         <Phone className="w-6 h-6 text-blue-600 mt-1" />
                                         <div>
                                             <h4 className="font-bold text-slate-900 dark:text-white">연락처</h4>
-                                            <p className="text-slate-600 dark:text-slate-400">055-123-4567</p>
+                                            <p className="text-slate-600 dark:text-slate-400">055-356-5500</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-4">

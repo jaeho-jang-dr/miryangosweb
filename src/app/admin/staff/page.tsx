@@ -93,7 +93,15 @@ export default function StaffPage() {
                                 <div className="flex items-start justify-between">
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-900 dark:text-white">{staff.name}</h3>
-                                        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{staff.role}</p>
+                                        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                            {staff.role === '원장' ? (
+                                                <Link href="/" className="hover:underline cursor-pointer">
+                                                    {staff.role}
+                                                </Link>
+                                            ) : (
+                                                staff.role
+                                            )}
+                                        </p>
                                     </div>
                                     <div className="p-1 bg-slate-100 dark:bg-slate-700 rounded cursor-grab active:cursor-grabbing">
                                         <GripVertical className="h-4 w-4 text-slate-400" />

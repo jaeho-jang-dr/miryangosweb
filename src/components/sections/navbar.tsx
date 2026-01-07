@@ -57,6 +57,16 @@ export function Navbar() {
                             </InteractiveElement>
                         </div>
 
+                        {/* Admin Link Button - Next to Logo */}
+                        <div className="ml-3 relative z-50">
+                            <Link
+                                href="/admin/settings"
+                                className="text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1 transition-colors"
+                            >
+                                관리자
+                            </Link>
+                        </div>
+
                         {/* Language Toggle Button - Next to Logo */}
                         <div className="ml-4 mr-auto md:ml-6">
                             <button
@@ -73,7 +83,7 @@ export function Navbar() {
                         <nav className="hidden md:flex items-center space-x-8">
                             {navItems.map((item) => (
                                 <InteractiveElement key={item.name} href={item.href}>
-                                    <span className="text-sm font-medium text-gray-600 hover:text-black transition-colors">
+                                    <span className="text-sm font-medium text-gray-600 hover:text-blue-600 hover:scale-110 inline-block transition-all duration-200 transform hover:-translate-y-1 hover:drop-shadow-md cursor-pointer">
                                         {item.name}
                                     </span>
                                 </InteractiveElement>

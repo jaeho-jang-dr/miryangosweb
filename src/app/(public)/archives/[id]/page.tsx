@@ -17,6 +17,9 @@ interface Article {
     tags: string[];
     summary: string;
     content: string;
+    attachmentUrl?: string;
+    attachmentName?: string;
+    images?: string[];
     createdAt: any;
 }
 
@@ -115,9 +118,43 @@ export default function ArticleDetailPage() {
 
                     {/* Content */}
                     <div className="p-8 md:p-12 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-700 prose-img:rounded-xl">
+                        {/* File Attachment Button */}
+                        {article.attachmentUrl && (
+                            <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-bold text-blue-900 mb-1">첨부 파일</h3>
+                                    <p className="text-sm text-blue-700">{article.attachmentName || '파일 보기'}</p>
+                                </div>
+                                <a
+                                    href={article.attachmentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+                                >
+                                    첨부파일 열기
+                                </a>
+                            </div>
+                        )}
+
+                        {/* Standard Content */}
                         <ReactMarkdown>
                             {article.content}
                         </ReactMarkdown>
+
+                        {/* Webtoon Images */}
+                        {article.images && article.images.length > 0 && (
+                            <div className="mt-8 flex flex-col items-center">
+                                {article.images.map((url, index) => (
+                                    <img
+                                        key={index}
+                                        src={url}
+                                        alt={`Webtoon Page ${index + 1}`}
+                                        className="w-full max-w-3xl mb-0 rounded-none shadow-sm" // Increased width, removed margin, standard shadow
+                                        loading="lazy"
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer / Share */}

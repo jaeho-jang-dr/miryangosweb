@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';
 import Image from 'next/image';
@@ -86,9 +87,15 @@ export default function StaffPage() {
                             </div>
                             <div className="p-6">
                                 <div className="mb-4">
-                                    <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs font-bold rounded-full mb-2">
-                                        {staff.role}
-                                    </span>
+                                    {staff.role === '원장' ? (
+                                        <Link href="/admin/settings" className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs font-bold rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer">
+                                            {staff.role}
+                                        </Link>
+                                    ) : (
+                                        <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs font-bold rounded-full mb-2">
+                                            {staff.role}
+                                        </span>
+                                    )}
                                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{staff.name}</h3>
                                 </div>
                                 <div className="space-y-2">

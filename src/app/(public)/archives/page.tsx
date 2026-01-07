@@ -77,6 +77,8 @@ export default function ArchivesPage() {
                 return { label: '의학 가이드', className: 'bg-indigo-100 text-indigo-700' };
             case 'news':
                 return { label: '건강 뉴스', className: 'bg-green-100 text-green-700' };
+            case 'webtoon':
+                return { label: '웹툰', className: 'bg-yellow-100 text-yellow-700' };
             default:
                 return { label: '기타', className: 'bg-slate-100 text-slate-700' };
         }
@@ -114,8 +116,9 @@ export default function ArchivesPage() {
                             <div className="space-y-2">
                                 {[
                                     { id: 'all', label: '전체 보기' },
-                                    { id: 'disease', label: '의학/질환 정보' }, // Updated label
-                                    { id: 'news', label: '건강 뉴스' }
+                                    { id: 'disease', label: '의학/질환 정보' },
+                                    { id: 'news', label: '건강 뉴스' },
+                                    { id: 'webtoon', label: '웹툰' }
                                 ].map((type) => (
                                     <button
                                         key={type.id}

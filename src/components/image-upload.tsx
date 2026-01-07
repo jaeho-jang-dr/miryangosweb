@@ -53,17 +53,32 @@ export default function ImageUpload({
                 return;
             }
 
-            // Client-side upload using Firebase SDK
-            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-            const { storage } = await import("@/lib/firebase-public");
+            // Upload via API Route
+            const idToken = await user.getIdToken();
+            const formData = new FormData();
+            formData.append('file', file);
+            // Note: path is currently ignored by the API in favor of public/uploads, but we send it for completeness
+            formData.append('path', `${directory}/${Date.now()}_${file.name}`);
 
-            const storageRef = ref(storage, `${directory}/${Date.now()}_${file.name}`);
-            const snapshot = await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(snapshot.ref);
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Upload failed: ${response.status} ${errorText}`);
+            }
+
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error);
 
             setProgress(100);
-            setPreviewUrl(url);
-            onImageUploaded(url);
+            setPreviewUrl(data.url);
+            onImageUploaded(data.url);
             setUploading(false);
 
         } catch (error: any) {
@@ -103,16 +118,30 @@ export default function ImageUpload({
             const blob = new Blob([byteArray], { type: result.mimeType });
             const file = new File([blob], fileName, { type: result.mimeType });
 
-            // 3. Upload using Client SDK (same logic as PC upload)
-            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-            const { storage } = await import("@/lib/firebase-public");
+            // 3. Upload via API Route
+            const idToken = await user.getIdToken();
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', `${directory}/${Date.now()}_${fileName}`);
 
-            const storageRef = ref(storage, `${directory}/${Date.now()}_${fileName}`);
-            const snapshot = await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(snapshot.ref);
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: formData,
+            });
 
-            setPreviewUrl(url);
-            onImageUploaded(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Upload failed: ${response.status} ${errorText}`);
+            }
+
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error);
+
+            setPreviewUrl(data.url);
+            onImageUploaded(data.url);
             setUploading(false);
             alert("업로드 성공!");
         } catch (error: any) {
