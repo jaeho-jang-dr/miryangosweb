@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Public Content (Notices, Archives, Staff)
+    // Read: Public
+    // Write: Authenticated Only (Admin)
+    match /notices/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    match /articles/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    
+    match /staff/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Inquiries
+    // Create: Public
+    // Read/Update/Delete: Authenticated Only (Admin)
+    match /inquiries/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // Clinical Data (Patients, Visits) - STRICTLY SECURE
+    // All Access: Authenticated Only (Admin/Staff)
+    match /patients/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /visits/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Settings (Clinic Info)
+    // Read: Public
+    // Write: Authenticated Only (Admin)
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Default: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
