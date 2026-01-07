@@ -19,7 +19,7 @@ export async function getLocalFiles() {
     }
 }
 
-export async function uploadLocalFile(fileName: string, idToken: string, targetPath: string = "uploads") {
+export async function readLocalFile(fileName: string) {
     try {
         const filePath = path.join(LOCAL_DIR, fileName);
 
@@ -28,64 +28,13 @@ export async function uploadLocalFile(fileName: string, idToken: string, targetP
         }
 
         const buffer = fs.readFileSync(filePath);
+        const base64 = buffer.toString('base64');
         const mimeType = getMimeType(fileName);
 
-        if (!idToken) {
-            return { error: "Unauthorized" };
-        }
-
-        const configuredBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-        // Candidate buckets to try in order
-        const bucketCandidates = [
-            configuredBucket,
-            "miryangosweb.appspot.com",
-            "miryangosweb.firebasestorage.app",
-        ].filter((b, i, self) => b && self.indexOf(b) === i) as string[];
-
-        // Construct unique file name
-        const storageName = `${targetPath}/${Date.now()}_${fileName}`;
-        const encodedName = encodeURIComponent(storageName);
-
-        let lastError = null;
-
-        for (const bucket of bucketCandidates) {
-            console.log(`Trying upload to bucket: ${bucket}`);
-            const url = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodedName}`;
-
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${idToken}`,
-                    "Content-Type": mimeType,
-                },
-                body: buffer,
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const downloadToken = data.downloadTokens;
-                const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedName}?alt=media&token=${downloadToken}`;
-                console.log(`Upload successful to bucket: ${bucket}`);
-                return { url: downloadUrl };
-            }
-
-            const errorText = await response.text();
-            console.error(`Failed bucket ${bucket}:`, response.status, errorText);
-            lastError = { status: response.status, text: errorText };
-
-            // If error is NOT 404, it might be permission or other issue, so stop trying?
-            // Actually 404 is the main "Bucket Not Found" indicator. 
-            // 403 (Permission) means Bucket Exists but auth failed.
-            if (response.status !== 404) {
-                // return immediate error for permission issues
-                return { error: `Upload failed on ${bucket}: ${response.statusText}`, details: errorText };
-            }
-        }
-
-        return { error: "All bucket candidates failed (404 Not Found). Check project ID or existence.", details: JSON.stringify(lastError) };
+        return { content: base64, mimeType };
 
     } catch (error: any) {
-        console.error("Local File Upload Error:", error);
+        console.error("Error reading local file:", error);
         return { error: error.message };
     }
 }

@@ -84,16 +84,39 @@ export default function ImageUpload({
                 setUploading(false);
                 return;
             }
-            const token = await user.getIdToken();
 
-            const result = await uploadLocalFile(fileName, token, directory);
-            if (result.error) throw new Error(result.error);
+            // 1. Get file content from server
+            const { readLocalFile } = await import("@/actions/local-files");
+            const result = await readLocalFile(fileName);
 
-            setPreviewUrl(result.url);
-            onImageUploaded(result.url!);
+            if (result.error || !result.content || !result.mimeType) {
+                throw new Error(result.error || "Failed to read file");
+            }
+
+            // 2. Convert base64 to Blob/File
+            const byteCharacters = atob(result.content);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: result.mimeType });
+            const file = new File([blob], fileName, { type: result.mimeType });
+
+            // 3. Upload using Client SDK (same logic as PC upload)
+            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+            const { storage } = await import("@/lib/firebase-public");
+
+            const storageRef = ref(storage, `${directory}/${Date.now()}_${fileName}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(snapshot.ref);
+
+            setPreviewUrl(url);
+            onImageUploaded(url);
             setUploading(false);
             alert("업로드 성공!");
         } catch (error: any) {
+            console.error("Local Upload Error:", error);
             setUploading(false);
             alert(`실패: ${error.message}`);
         }
