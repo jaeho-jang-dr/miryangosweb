@@ -53,20 +53,17 @@ export default function ImageUpload({
                 return;
             }
 
-            const token = await user.getIdToken();
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("path", directory);
+            // Client-side upload using Firebase SDK
+            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+            const { storage } = await import("@/lib/firebase-public");
 
-            const result = await uploadImage(formData, token);
-
-            if (result.error) {
-                throw new Error(result.error);
-            }
+            const storageRef = ref(storage, `${directory}/${Date.now()}_${file.name}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(snapshot.ref);
 
             setProgress(100);
-            setPreviewUrl(result.url);
-            onImageUploaded(result.url!);
+            setPreviewUrl(url);
+            onImageUploaded(url);
             setUploading(false);
 
         } catch (error: any) {
