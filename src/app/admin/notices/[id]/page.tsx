@@ -31,10 +31,10 @@ export default function EditNoticePage() {
 
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                setTitle(data.title);
-                setBody(data.body);
-                setIsPinned(data.isPinned);
-                setIsVisible(data.isVisible);
+                setTitle(data.title || '');
+                setBody(data.body || '');
+                setIsPinned(data.isPinned || false);
+                setIsVisible(data.isVisible === undefined ? true : data.isVisible);
             } else {
                 alert('공지사항을 찾을 수 없습니다.');
                 router.push('/admin/notices');

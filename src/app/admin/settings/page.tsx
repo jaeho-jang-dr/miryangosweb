@@ -4,11 +4,28 @@ import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-public';
 import { doc, getDoc, setDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
 import { Save, Loader2, Database, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useAdminRole } from '@/hooks/useAdminRole';
+import { useRouter } from 'next/navigation';
 
 export default function AdminSettingsPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [seedLoading, setSeedLoading] = useState(false);
+
+    const { isAdmin, loading: roleLoading } = useAdminRole();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!roleLoading && !isAdmin) {
+            router.push('/admin');
+        }
+    }, [roleLoading, isAdmin, router]);
+
+    if (roleLoading) {
+        return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-8 h-8" /></div>;
+    }
+
+    if (!isAdmin) return null;
 
     // Clinic Info State
     const [clinicInfo, setClinicInfo] = useState({

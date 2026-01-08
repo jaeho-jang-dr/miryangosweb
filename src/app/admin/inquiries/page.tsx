@@ -15,7 +15,8 @@ interface Inquiry {
     message: string;
     status: 'new' | 'confirmed' | 'completed';
     createdAt: any;
-    datePref?: string; // For reservations
+    reservationDate?: string;
+    reservationTime?: string;
 }
 
 export default function InquiriesPage() {
@@ -70,7 +71,7 @@ export default function InquiriesPage() {
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">상태</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">구분</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">이름/연락처</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">내용 (요약)</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">예약 일시 / 내용</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">접수일</th>
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">상세보기</span></th>
                         </tr>
@@ -99,7 +100,17 @@ export default function InquiriesPage() {
                                         <div className="text-sm text-slate-500">{inquiry.contact}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-slate-500 truncate max-w-xs">{inquiry.message}</div>
+                                        {inquiry.type === 'reservation' && inquiry.reservationDate ? (
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center text-sm font-medium text-blue-600 gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    {inquiry.reservationDate} {inquiry.reservationTime}
+                                                </div>
+                                                <div className="text-xs text-slate-400 truncate max-w-xs">{inquiry.message}</div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-sm text-slate-500 truncate max-w-xs">{inquiry.message}</div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                                         {inquiry.createdAt?.toDate ? inquiry.createdAt.toDate().toLocaleDateString() : '-'}

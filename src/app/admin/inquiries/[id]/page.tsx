@@ -80,7 +80,7 @@ export default function InquiryDetailPage() {
                     </div>
                     <div className="flex items-center space-x-2">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${inquiry.status === 'new' ? 'bg-red-100 text-red-800' :
-                                inquiry.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                            inquiry.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                             }`}>
                             {inquiry.status === 'new' ? '신규' : inquiry.status === 'confirmed' ? '확인됨' : '완료'}
                         </span>
@@ -108,10 +108,10 @@ export default function InquiryDetailPage() {
 
                         {inquiry.type === 'reservation' && (
                             <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-lg border border-orange-100 dark:border-orange-900/20">
-                                <label className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider block mb-1">희망 예약일</label>
+                                <label className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider block mb-1">예약 희망 일시</label>
                                 <div className="flex items-center text-orange-900 dark:text-orange-200 font-bold text-lg">
                                     <Calendar className="h-5 w-5 mr-2" />
-                                    {inquiry.datePref || '날짜 미지정'}
+                                    {inquiry.reservationDate ? `${inquiry.reservationDate} ${inquiry.reservationTime}` : '날짜 미지정'}
                                 </div>
                             </div>
                         )}

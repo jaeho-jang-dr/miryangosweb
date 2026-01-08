@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import { Menu, X, Phone, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase-public';
 
 export default function PublicLayout({
     children,
@@ -13,6 +15,15 @@ export default function PublicLayout({
     children: React.ReactNode;
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+        });
+        return () => unsubscribe();
+    }, []);
+
     const [clinicInfo, setClinicInfo] = useState({
         name: '밀양정형외과',
         phone: '055-123-4567',
@@ -61,11 +72,14 @@ export default function PublicLayout({
             <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 dark:border-slate-800">
                 <div className="container mx-auto px-4 md:px-6">
                     <div className="flex h-16 items-center justify-between">
-                        <Link href="/" className="flex items-center space-x-2">
-                            <span className="text-xl font-bold tracking-tighter text-blue-600 dark:text-blue-400">
-                                {clinicInfo.name}
-                            </span>
-                        </Link>
+
+                        <div className="flex items-center gap-4">
+                            <Link href="/" className="flex items-center space-x-2">
+                                <span className="text-xl font-bold tracking-tighter text-blue-600 dark:text-blue-400">
+                                    {clinicInfo.name}
+                                </span>
+                            </Link>
+                        </div>
 
                         {/* Desktop Nav */}
                         <nav className="hidden md:flex items-center space-x-8">
@@ -78,6 +92,27 @@ export default function PublicLayout({
                         </nav>
 
                         <div className="hidden md:flex items-center space-x-4">
+                            {/* Login Status */}
+                            <div>
+                                {user ? (
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm("로그아웃 하시겠습니까?")) {
+                                                auth.signOut();
+                                            }
+                                        }}
+                                        className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                                    >
+                                        {user.displayName || '회원'}님
+                                    </button>
+                                ) : (
+                                    <Link href="/login" className="text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">
+                                        로그인
+                                    </Link>
+                                )}
+                            </div>
+                            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+
                             <div className="flex items-center text-slate-600 dark:text-slate-300">
                                 <Phone className="h-4 w-4 mr-2" />
                                 <span className="text-sm font-semibold">{clinicInfo.phone}</span>
@@ -124,7 +159,9 @@ export default function PublicLayout({
                 <div className="container mx-auto px-4 py-12 md:px-6">
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
                         <div className="space-y-4">
-                            <h4 className="text-lg font-bold text-slate-900 dark:text-white">{clinicInfo.name}</h4>
+                            <Link href="/admin/login" className="hover:opacity-80 transition-opacity">
+                                <h4 className="text-lg font-bold text-slate-900 dark:text-white">{clinicInfo.name}</h4>
+                            </Link>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
                                 환자 중심의 진료, 첨단 의료 기술로<br />
                                 여러분의 건강을 지킵니다.

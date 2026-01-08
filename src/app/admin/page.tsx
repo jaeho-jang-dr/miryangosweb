@@ -34,10 +34,6 @@ export default function AdminDashboardPage() {
                 const pendingSnap = await getDocs(pendingQuery);
                 const uncheckedInquiries = pendingSnap.size;
 
-                // Staff Count
-                const staffSnap = await getDocs(staffRef);
-                const staffCount = staffSnap.size;
-
                 // Today Visits
                 const visitsRef = collection(db, 'visits');
                 const today = new Date();
@@ -47,6 +43,12 @@ export default function AdminDashboardPage() {
                 const visitsQuery = query(visitsRef, where('visitDate', '>=', todayTimestamp));
                 const visitsSnap = await getDocs(visitsQuery);
                 const visitsCount = visitsSnap.size;
+
+                // Staff Count (Employees: admin, manager, operator)
+                const usersRef = collection(db, 'users');
+                const staffQuery = query(usersRef, where('role', 'in', ['admin', 'manager', 'operator']));
+                const staffSnap = await getDocs(staffQuery);
+                const staffCount = staffSnap.size;
 
                 setStats({
                     totalReservations,

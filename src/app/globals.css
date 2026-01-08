@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import 'react-day-picker/dist/style.css';
+
+@plugin 'tailwindcss-animate';
 
 :root {
   --background: #FFFFFF;

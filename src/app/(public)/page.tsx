@@ -167,7 +167,7 @@ export default function LandingPage() {
                                 오시는 길
                             </h2>
                             <p className="text-lg text-slate-600 dark:text-slate-300">
-                                {clinicInfo.name}은 환자분들의 편안한 방문을 위해<br />
+                                {clinicInfo.name}는 환자분들의 편안한 방문을 위해<br />
                                 넓은 주차 공간과 편리한 교통편을 제공합니다.
                             </p>
 
@@ -200,7 +200,7 @@ export default function LandingPage() {
                             {/* Google Map Embed */}
                             <div className="aspect-video bg-slate-200 dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg border border-slate-100 dark:border-slate-700">
                                 <iframe
-                                    src="https://maps.google.com/maps?q=경남%20밀양시%20중앙로%20451&t=m&z=17&output=embed&iwloc=near"
+                                    src="https://maps.google.com/maps?q=경상남도+밀양시+중앙로+451&t=m&z=17&output=embed&iwloc=near"
                                     className="w-full h-full border-0"
                                     loading="lazy"
                                     aria-label="Google Map"

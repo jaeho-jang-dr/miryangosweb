@@ -33,7 +33,7 @@ export default function EditStaffPage() {
                     const data = docSnap.data();
                     setFormData({
                         name: data.name,
-                        role: data.role,
+                        role: data.role || '',
                         specialties: data.specialties ? data.specialties.join(', ') : '',
                         imageUrl: data.imageUrl || '',
                         order: data.order || 0

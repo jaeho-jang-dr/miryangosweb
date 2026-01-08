@@ -1,11 +1,15 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase-public';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase-public';
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { Loader2, CheckCircle, AlertCircle, Calendar as CalendarIcon, Clock, MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { DayPicker } from 'react-day-picker';
+import { format, isSunday, isSaturday, setHours, setMinutes, addMinutes, isAfter, isBefore, addMonths } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { SocialLogin } from '@/components/social-login';
 
 export default function InquiryPage() {
     const router = useRouter();
@@ -22,11 +26,33 @@ export default function InquiryPage() {
         holidayInfo: '일요일, 공휴일'
     });
 
+    // Auth State
+    const [user, setUser] = useState<User | null>(null);
+
+    // Form Stats
+    const [formData, setFormData] = useState({
+        type: 'reservation', // reservation | inquiry
+        name: '',
+        contact: '',
+        message: '',
+        agreedToPolicy: false
+    });
+
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+    const [selectedTime, setSelectedTime] = useState<string | null>(null);
+    const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+    const [reservedSlots, setReservedSlots] = useState<Record<string, number>>({});
+
+    const [activeTab, setActiveTab] = useState<'new' | 'check'>('new');
+    const [checkForm, setCheckForm] = useState({ name: '', contact: '' });
+    const [myReservations, setMyReservations] = useState<any[]>([]);
+    const [hasSearched, setHasSearched] = useState(false);
+
+    // Load Clinic Settings
     useEffect(() => {
         const fetchSettings = async () => {
             try {
                 const { doc, getDoc } = await import('firebase/firestore');
-                const { db } = await import('@/lib/firebase-public');
                 const docRef = doc(db, 'settings', 'general');
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
@@ -39,17 +65,164 @@ export default function InquiryPage() {
         fetchSettings();
     }, []);
 
-    const [formData, setFormData] = useState({
-        type: 'reservation', // reservation | inquiry
-        name: '',
-        contact: '',
-        message: '',
-        agreedToPolicy: false
-    });
+    // Auth Listener
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            if (currentUser) {
+                if (!formData.name && currentUser.displayName) {
+                    setFormData(prev => ({ ...prev, name: currentUser.displayName! }));
+                }
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Fetch existing reservations for the selected date
+    useEffect(() => {
+        const fetchReservedSlots = async () => {
+            if (!selectedDate) {
+                setReservedSlots({});
+                return;
+            }
+
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            try {
+                const q = query(
+                    collection(db, 'inquiries'),
+                    where('reservationDate', '==', dateStr),
+                    where('type', '==', 'reservation')
+                );
+                const snapshot = await getDocs(q);
+
+                const counts: Record<string, number> = {};
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (data.reservationTime) {
+                        counts[data.reservationTime] = (counts[data.reservationTime] || 0) + 1;
+                    }
+                });
+                setReservedSlots(counts);
+            } catch (error) {
+                console.error("Failed to fetch slots:", error);
+            }
+        };
+
+        fetchReservedSlots();
+    }, [selectedDate]);
+
+    // Function to generate time slots
+    const getAvailableTimes = (date: Date) => {
+        if (isSunday(date)) return [];
+
+        const times: string[] = [];
+        const isSat = isSaturday(date);
+
+        let startTime = setMinutes(setHours(date, 8), 30); // 08:30
+        const endTime = isSat
+            ? setMinutes(setHours(date, 12), 30) // 12:30 for Saturday
+            : setMinutes(setHours(date, 17), 30); // 17:30 for Weekday
+
+        const lunchStart = setHours(date, 13); // 13:00
+        const lunchEnd = setHours(date, 14); // 14:00
+
+        while (isBefore(startTime, endTime)) {
+            const timeString = format(startTime, 'HH:mm');
+
+            // Skip lunch time on weekdays
+            if (!isSat && (isAfter(startTime, lunchStart) || startTime.getTime() === lunchStart.getTime()) && isBefore(startTime, lunchEnd)) {
+                startTime = addMinutes(startTime, 30);
+                continue;
+            }
+
+            times.push(timeString);
+            startTime = addMinutes(startTime, 30);
+        }
+        return times;
+    };
+
+    useEffect(() => {
+        setSelectedTime(null);
+        if (selectedDate) {
+            setAvailableTimes(getAvailableTimes(selectedDate));
+        } else {
+            setAvailableTimes([]);
+        }
+    }, [selectedDate]);
+
+    // Login Handlers
+    // Removed individual handlers in favor of SocialLogin component
+    // const handleGoogleLogin...
+    // const handleKakaoLogin...
+    // const handleNaverLogin...
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        setMyReservations([]);
+        setHasSearched(false);
+    };
+
+    const fetchMyReservations = async () => {
+        setIsLoading(true);
+        try {
+            let q;
+            const inquiriesRef = collection(db, 'inquiries');
+
+            if (user) {
+                q = query(
+                    inquiriesRef,
+                    where('userId', '==', user.uid),
+                    where('type', '==', 'reservation'),
+                    where('status', 'in', ['new', 'confirmed']),
+                    orderBy('createdAt', 'desc')
+                );
+            } else {
+                q = query(
+                    inquiriesRef,
+                    where('name', '==', checkForm.name),
+                    where('contact', '==', checkForm.contact),
+                    where('type', '==', 'reservation'),
+                    where('status', 'in', ['new', 'confirmed']),
+                    orderBy('createdAt', 'desc')
+                );
+            }
+
+            // Note: index might be required for compound queries
+            const querySnapshot = await getDocs(q);
+            const reservations = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as any[];
+
+            setMyReservations(reservations);
+            setHasSearched(true);
+        } catch (error) {
+            console.error("Error fetching reservations:", error);
+            if ((error as any).code === 'failed-precondition') {
+                // Index missing likely
+                alert("시스템 초기화 중입니다. 잠시 후 다시 시도해주세요. (Index building)");
+            } else {
+                alert("예약 조회 중 오류가 발생했습니다.");
+            }
+
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
+
+        if (formData.type === 'reservation') {
+            if (!user) {
+                alert("예약은 로그인이 필요합니다.");
+                return;
+            }
+            if (!selectedDate || !selectedTime) {
+                setError('예약 날짜와 시간을 선택해주세요.');
+                return;
+            }
+        }
 
         if (!formData.agreedToPolicy) {
             setError('개인정보 수집 및 이용에 동의해주세요.');
@@ -57,194 +230,486 @@ export default function InquiryPage() {
         }
 
         setIsLoading(true);
+        setError(null);
 
         try {
+            // 1. Check active reservation by User ID (if logged in)
+            const inquiriesRef = collection(db, 'inquiries');
+            if (user) {
+                const uidQuery = query(
+                    inquiriesRef,
+                    where('userId', '==', user.uid),
+                    where('type', '==', 'reservation'),
+                    where('status', 'in', ['new', 'confirmed'])
+                );
+                const uidSnapshot = await getDocs(uidQuery);
+                if (!uidSnapshot.empty) {
+                    if (confirm('이미 회원님 계정으로 접수된 예약이 있습니다.\n확인하시겠습니까? (예약 조회 탭으로 이동)')) {
+                        setActiveTab('check');
+                        setCheckForm({ name: formData.name, contact: formData.contact });
+                        // Optionally auto-trigger fetch in useEffect by checking tab change + user
+                        setTimeout(() => fetchMyReservations(), 100);
+                    }
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // 2. Check active reservation by Name + Contact (Cross-Account Identity Check)
+            const identityQuery = query(
+                inquiriesRef,
+                where('name', '==', formData.name),
+                where('contact', '==', formData.contact),
+                where('type', '==', 'reservation'),
+                where('status', 'in', ['new', 'confirmed'])
+            );
+            const identitySnapshot = await getDocs(identityQuery);
+            if (!identitySnapshot.empty) {
+                if (confirm('동일한 이름과 연락처로 이미 접수된 예약이 있습니다.\n확인하시겠습니까? (예약 조회 탭으로 이동)')) {
+                    setActiveTab('check');
+                    setCheckForm({ name: formData.name, contact: formData.contact });
+
+                    // If not logged in but found a match, we can pre-fill search (but need user action usually)
+                    // Or if matched by identity but not UID, we still want to show it? 
+                    // Showing reservations by just name/phone without auth is a privacy risk if auto-fetched.
+                    // So we just move to tab and prefill form, user must click 'check'.
+
+                    // However, if user IS logged in, fetchMyReservations will work by UID.
+                    // If user is NOT logged in, we prefill inputs so they just click 'Submit'.
+                }
+                setIsLoading(false);
+                return;
+            }
+
             await addDoc(collection(db, 'inquiries'), {
-                type: formData.type,
-                name: formData.name,
-                contact: formData.contact,
-                message: formData.message,
-                status: 'new', // new | confirmed | completed | cancelled
+                ...formData,
+                reservationDate: formData.type === 'reservation' ? format(selectedDate!, 'yyyy-MM-dd') : null,
+                reservationTime: selectedTime,
+                userId: user?.uid || null,
+                userEmail: user?.email || null,
                 createdAt: serverTimestamp(),
+                status: 'new'
             });
 
-            setIsSuccess(true);
+            alert(formData.type === 'reservation' ? '예약이 접수되었습니다.' : '문의가 등록되었습니다.');
+
             setFormData({
                 type: 'reservation',
-                name: '',
+                name: user?.displayName || '',
                 contact: '',
                 message: '',
                 agreedToPolicy: false
             });
+            setSelectedDate(undefined);
+            setSelectedTime(null);
 
-            // Optional: Redirect after a delay or keep showing success message
+            // Switch to check tab if reservation made? Optional.
+
         } catch (err) {
-            console.error("Error submitting inquiry:", err);
-            setError('문의 접수 중 오류가 발생했습니다. 다시 시도해주세요.');
+            console.error(err);
+            setError('처리 중 오류가 발생했습니다. 다시 시도해주세요.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (isSuccess) {
-        return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 text-center">
-                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
-                    <CheckCircle className="w-8 h-8" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">접수가 완료되었습니다.</h2>
-                <p className="text-slate-600 dark:text-slate-400 mb-8">
-                    담당자가 확인 후 빠른 시일 내에 연락드리겠습니다.
-                </p>
-                <button
-                    onClick={() => setIsSuccess(false)}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                    새로운 문의하기
-                </button>
-            </div>
-        );
-    }
+    const handleCheckReservations = async (e: React.FormEvent) => {
+        e.preventDefault();
+        fetchMyReservations();
+    };
+
+    const handleCancelReservation = async (id: string, date: string, time: string) => {
+        if (!confirm(`${date} ${time} 예약을 취소하시겠습니까?`)) return;
+
+        try {
+            await deleteDoc(doc(db, 'inquiries', id));
+            alert('예약이 취소되었습니다.');
+
+            // Refresh
+            if (user || hasSearched) {
+                fetchMyReservations();
+            }
+        } catch (error) {
+            console.error("Cancel failed", error);
+            alert('취소 중 오류가 발생했습니다.');
+        }
+    };
+
+    // Auto-fetch reservations when entering Check tab if logged in
+    useEffect(() => {
+        if (activeTab === 'check' && user) {
+            fetchMyReservations();
+        }
+    }, [activeTab, user]);
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-20">
-            <div className="text-center mb-12">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">예약 / 문의</h1>
-                <p className="text-slate-600 dark:text-slate-400">
-                    진료 예약이나 궁금한 점을 남겨주세요.<br />
-                    빠르고 친절하게 답변해 드리겠습니다.
-                </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Contact Info Sidebar */}
-                <div className="md:col-span-1 space-y-6">
-                    <div className="bg-blue-50 dark:bg-slate-900 p-6 rounded-2xl border border-blue-100 dark:border-slate-800">
-                        <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">진료 시간</h3>
-                        <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                            <div className="flex justify-between">
-                                <span>평일</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-200">{clinicInfo.weekdayHours}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>토요일</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-200">{clinicInfo.saturdayHours}</span>
-                            </div>
-                            <div className="pt-2 border-t border-blue-100 dark:border-slate-800 mt-2">
-                                <p className="text-xs">점심시간 {clinicInfo.lunchTime}</p>
-                                <p className="text-xs text-red-500 mt-1">
-                                    {clinicInfo.holidayInfo}{!clinicInfo.holidayInfo.includes('휴무') && !clinicInfo.holidayInfo.includes('휴진') && ' 휴진'}
-                                </p>
-                            </div>
-                        </div>
+        <div className="min-h-screen bg-white dark:bg-slate-950 pt-24 pb-12">
+            <div className="container mx-auto px-4">
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-12">
+                        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">예약 / 문의</h1>
+                        <p className="text-slate-600 dark:text-slate-400">진료 예약이나 궁금한 점을 남겨주세요.<br className="hidden md:block" />빠르고 친절하게 답변해 드리겠습니다.</p>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                        <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">병원 정보</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-xs text-slate-500 mb-1">전화문의</p>
-                                <p className="text-xl font-bold text-blue-600">{clinicInfo.phone}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                        <div className="md:col-span-1 space-y-4">
+                            <div className="bg-blue-50 dark:bg-slate-900 p-6 rounded-2xl border border-blue-100 dark:border-slate-800">
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">진료 시간</h3>
+                                <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                    <div className="flex justify-between">
+                                        <span>평일</span>
+                                        <span className="font-medium text-slate-900 dark:text-slate-200">{clinicInfo.weekdayHours}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>토요일</span>
+                                        <span className="font-medium text-slate-900 dark:text-slate-200">{clinicInfo.saturdayHours}</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-blue-100 dark:border-slate-800 mt-2">
+                                        <p className="text-xs">점심시간 {clinicInfo.lunchTime}</p>
+                                        <p className="text-xs text-red-500 mt-1">
+                                            {clinicInfo.holidayInfo}{!clinicInfo.holidayInfo.includes('휴무') && !clinicInfo.holidayInfo.includes('휴진') && ' 휴진'}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-xs text-slate-500 mb-1">주소</p>
-                                <p className="text-sm text-slate-700 dark:text-slate-300 break-keep">
-                                    {clinicInfo.address}
-                                </p>
+
+                            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">병원 정보</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-xs text-slate-500 mb-1">전화문의</p>
+                                        <p className="text-xl font-bold text-blue-600">{clinicInfo.phone}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500 mb-1">주소</p>
+                                        <p className="text-sm text-slate-700 dark:text-slate-300 break-keep">
+                                            {clinicInfo.address}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* Inquiry Form */}
-                <div className="md:col-span-2">
-                    <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="col-span-2 sm:col-span-1">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">문의 유형</label>
-                                <select
-                                    value={formData.type}
-                                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        {/* Main Content Area with Tabs */}
+                        <div className="md:col-span-2">
+                            <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6">
+                                <button
+                                    onClick={() => setActiveTab('new')}
+                                    className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'new'
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                        }`}
                                 >
-                                    <option value="reservation">진료 예약</option>
-                                    <option value="inquiry">일반 문의</option>
-                                </select>
+                                    예약/문의 신청
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('check')}
+                                    className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'check'
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                        }`}
+                                >
+                                    예약 조회/취소
+                                </button>
                             </div>
-                            <div className="col-span-2 sm:col-span-1">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">이름</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                    placeholder="홍길동"
-                                />
-                            </div>
-                        </div>
 
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">연락처</label>
-                            <input
-                                type="tel"
-                                required
-                                value={formData.contact}
-                                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="010-1234-5678"
-                            />
-                        </div>
+                            {activeTab === 'new' ? (
+                                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
 
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">내용</label>
-                            <textarea
-                                required
-                                rows={5}
-                                value={formData.message}
-                                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                                className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
-                                placeholder="문의하실 내용을 상세히 적어주세요. 예약의 경우 희망 날짜와 시간을 적어주시면 좋습니다."
-                            />
-                        </div>
+                                    {/* Inquiry Type Selection Check */}
+                                    <div className="mb-8">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">문의 유형</label>
+                                        <select
+                                            value={formData.type}
+                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                            aria-label="문의 유형 선택"
+                                        >
+                                            <option value="reservation">진료 예약</option>
+                                            <option value="inquiry">일반 문의</option>
+                                        </select>
+                                    </div>
 
-                        <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg mb-6">
-                            <input
-                                type="checkbox"
-                                id="policy"
-                                checked={formData.agreedToPolicy}
-                                onChange={(e) => setFormData({ ...formData, agreedToPolicy: e.target.checked })}
-                                className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                            />
-                            <label htmlFor="policy" className="text-sm text-slate-600 dark:text-slate-400">
-                                <span className="font-bold text-slate-900 dark:text-slate-200">[필수] 개인정보 수집 및 이용 동의</span><br />
-                                귀하는 개인정보 수집 및 이용에 동의하지 않을 권리가 있으며, 동의를 거부하실 경우 문의 접수가 제한됩니다.<br />
-                                수집 항목: 이름, 연락처 / 이용 목적: 문의 상담 및 예약 처리 / 보유 기간: 처리 완료 후 1년
-                            </label>
-                        </div>
+                                    {/* Authentication Check for Reservation */}
+                                    {formData.type === 'reservation' && !user ? (
+                                        <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">로그인이 필요합니다</h3>
+                                            <p className="text-slate-500 dark:text-slate-400 mb-6 font-medium">진료 예약은 본인 확인을 위해 로그인이 필수입니다.</p>
 
-                        {error && (
-                            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg dark:bg-red-900/20 dark:text-red-400 mb-6">
-                                <AlertCircle className="w-4 h-4" />
-                                {error}
-                            </div>
-                        )}
+                                            <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                                                <button
+                                                    onClick={() => router.push('/login?next=/inquiry')}
+                                                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+                                                >
+                                                    로그인하고 예약하기
+                                                </button>
+                                                <p className="text-xs text-center text-slate-500 mt-2">
+                                                    SNS 계정으로 간편하게 시작하세요
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <form onSubmit={handleSubmit}>
+                                            {/* Logged User Info Bar */}
+                                            {user && (
+                                                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        {user.photoURL ? (
+                                                            <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                                                                {user.displayName?.charAt(0) || 'U'}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <div className="font-bold text-slate-800 dark:text-slate-200">{user.displayName}님, 안녕하세요!</div>
+                                                            <div className="text-xs text-slate-500">{user.email}</div>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleLogout}
+                                                        className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 underline"
+                                                    >
+                                                        로그아웃
+                                                    </button>
+                                                </div>
+                                            )}
 
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg shadow-blue-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                    처리 중...
-                                </>
+                                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">이름</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={formData.name}
+                                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                                        placeholder="홍길동"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 sm:col-span-1">
+                                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">연락처</label>
+                                                    <input
+                                                        type="tel"
+                                                        required
+                                                        value={formData.contact}
+                                                        onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                                        placeholder="010-1234-5678"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {formData.type === 'reservation' && (
+                                                <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                                        <CalendarIcon className="w-4 h-4 text-blue-600" />
+                                                        예약 일시 선택
+                                                    </label>
+                                                    <div className="flex flex-col xl:flex-row gap-8">
+                                                        <div className="flex-none flex justify-center bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mx-auto xl:mx-0">
+                                                            <DayPicker
+                                                                mode="single"
+                                                                selected={selectedDate}
+                                                                onSelect={setSelectedDate}
+                                                                locale={ko}
+                                                                disabled={[
+                                                                    { before: new Date() }, // Disable past dates
+                                                                    { after: addMonths(new Date(), 6) }, // Disable more than 6 months ahead
+                                                                    (date) => isSunday(date) // Disable Sundays
+                                                                ]}
+                                                                classNames={{
+                                                                    day_selected: "bg-blue-600 text-white font-bold rounded-full transition-all duration-300 transform scale-110 shadow-lg ring-2 ring-blue-300 hover:bg-blue-700 hover:scale-110",
+                                                                    day_today: "text-blue-600 font-bold",
+                                                                    day: "p-2 rounded-full hover:bg-slate-100 transition-colors"
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1 space-y-2 min-w-[200px]">
+                                                            <label className="text-xs font-semibold text-slate-500">시간 선택 (최대 6명)</label>
+                                                            {selectedDate ? (
+                                                                availableTimes.length > 0 ? (
+                                                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-2">
+                                                                        {availableTimes.map((time) => {
+                                                                            const count = reservedSlots[time] || 0;
+                                                                            const isFull = count >= 6;
+                                                                            return (
+                                                                                <button
+                                                                                    key={time}
+                                                                                    type="button"
+                                                                                    disabled={isFull}
+                                                                                    onClick={() => !isFull && setSelectedTime(time)}
+                                                                                    className={`
+                                                                        relative px-2 py-3 text-sm rounded-lg border transition-all flex flex-col items-center justify-center gap-1
+                                                                        ${isFull
+                                                                                            ? 'bg-red-50 text-red-300 border-red-100 cursor-not-allowed opacity-50'
+                                                                                            : selectedTime === time
+                                                                                                ? 'bg-blue-600 text-white border-blue-600'
+                                                                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                                                                                        }
+                                                                    `}
+                                                                                >
+                                                                                    <span className={isFull ? 'text-red-300' : ''}>{time}</span>
+                                                                                    <span className={`text-[10px] ${selectedTime === time ? 'text-blue-100' : isFull ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
+                                                                                        {isFull ? '(6/6)' : `(${count}/6)`}
+                                                                                    </span>
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-sm text-red-500 py-4 text-center bg-red-50 rounded-lg">예약 가능한 시간이 없습니다.</div>
+                                                                )
+                                                            ) : (
+                                                                <div className="text-sm text-slate-400 py-4 text-center bg-slate-100 dark:bg-slate-800 rounded-lg">측면 달력에서<br />날짜를 먼저 선택해주세요.</div>
+                                                            )}
+                                                            {selectedDate && selectedTime && (
+                                                                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center gap-2 text-blue-600 dark:text-blue-300 text-sm font-medium">
+                                                                    <Clock className="w-4 h-4" />
+                                                                    선택함: {format(selectedDate, 'M월 d일', { locale: ko })} {selectedTime}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="mb-6">
+                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                    {formData.type === 'reservation' ? '증상 및 요청사항' : '내용'}
+                                                </label>
+                                                <textarea
+                                                    required
+                                                    rows={5}
+                                                    value={formData.message}
+                                                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                                                    placeholder={formData.type === 'reservation' ? "증상을 간단히 적어주세요." : "문의하실 내용을 상세히 적어주세요."}
+                                                />
+                                            </div>
+
+                                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg mb-6">
+                                                <input
+                                                    type="checkbox"
+                                                    id="policy"
+                                                    checked={formData.agreedToPolicy}
+                                                    onChange={(e) => setFormData({ ...formData, agreedToPolicy: e.target.checked })}
+                                                    className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="policy" className="text-sm text-slate-600 dark:text-slate-400">
+                                                    <span className="font-bold text-slate-900 dark:text-slate-200">[필수] 개인정보 수집 및 이용 동의</span><br />
+                                                    귀하는 개인정보 수집 및 이용에 동의하지 않을 권리가 있으며, 동의를 거부하실 경우 문의 접수가 제한됩니다.<br />
+                                                    수집 항목: 이름, 연락처 / 이용 목적: 문의 상담 및 예약 처리 / 보유 기간: 처리 완료 후 1년
+                                                </label>
+                                            </div>
+
+                                            {error && (
+                                                <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg dark:bg-red-900/20 dark:text-red-400 mb-6">
+                                                    <AlertCircle className="w-4 h-4" />
+                                                    {error}
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="submit"
+                                                disabled={isLoading}
+                                                className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg shadow-blue-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                            >
+                                                {isLoading ? (
+                                                    <>
+                                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                        처리 중...
+                                                    </>
+                                                ) : (
+                                                    formData.type === 'reservation' ? '예약 신청하기' : '문의하기'
+                                                )}
+                                            </button>
+                                        </form>
+                                    )}
+                                </div>
                             ) : (
-                                '문의하기'
+                                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+                                    <h3 className="text-lg font-bold mb-6">내 예약 조회</h3>
+                                    {user && (
+                                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl flex items-center justify-between">
+                                            <div className="font-medium text-blue-800 dark:text-blue-200">
+                                                {user.displayName}님의 예약 내역입니다.
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!user && (
+                                        <form onSubmit={handleCheckReservations} className="mb-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">이름</label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={checkForm.name}
+                                                        onChange={(e) => setCheckForm({ ...checkForm, name: e.target.value })}
+                                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
+                                                        placeholder="예약자 성함"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">연락처</label>
+                                                    <input
+                                                        type="tel"
+                                                        required
+                                                        value={checkForm.contact}
+                                                        onChange={(e) => setCheckForm({ ...checkForm, contact: e.target.value })}
+                                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
+                                                        placeholder="010-1234-5678"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button type="submit" className="w-full py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">
+                                                비회원 예약 조회하기
+                                            </button>
+                                        </form>
+                                    )}
+
+                                    {hasSearched ? (
+                                        <div className="space-y-4">
+                                            {myReservations.length > 0 ? (
+                                                myReservations.map((res) => (
+                                                    <div key={res.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 dark:bg-slate-900/30 flex justify-between items-center">
+                                                        <div>
+                                                            <div className="font-bold text-lg text-blue-600 mb-1">
+                                                                {res.reservationDate} {res.reservationTime}
+                                                            </div>
+                                                            <div className="text-sm text-slate-600">
+                                                                {res.name}님 ({res.status === 'new' ? '접수 대기' : '예약 확정'})
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleCancelReservation(res.id, res.reservationDate, res.reservationTime)}
+                                                            className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                                                        >
+                                                            예약 취소
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-8 text-slate-500">
+                                                    예약 내역이 없습니다.
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        user && (
+                                            <div className="text-center py-8">
+                                                <Loader2 className="w-8 h-8 mx-auto animate-spin text-blue-600" />
+                                                <div className="mt-2 text-slate-500">예약 내역을 불러오는 중입니다...</div>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
                             )}
-                        </button>
-                    </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

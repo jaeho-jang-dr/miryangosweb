@@ -5,7 +5,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
-import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope } from 'lucide-react';
+import { useAdminRole } from '@/hooks/useAdminRole';
+import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function AdminLayout({
@@ -22,6 +23,7 @@ export default function AdminLayout({
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     const { user, signOut } = useAdminAuth();
+    const { role, loading: roleLoading, isAdmin, isManager } = useAdminRole();
     const pathname = usePathname();
 
     // Don't show layout on login page
@@ -45,7 +47,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     <NavItem href="/admin/users" label="회원 관리" icon={<UserIcon className="h-4 w-4" />} active={pathname.startsWith('/admin/users')} />
                     <NavItem href="/admin/notices" label="공지사항 관리" icon={<Megaphone className="h-4 w-4" />} active={pathname.startsWith('/admin/notices')} />
                     <NavItem href="/admin/staff" label="의료진 관리" icon={<Stethoscope className="h-4 w-4" />} active={pathname.startsWith('/admin/staff')} />
-                    <NavItem href="/admin/inquiries" label="문의/예약" icon={<Calendar className="h-4 w-4" />} active={pathname.startsWith('/admin/inquiries')} />
+                    <NavItem href="/admin/inquiries" label="문의/예약" icon={<MessageSquare className="h-4 w-4" />} active={pathname.startsWith('/admin/inquiries')} />
+                    <NavItem href="/admin/reservations" label="예약 현황" icon={<Calendar className="h-4 w-4" />} active={pathname.startsWith('/admin/reservations')} />
                     <NavItem href="/admin/articles" label="자료실 관리" icon={<FileText className="h-4 w-4" />} active={pathname.startsWith('/admin/articles')} />
 
                     <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
@@ -55,11 +58,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 <div className="p-4 border-t border-slate-200 dark:border-slate-700">
                     <div className="mb-4 flex items-center px-4">
                         <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold">
-                            A
+                            {role && role.charAt(0).toUpperCase()}
                         </div>
                         <div className="ml-3">
-                            <p className="text-sm font-medium text-slate-900 dark:text-white">Admin</p>
+                            <p className="text-sm font-medium text-slate-900 dark:text-white">{user?.displayName || 'Admin'}</p>
                             <p className="text-xs text-slate-500 truncate w-32">{user?.email}</p>
+                            <p className="text-[10px] text-blue-600 dark:text-blue-400 capitalize mt-0.5">{role || 'Loading...'}</p>
                         </div>
                     </div>
                     <button
