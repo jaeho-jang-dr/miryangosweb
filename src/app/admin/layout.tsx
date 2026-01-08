@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
 import { useAdminRole } from '@/hooks/useAdminRole';
-import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare, Activity, Building } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function AdminLayout({
@@ -44,6 +44,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 </div>
                 <nav className="flex-1 p-4 space-y-1">
                     <NavItem href="/admin" label="대시보드" icon={<LayoutDashboard className="h-4 w-4" />} active={pathname === '/admin'} />
+                    <NavItem href="/clinical" label="환자 관리 (진료실)" icon={<Activity className="h-4 w-4" />} active={pathname.startsWith('/clinical')} />
                     <NavItem href="/admin/users" label="회원 관리" icon={<UserIcon className="h-4 w-4" />} active={pathname.startsWith('/admin/users')} />
                     <NavItem href="/admin/notices" label="공지사항 관리" icon={<Megaphone className="h-4 w-4" />} active={pathname.startsWith('/admin/notices')} />
                     <NavItem href="/admin/staff" label="의료진 관리" icon={<Stethoscope className="h-4 w-4" />} active={pathname.startsWith('/admin/staff')} />
@@ -52,6 +53,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     <NavItem href="/admin/articles" label="자료실 관리" icon={<FileText className="h-4 w-4" />} active={pathname.startsWith('/admin/articles')} />
 
                     <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+                        <NavItem href="/admin/basic" label="기초 자료 관리" icon={<Building className="h-4 w-4" />} active={pathname.startsWith('/admin/basic')} />
                         <NavItem href="/admin/settings" label="설정" icon={<Settings className="h-4 w-4" />} active={pathname.startsWith('/admin/settings')} />
                     </div>
                 </nav>

@@ -1,5 +1,5 @@
 
-export type ClinicalStatus = 'reception' | 'consulting' | 'testing' | 'treatment' | 'completed';
+export type ClinicalStatus = 'reception' | 'consulting' | 'testing' | 'treatment' | 'completed' | 'paid';
 
 export interface Patient {
     id: string;
@@ -21,7 +21,8 @@ export interface Visit {
     date: any; // Timestamp
     status: ClinicalStatus;
 
-    // Reception Data
+    testResult?: string; // Lab/Imaging Result
+    testStatus?: 'ordered' | 'processing' | 'completed';
     type: 'new' | 'return'; // New patient or existing
     insuranceType?: 'nhis' | 'auto' | 'none'; // National Health, Auto Insurance, etc.
 
@@ -29,6 +30,8 @@ export interface Visit {
     chiefComplaint?: string; // CC
     history?: string; // History of Present Illness
     symptoms?: string[];
+    physicalExam?: string; // Objective (Physical Exam / Lab)
+    testOrder?: string;    // Objective (Orders)
     diagnosis?: string;
 
     // Plan/Orders

@@ -48,7 +48,8 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                         <NavItem href="/clinical" label="대시보드" active={pathname === '/clinical'} />
                         <NavItem href="/clinical/reception" label="접수/수납" active={pathname.startsWith('/clinical/reception')} />
                         <NavItem href="/clinical/consulting" label="진료실" active={pathname.startsWith('/clinical/consulting')} />
-                        <NavItem href="/clinical/treatment" label="처치실" active={pathname.startsWith('/clinical/treatment')} />
+                        <NavItem href="/clinical/treatment" label="치료실" active={pathname.startsWith('/clinical/treatment')} />
+                        <NavItem href="/clinical/lab" label="검사실" active={pathname.startsWith('/clinical/lab')} />
                         <NavItem href="/clinical/records" label="기록조회" active={pathname.startsWith('/clinical/records')} />
                     </div>
 
@@ -112,7 +113,8 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                             <MobileNavItem href="/clinical" label="대시보드" onClick={() => setIsMobileMenuOpen(false)} active={pathname === '/clinical'} />
                             <MobileNavItem href="/clinical/reception" label="접수/수납" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/reception')} />
                             <MobileNavItem href="/clinical/consulting" label="진료실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/consulting')} />
-                            <MobileNavItem href="/clinical/treatment" label="처치실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/treatment')} />
+                            <MobileNavItem href="/clinical/treatment" label="치료실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/treatment')} />
+                            <MobileNavItem href="/clinical/lab" label="검사실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/lab')} />
                             <MobileNavItem href="/clinical/records" label="기록조회" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/records')} />
                         </div>
                     </motion.div>

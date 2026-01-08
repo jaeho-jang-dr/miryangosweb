@@ -6,7 +6,7 @@ import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'fireba
 import { db } from '@/lib/firebase-clinical';
 import { Users, Clock, AlertCircle, Calendar, FileText, Activity, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
-import { startOfDay } from 'date-fns';
+import { startOfDay, subDays } from 'date-fns';
 import { Visit } from '@/types/clinical';
 
 export default function ClinicalDashboard() {
@@ -18,10 +18,10 @@ export default function ClinicalDashboard() {
     });
     const [waitingList, setWaitingList] = useState<Visit[]>([]);
     const [loading, setLoading] = useState(true);
-
+    // ...
     useEffect(() => {
-        // Real-time subscription to today's visits
-        const today = startOfDay(new Date());
+        // Real-time subscription to visits (Matching Reception Page's 7-day window)
+        const today = subDays(startOfDay(new Date()), 7);
 
         const q = query(
             collection(db, 'visits'),

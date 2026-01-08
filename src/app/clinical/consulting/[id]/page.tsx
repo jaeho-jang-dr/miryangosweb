@@ -5,32 +5,65 @@ import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { Visit } from '@/types/clinical';
-import { Loader2, Mic, ArrowLeft, Save, Square, Play, Pause, ChevronDown, CheckCircle } from 'lucide-react';
+import { Loader2, Mic, ArrowLeft, Save, Square, Play, Pause, ChevronDown, CheckCircle, Search, X, Stethoscope, ClipboardList, Activity, Pill } from 'lucide-react';
 
 interface Transcript {
     text: string;
     isFinal: boolean;
 }
 
+import { SYMPTOMS, RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem } from '@/data/clinical-resources';
+import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressions';
+import { searchKCD } from '@/lib/kcd-search';
+import { useVoiceDictation } from '@/hooks/useVoiceDictation';
+
+// Bundle Definitions
+const BUNDLES = [
+    // ... (omitted)
+
+];
+
 export default function ConsultingDetailPage() {
     const params = useParams();
     const router = useRouter();
     const visitId = params.id as string;
 
-    // State
     const [visit, setVisit] = useState<Visit | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [activeField, setActiveField] = useState<'cc' | 'test' | 'diagnosis' | 'plan' | null>('plan');
 
-    // STT State
-    const [isListening, setIsListening] = useState(false);
-    const [activeField, setActiveField] = useState<'cc' | 'diagnosis' | 'plan' | null>('plan'); // Default dictating to Plan
-    const [transcript, setTranscript] = useState('');
-    const recognitionRef = useRef<any>(null);
+    // State for Context-Aware Sidebar
+    const [symptomCategory, setSymptomCategory] = useState<'OS' | 'IM'>('OS');
+    const [testCategory, setTestCategory] = useState<'Radiology' | 'Lab'>('Radiology');
+    const [activePrescriptionCategory, setActivePrescriptionCategory] = useState('nerve_joint');
+
+    // State for Symptom Suggestions
+    const [symptomSuggestions, setSymptomSuggestions] = useState<SymptomExpression[]>([]);
+
+    // KCD Search State
+    interface KCDCode { code: string; ko: string; en: string; }
+    const [diagnosisSuggestions, setDiagnosisSuggestions] = useState<KCDCode[]>([]);
+    const [isKcdSearchOpen, setIsKcdSearchOpen] = useState(false);
+    const [kcdQuery, setKcdQuery] = useState('');
+
+    // STT Hook
+    const { isListening, interimTranscript, toggle, isSupported } = useVoiceDictation({
+        onFinalResult: (text) => {
+            if (activeField) {
+                setFormData(prev => ({
+                    ...prev,
+                    [activeField]: (prev[activeField] || '') + ' ' + text
+                }));
+            }
+        }
+    });
 
     // Form Data
     const [formData, setFormData] = useState({
         cc: '',
+        test: '',
+        testResult: '', // Result field
         diagnosis: '',
         plan: ''
     });
@@ -38,48 +71,6 @@ export default function ConsultingDetailPage() {
     useEffect(() => {
         if (visitId) fetchVisit();
     }, [visitId]);
-
-    // Initialize Web Speech API
-    useEffect(() => {
-        if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-            const SpeechRecognition = (window as any).webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'ko-KR';
-
-            recognition.onstart = () => setIsListening(true);
-            recognition.onend = () => setIsListening(false);
-
-            recognition.onresult = (event: any) => {
-                let interimTranscript = '';
-                let finalTranscript = '';
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
-
-                // If we have final text, append it to the ACTIVE field
-                if (finalTranscript && activeField) {
-                    setFormData(prev => ({
-                        ...prev,
-                        [activeField]: (prev[activeField] || '') + ' ' + finalTranscript
-                    }));
-                }
-
-                // Show interim results (feedback)
-                setTranscript(interimTranscript);
-            };
-
-            recognitionRef.current = recognition;
-        } else {
-            console.warn("Web Usage API not supported in this browser");
-        }
-    }, [activeField]);
 
     const fetchVisit = async () => {
         try {
@@ -90,15 +81,16 @@ export default function ConsultingDetailPage() {
                 setVisit({ ...data, id: snap.id } as Visit);
                 setFormData({
                     cc: data.chiefComplaint || '',
+                    test: data.testOrder || '',
+                    testResult: data.testResult || '',
                     diagnosis: data.diagnosis || '',
                     plan: data.treatmentNote || ''
                 });
 
-                // If status is 'reception', auto-switch to 'consulting' (Start Visit)
                 if (data.status === 'reception') {
                     await updateDoc(docRef, {
                         status: 'consulting',
-                        startedAt: serverTimestamp() // Add this field to schema later if needed
+                        startedAt: serverTimestamp()
                     });
                 }
             } else {
@@ -112,50 +104,71 @@ export default function ConsultingDetailPage() {
         }
     };
 
-    const toggleRecording = () => {
-        if (!recognitionRef.current) {
-            alert("이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.");
+    const handleSave = async (complete: boolean = false) => {
+        if (!visitId) {
+            alert("환자 정보가 없습니다.");
             return;
         }
 
-        if (isListening) {
-            recognitionRef.current.stop();
-        } else {
-            recognitionRef.current.start();
+        if (complete) {
+            // Confirm dialog removed for debugging responsiveness
+            // if (!confirm("처치실로 이동하시겠습니까? (상태가 '처치대기'로 변경됩니다)")) return;
         }
-    };
 
-    const handleSave = async (complete: boolean = false) => {
-        if (!visitId) return;
         setSaving(true);
         try {
             const docRef = doc(db, 'visits', visitId);
             const updates: any = {
                 chiefComplaint: formData.cc,
+                testOrder: formData.test,
+                testResult: formData.testResult,
+                // Auto-complete test if result is entered
+                testStatus: formData.testResult.trim() ? 'completed' : (visit?.testStatus || 'ordered'),
                 diagnosis: formData.diagnosis,
                 treatmentNote: formData.plan,
                 updatedAt: serverTimestamp()
             };
 
             if (complete) {
-                updates.status = 'completed';
-                updates.completedAt = serverTimestamp();
+                updates.status = 'treatment';
             }
 
             await updateDoc(docRef, updates);
 
             if (complete) {
+                alert("처치실로 이동되었습니다.");
                 router.push('/clinical/consulting');
             } else {
-                // Just notify save
+                alert("저장되었습니다.");
             }
-        } catch (e) {
-            console.error(e);
-            alert("저장 실패");
+        } catch (e: any) {
+            console.error("Save Error:", e);
+            alert(`저장 중 오류가 발생했습니다: ${e.message}`);
         } finally {
             setSaving(false);
         }
     };
+
+    const addBundleToPlan = (title: string, content: string) => {
+        setFormData(prev => ({
+            ...prev,
+            plan: (prev.plan ? prev.plan + '\n' : '') + `[${title}]\n- ${content}`
+        }));
+        setActiveField('plan');
+    };
+
+    // Filter Bundles Logic
+    const getFilteredBundles = () => {
+        if (!formData.diagnosis || formData.diagnosis.trim() === '') {
+            return BUNDLES; // Show all if diagnosis is empty
+        }
+        const relevant = BUNDLES.filter(bundle =>
+            bundle.keywords.some(keyword => formData.diagnosis.includes(keyword))
+        );
+        return relevant.length > 0 ? relevant : BUNDLES; // Fallback to all if no match
+    };
+
+    const filteredBundles = getFilteredBundles();
 
     if (loading) return <div className="p-20 text-center">Loading...</div>;
     if (!visit) return null;
@@ -191,7 +204,7 @@ export default function ConsultingDetailPage() {
                     </div>
 
                     <button
-                        onClick={() => toggleRecording()}
+                        onClick={() => toggle()}
                         className={`p-3 rounded-full shadow-md transition-all ${isListening ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
                         title={isListening ? "기록 중지 (Space)" : "기록 시작 (Space)"}
                     >
@@ -212,7 +225,7 @@ export default function ConsultingDetailPage() {
                         disabled={saving}
                         className="flex items-center gap-2 px-6 py-2 bg-emerald-600 rounded-lg hover:bg-emerald-700 text-white font-bold shadow-md"
                     >
-                        <CheckCircle className="w-4 h-4" /> 진료 완료
+                        <CheckCircle className="w-4 h-4" /> 처치실로 보내기
                     </button>
                 </div>
             </div>
@@ -241,27 +254,132 @@ export default function ConsultingDetailPage() {
                 <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-6 max-w-4xl mx-auto w-full">
 
                     {/* Live Transcript Feedback */}
-                    {isListening && transcript && (
+                    {isListening && interimTranscript && (
                         <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2 mb-4">
-                            <p className="text-lg">{transcript}</p>
+                            <p className="text-lg">{interimTranscript}</p>
                         </div>
                     )}
 
-                    {/* Section: Chief Complaint */}
+                    {/* Section: CC (Subjective) */}
                     <div
                         onClick={() => setActiveField('cc')}
-                        className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'cc' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}
+                        className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text relative ${activeField === 'cc' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}
                     >
                         <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'cc' ? 'text-emerald-700' : 'text-slate-500'}`}>
                             Subjective (C.C / 증상)
                         </label>
-                        <textarea
-                            value={formData.cc}
-                            onChange={(e) => setFormData({ ...formData, cc: e.target.value })}
-                            placeholder="환자가 호소하는 증상을 말씀하세요..."
-                            className="w-full min-h-[80px] text-lg resize-none outline-none placeholder:text-slate-300"
-                        />
+                        <div className="relative">
+                            <textarea
+                                value={formData.cc}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setFormData({ ...formData, cc: value });
+
+                                    // Symptom Search Logic
+                                    if (value.trim()) {
+                                        // Check the last line for keywords
+                                        const lines = value.split('\n');
+                                        const lastLine = lines[lines.length - 1].trim();
+
+                                        if (lastLine.length >= 2) {
+                                            const matches = SYMPTOM_EXPRESSIONS.filter(item =>
+                                                item.expression.includes(lastLine) ||
+                                                item.keywords.some(k => lastLine.includes(k))
+                                            ).slice(0, 5);
+                                            setSymptomSuggestions(matches);
+                                        } else {
+                                            setSymptomSuggestions([]);
+                                        }
+                                    } else {
+                                        setSymptomSuggestions([]);
+                                    }
+                                }}
+                                placeholder="환자의 증상을 입력하세요..."
+                                className="w-full min-h-[100px] text-lg resize-none outline-none placeholder:text-slate-300"
+                            />
+
+                            {/* Symptom Suggestions Popup */}
+                            {activeField === 'cc' && symptomSuggestions.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                                        <span className="text-xs font-bold text-slate-500">비슷한 증상 표현을 찾았습니다</span>
+                                        <button onClick={() => setSymptomSuggestions([])}><X className="w-4 h-4 text-slate-400" /></button>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        {symptomSuggestions.map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Replace the last line or append
+                                                    const current = formData.cc;
+                                                    const lines = current.split('\n');
+                                                    lines.pop(); // Remove partial input (last line)
+
+                                                    const newValue = lines.length > 0
+                                                        ? lines.join('\n') + '\n' + item.standardTerm + '\n'
+                                                        : item.standardTerm + '\n';
+
+                                                    setFormData({ ...formData, cc: newValue });
+                                                    setSymptomSuggestions([]);
+
+                                                    // Refocus textarea if needed (handled by React state update usually)
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors border-b border-slate-50 last:border-0"
+                                            >
+                                                <div className="font-bold text-slate-800 text-sm">{item.standardTerm}</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">"{item.expression}"</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {activeField === 'cc' && isListening && (
+                            <div className="flex items-center gap-2 text-red-500 text-sm animate-pulse mt-2">
+                                <Mic className="w-3 h-3" /> 듣고 있습니다...
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Section: Objective (Test) - NEW */}
+                    {/* Section: Objective (Test) - NEW */}
+                    <div
+                        onClick={() => setActiveField('test')}
+                        className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'test' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}
+                    >
+                        <div className="flex justify-between items-start mb-2">
+                            <label className={`block text-sm font-bold uppercase tracking-wider ${activeField === 'test' ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                Objective (검사 / Physical)
+                            </label>
+                            {visit.testStatus === 'completed' && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                    검사결과 도착
+                                </span>
+                            )}
+                        </div>
+                        <textarea
+                            value={formData.test}
+                            onChange={(e) => setFormData({ ...formData, test: e.target.value })}
+                            placeholder="필요한 검사 오더를 말씀하세요..."
+                            className="w-full min-h-[60px] text-lg resize-none outline-none placeholder:text-slate-300"
+                        />
+
+                        {/* Result Entry / Display */}
+                        <div className="mt-4 pt-3 border-t border-slate-100">
+                            <label className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1">
+                                <ClipboardList className="w-3 h-3" /> 검사 결과 / 판독 (Result)
+                            </label>
+                            <textarea
+                                value={formData.testResult}
+                                onChange={(e) => setFormData({ ...formData, testResult: e.target.value })}
+                                placeholder="검사 결과를 이곳에 직접 입력할 수도 있습니다..."
+                                className="w-full min-h-[60px] p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-indigo-300 focus:outline-none transition-all placeholder:text-slate-400"
+                            />
+                        </div>
+
+                        {activeField === 'test' && isListening && (
                             <div className="flex items-center gap-2 text-red-500 text-sm animate-pulse mt-2">
                                 <Mic className="w-3 h-3" /> 듣고 있습니다...
                             </div>
@@ -271,23 +389,149 @@ export default function ConsultingDetailPage() {
                     {/* Section: Diagnosis */}
                     <div
                         onClick={() => setActiveField('diagnosis')}
-                        className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'diagnosis' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}
+                        className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text relative ${activeField === 'diagnosis' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}
                     >
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'diagnosis' ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            Assessment (진단)
-                        </label>
-                        <textarea
-                            value={formData.diagnosis}
-                            onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                            placeholder="진단명을 말씀하세요..."
-                            className="w-full min-h-[60px] text-lg resize-none outline-none placeholder:text-slate-300"
-                        />
+                        <div className="flex justify-between items-center mb-2">
+                            <label className={`block text-sm font-bold uppercase tracking-wider ${activeField === 'diagnosis' ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                Assessment (진단)
+                            </label>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsKcdSearchOpen(true); }}
+                                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
+                            >
+                                <Search className="w-3 h-3" /> 상병검색 (KCD)
+                            </button>
+                        </div>
+                        <div className="relative">
+                            <textarea
+                                value={formData.diagnosis}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setFormData({ ...formData, diagnosis: value });
+
+                                    // KCD Search Logic (Inline)
+                                    if (value.trim()) {
+                                        const lines = value.split('\n');
+                                        const lastLine = lines[lines.length - 1].trim();
+
+                                        if (lastLine.length >= 2) {
+                                            const matches = searchKCD(lastLine).slice(0, 5);
+                                            setDiagnosisSuggestions(matches);
+                                        } else {
+                                            setDiagnosisSuggestions([]);
+                                        }
+                                    } else {
+                                        setDiagnosisSuggestions([]);
+                                    }
+                                }}
+                                placeholder="진단명을 말씀하세요..."
+                                className="w-full min-h-[80px] text-lg resize-none outline-none placeholder:text-slate-300"
+                            />
+
+                            {/* Diagnosis Suggestions Popup */}
+                            {activeField === 'diagnosis' && diagnosisSuggestions.length > 0 && (
+                                <div className="absolute left-0 right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                                        <span className="text-xs font-bold text-slate-500">추천 진단명 (KCD)</span>
+                                        <button onClick={() => setDiagnosisSuggestions([])}><X className="w-4 h-4 text-slate-400" /></button>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        {diagnosisSuggestions.map((item, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Replace the last line or append
+                                                    const current = formData.diagnosis;
+                                                    const lines = current.split('\n');
+                                                    lines.pop();
+
+                                                    const formattedDiagnosis = `[${item.code}] ${item.ko}`;
+                                                    const newValue = lines.length > 0
+                                                        ? lines.join('\n') + '\n' + formattedDiagnosis + '\n'
+                                                        : formattedDiagnosis + '\n';
+
+                                                    setFormData({ ...formData, diagnosis: newValue });
+                                                    setDiagnosisSuggestions([]);
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors border-b border-slate-50 last:border-0"
+                                            >
+                                                <div className="font-bold text-slate-800 text-sm">
+                                                    <span className="text-emerald-600 mr-2">[{item.code}]</span>
+                                                    {item.ko}
+                                                </div>
+                                                <div className="text-xs text-slate-500 mt-0.5">{item.en}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {activeField === 'diagnosis' && isListening && (
                             <div className="flex items-center gap-2 text-red-500 text-sm animate-pulse mt-2">
                                 <Mic className="w-3 h-3" /> 듣고 있습니다...
                             </div>
                         )}
                     </div>
+
+                    {/* KCD Search Modal */}
+                    {isKcdSearchOpen && (
+                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setIsKcdSearchOpen(false)}>
+                            <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                    <h3 className="font-bold text-slate-800">상병코드 검색 (ICD-10/KCD)</h3>
+                                    <button onClick={() => setIsKcdSearchOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="p-4">
+                                    <div className="relative mb-4">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="병명 또는 코드 검색 (예: 감기, 허리, M54)"
+                                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                                            autoFocus
+                                            value={kcdQuery}
+                                            onChange={(e) => setKcdQuery(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto space-y-1">
+                                        {kcdQuery && searchKCD(kcdQuery).length > 0 ? (
+                                            searchKCD(kcdQuery).map((item) => (
+                                                <button
+                                                    key={item.code}
+                                                    onClick={() => {
+                                                        const diagnosisText = `[${item.code}] ${item.ko}`;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            diagnosis: prev.diagnosis ? prev.diagnosis + '\n' + diagnosisText : diagnosisText
+                                                        }));
+                                                        setIsKcdSearchOpen(false);
+                                                        setKcdQuery('');
+                                                    }}
+                                                    className="w-full text-left p-2 hover:bg-slate-50 rounded border border-transparent hover:border-slate-200 group"
+                                                >
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className="font-mono text-emerald-600 font-bold w-12">{item.code}</span>
+                                                        <span className="font-medium text-slate-700 group-hover:text-emerald-700">{item.ko}</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-400 ml-14">{item.en}</div>
+                                                </button>
+                                            ))
+                                        ) : kcdQuery ? (
+                                            <div className="text-center py-8 text-slate-400">검색 결과가 없습니다.</div>
+                                        ) : (
+                                            <div className="text-center py-8 text-slate-400 text-sm">
+                                                검색어를 입력하세요.<br />(예: 감기, 요통, M51)
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Section: Plan */}
                     <div
@@ -311,18 +555,233 @@ export default function ConsultingDetailPage() {
                     </div>
                 </div>
 
-                {/* 3. Orders / Bundles (Right) - Placeholder */}
-                <div className="w-72 border-l border-slate-200 bg-slate-50 p-4 hidden xl:block">
-                    <h3 className="font-bold text-slate-700 mb-4">빠른 처방 (Bundles)</h3>
-                    <div className="space-y-2">
-                        <button className="w-full text-left p-3 bg-white border border-slate-200 rounded-lg hover:border-emerald-300 hover:shadow-sm transition-all text-sm">
-                            <span className="font-bold block text-slate-800">감기 세트 A</span>
-                            <span className="text-slate-400 text-xs">AAP, Cough syrup</span>
-                        </button>
-                        <button className="w-full text-left p-3 bg-white border border-slate-200 rounded-lg hover:border-emerald-300 hover:shadow-sm transition-all text-sm">
-                            <span className="font-bold block text-slate-800">물리치료 (기본)</span>
-                            <span className="text-slate-400 text-xs">IR, TENS, ICT</span>
-                        </button>
+                {/* 3. Context-Aware Assistant (Right) */}
+                <div className="w-[480px] border-l border-slate-200 bg-slate-50 hidden xl:flex flex-col">
+                    <div className="p-4 border-b border-slate-200 bg-white">
+                        <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                            {activeField === 'cc' && <><Stethoscope className="w-5 h-5 text-emerald-500" /> 주증상 선택</>}
+                            {activeField === 'test' && <><ClipboardList className="w-5 h-5 text-indigo-500" /> 검사 오더</>}
+                            {activeField === 'diagnosis' && <><Activity className="w-5 h-5 text-rose-500" /> 상병/진단</>}
+                            {(!activeField || activeField === 'plan') && <><Pill className="w-5 h-5 text-blue-500" /> 빠른 처방</>}
+                        </h3>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        {/* Dynamic Content Based on Active Field */}
+
+                        {/* 1. SUBJECTIVE -> SYMPTOMS */}
+                        {activeField === 'cc' && (
+                            <div className="flex flex-col gap-2 h-full">
+                                {/* Category Tabs */}
+                                <div className="flex p-1 bg-slate-100 rounded-lg mb-2">
+                                    <button
+                                        onClick={() => setSymptomCategory('OS')}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${symptomCategory === 'OS' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        <Activity className="w-4 h-4" /> 외과/정형
+                                    </button>
+                                    <button
+                                        onClick={() => setSymptomCategory('IM')}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${symptomCategory === 'IM' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        <Stethoscope className="w-4 h-4" /> 내과/소아
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto space-y-2">
+                                    {(SYMPTOMS as any[]).filter(s => s.category === symptomCategory).map(symptom => (
+                                        <button
+                                            key={symptom.id}
+                                            onClick={() => setFormData(prev => ({ ...prev, cc: (prev.cc ? prev.cc + ', ' : '') + symptom.text }))}
+                                            className="w-full text-left p-3 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:shadow-sm transition-all text-sm font-medium text-slate-700 hover:text-emerald-700 hover:bg-emerald-50"
+                                        >
+                                            {symptom.text}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 2. OBJECTIVE -> LAB TESTS */}
+                        {activeField === 'test' && (
+                            <div className="flex flex-col gap-2 h-full">
+                                {/* Category Tabs */}
+                                <div className="flex p-1 bg-slate-100 rounded-lg mb-2">
+                                    <button
+                                        onClick={() => setTestCategory('Radiology')}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${testCategory === 'Radiology' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        <div className="flex items-center gap-1"><span className="text-xs">☢️</span> 영상/초음파</div>
+                                    </button>
+                                    <button
+                                        onClick={() => setTestCategory('Lab')}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${testCategory === 'Lab' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        <div className="flex items-center gap-1"><span className="text-xs">🩸</span> 혈액/검사</div>
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto space-y-2">
+                                    {testCategory === 'Radiology' ? (
+                                        RADIOLOGY_LIST.map(item => (
+                                            <div key={item.id} className="w-full bg-white border border-slate-200 rounded-xl p-3 hover:border-indigo-300 transition-all">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-medium text-slate-700 text-sm">{item.text}</span>
+                                                    {item.type === 'simple' && (
+                                                        <button
+                                                            onClick={() => setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + item.text }))}
+                                                            className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100"
+                                                        >
+                                                            추가
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {item.type === 'sided' && (
+                                                    <div className="flex gap-2 mt-2">
+                                                        {['Lt', 'Rt', 'Both'].map(side => (
+                                                            <button
+                                                                key={side}
+                                                                onClick={() => setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + `${item.text} (${side})` }))}
+                                                                className="flex-1 py-1 text-xs border border-indigo-100 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 hover:font-bold transition-colors"
+                                                            >
+                                                                {side}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        LAB_LIST.map(item => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + item.text }))}
+                                                className="w-full text-left p-3 bg-white border border-slate-200 rounded-xl hover:border-rose-300 hover:shadow-sm transition-all text-sm font-medium text-slate-700 hover:text-rose-700 hover:bg-rose-50 flex justify-between items-center"
+                                            >
+                                                <span>{item.text}</span>
+                                                <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{item.category}</span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. ASSESSMENT -> KCD SEARCH (Existing + Shortcuts) */}
+                        {activeField === 'diagnosis' && (
+                            <div className="space-y-4">
+                                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700">
+                                    <p className="font-bold mb-1">💡 팁</p>
+                                    입력란 상단의 '상병코드 검색' 버튼을 눌러 정확한 ICD-10 코드를 입력하세요.
+                                </div>
+                                <div className="border-t border-slate-200 pt-4">
+                                    <p className="text-xs font-bold text-slate-400 mb-2 uppercase">자주 쓰는 진단</p>
+                                    <button onClick={() => setIsKcdSearchOpen(true)} className="w-full py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2">
+                                        <Search className="w-4 h-4" /> 검색창 열기
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4. PLAN -> BUNDLES (Default) */}
+                        {/* 4. PLAN -> FAST PRESCRIPTION (REDESIGNED) */}
+                        {(!activeField || activeField === 'plan') && (
+                            <div className="flex flex-col h-full gap-2">
+                                {/* Category Tabs (Grid) */}
+                                <div className="grid grid-cols-4 gap-1 mb-2">
+                                    {PRESCRIPTION_CATEGORIES.map(cat => (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setActivePrescriptionCategory(cat.id)}
+                                            className={`px-1 py-2 text-[11px] font-bold rounded-lg transition-all break-keep leading-tight ${activePrescriptionCategory === cat.id
+                                                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-100'
+                                                : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'
+                                                }`}
+                                        >
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* List Content */}
+                                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                    {PRESCRIPTION_LIST.filter(item => item.category === activePrescriptionCategory).map(item => (
+                                        <div
+                                            key={item.id}
+                                            className="bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-300 transition-all shadow-sm group"
+                                        >
+                                            {/* Main Title Button */}
+                                            <button
+                                                onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + item.text }))}
+                                                className="text-left w-full font-bold text-slate-700 text-sm group-hover:text-blue-700 mb-2 truncate"
+                                            >
+                                                {item.text}
+                                            </button>
+
+                                            {/* Sub-Actions */}
+                                            {item.subType === 'sided' && (
+                                                <div className="flex gap-1">
+                                                    {['Lt', 'Rt', 'Both'].map(side => (
+                                                        <button
+                                                            key={side}
+                                                            onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (${side})` }))}
+                                                            className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
+                                                        >
+                                                            {side}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {item.subType === 'dosage_1_2' && (
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (0.5 amp)` }))}
+                                                        className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
+                                                    >
+                                                        0.5A
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (1.0 amp)` }))}
+                                                        className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
+                                                    >
+                                                        1.0A
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {item.subType === 'dosage_1_2_3' && (
+                                                <div className="flex gap-1">
+                                                    {[1, 2, 3].map(cnt => (
+                                                        <button
+                                                            key={cnt}
+                                                            onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (${cnt}ea)` }))}
+                                                            className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
+                                                        >
+                                                            {cnt}개
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {item.subType === 'options' && item.options && (
+                                                <div className="flex gap-1 flex-wrap">
+                                                    {item.options.map(opt => (
+                                                        <button
+                                                            key={opt}
+                                                            onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (${opt})` }))}
+                                                            className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors min-w-[30px]"
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

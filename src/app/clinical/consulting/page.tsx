@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
-import { startOfDay } from 'date-fns';
+import { startOfDay, subDays } from 'date-fns';
 import { Visit } from '@/types/clinical';
 import { useRouter } from 'next/navigation';
 import { Clock, User, ChevronRight, Activity, Calendar } from 'lucide-react';
@@ -14,7 +14,7 @@ export default function ConsultingPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const today = startOfDay(new Date());
+        const today = subDays(startOfDay(new Date()), 7);
 
         // Doctor needs to see:
         // 1. Patients currently 'consulting' (In room)

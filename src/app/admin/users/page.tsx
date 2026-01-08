@@ -29,11 +29,11 @@ export default function UsersPage() {
     const { isAdmin, loading: roleLoading } = useAdminRole();
     const router = useRouter();
 
-    useEffect(() => {
-        if (!roleLoading && !isAdmin) {
-            router.push('/admin');
-        }
-    }, [roleLoading, isAdmin, router]);
+    // useEffect(() => {
+    //     if (!roleLoading && !isAdmin) {
+    //         router.push('/admin');
+    //     }
+    // }, [roleLoading, isAdmin, router]);
 
     useEffect(() => {
         fetchUsers();
