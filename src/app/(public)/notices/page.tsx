@@ -26,8 +26,7 @@ export default function NoticesPage() {
             try {
                 const q = query(
                     collection(db, 'notices'),
-                    where('isVisible', '==', true),
-                    orderBy('createdAt', 'desc')
+                    where('isVisible', '==', true)
                 );
                 const querySnapshot = await getDocs(q);
                 const noticeData = querySnapshot.docs.map(doc => ({
@@ -35,10 +34,15 @@ export default function NoticesPage() {
                     ...doc.data()
                 })) as Notice[];
 
-                // Sort pinned notices to the top locally if not handled by query (complex sort query needs index)
+                // Sort: Pinned first, then Newest first
                 noticeData.sort((a, b) => {
-                    if (a.isPinned === b.isPinned) return 0;
-                    return a.isPinned ? -1 : 1;
+                    if (a.isPinned !== b.isPinned) {
+                        return a.isPinned ? -1 : 1;
+                    }
+                    // Sort by Date Descending
+                    const dateA = a.createdAt?.seconds || 0;
+                    const dateB = b.createdAt?.seconds || 0;
+                    return dateB - dateA;
                 });
 
                 setNotices(noticeData);

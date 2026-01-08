@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Stethoscope, CalendarCheck, Activity } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminDashboardPage() {
@@ -76,11 +76,15 @@ export default function AdminDashboardPage() {
         fetchData();
     }, []);
 
+
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">대시보드</h1>
             </div>
+
+
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard title="총 예약" value={stats.totalReservations.toString()} change="누적 예약" />

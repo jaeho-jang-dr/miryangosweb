@@ -1,40 +1,103 @@
 
 'use client';
 
-import { Users, Clock, AlertCircle, Calendar, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-clinical';
+import { Users, Clock, AlertCircle, Calendar, FileText, Activity, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
+import { startOfDay } from 'date-fns';
+import { Visit } from '@/types/clinical';
 
 export default function ClinicalDashboard() {
+    const [stats, setStats] = useState({
+        total: 0,
+        waiting: 0,
+        completed: 0,
+        consulting: 0
+    });
+    const [waitingList, setWaitingList] = useState<Visit[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Real-time subscription to today's visits
+        const today = startOfDay(new Date());
+
+        const q = query(
+            collection(db, 'visits'),
+            where('date', '>=', today),
+            orderBy('date', 'asc')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const visits = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Visit[];
+
+            setWaitingList(visits);
+
+            // Calculate stats
+            setStats({
+                total: visits.length,
+                waiting: visits.filter(v => v.status === 'reception').length,
+                consulting: visits.filter(v => v.status === 'consulting').length,
+                completed: visits.filter(v => v.status === 'completed').length
+            });
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    // Helper for formatting time
+    const formatTime = (timestamp: any) => {
+        if (!timestamp) return '-';
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     return (
-        <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">진료 대시보드</h1>
+                    <p className="text-slate-500 text-sm">오늘의 병원 현황을 한눈에 확인하세요.</p>
+                </div>
+                <div className="text-right hidden md:block">
+                    <div className="text-sm font-medium text-slate-900">{new Date().toLocaleDateString()}</div>
+                    <div className="text-xs text-slate-500">실시간 데이터</div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard
-                    title="금일 예약"
-                    value="12"
-                    subtext="오전 4 / 오후 8"
+                    title="금일 접수"
+                    value={stats.total.toString()}
+                    subtext="오늘 총 방문객"
                     icon={<Calendar className="w-6 h-6 text-blue-500" />}
                     color="blue"
                 />
                 <StatCard
                     title="대기 환자"
-                    value="3"
-                    subtext="평균 대기 15분"
+                    value={stats.waiting.toString()}
+                    subtext="진료 대기 중"
                     icon={<Clock className="w-6 h-6 text-orange-500" />}
                     color="orange"
                 />
                 <StatCard
-                    title="진료 완료"
-                    value="28"
-                    subtext="전일 대비 +5"
-                    icon={<Users className="w-6 h-6 text-emerald-500" />}
-                    color="emerald"
+                    title="진료 중"
+                    value={stats.consulting.toString()}
+                    subtext="현재 진료실"
+                    icon={<Stethoscope className="w-6 h-6 text-purple-500" />}
+                    color="purple"
                 />
                 <StatCard
-                    title="중증/응급"
-                    value="0"
-                    subtext="특이사항 없음"
-                    icon={<AlertCircle className="w-6 h-6 text-red-500" />}
-                    color="red"
+                    title="진료 완료"
+                    value={stats.completed.toString()}
+                    subtext="귀가 완료"
+                    icon={<Users className="w-6 h-6 text-emerald-500" />}
+                    color="emerald"
                 />
             </div>
 
@@ -44,7 +107,11 @@ export default function ClinicalDashboard() {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
                             실시간 대기 현황
-                            <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-full">Live</span>
+                            {stats.waiting > 0 && (
+                                <span className="text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-full animate-pulse">
+                                    {stats.waiting}명 대기중
+                                </span>
+                            )}
                         </h3>
                         <div className="overflow-hidden">
                             <table className="w-full text-left text-sm">
@@ -52,21 +119,52 @@ export default function ClinicalDashboard() {
                                     <tr>
                                         <th className="px-4 py-3 font-medium text-slate-500">순번</th>
                                         <th className="px-4 py-3 font-medium text-slate-500">이름</th>
-                                        <th className="px-4 py-3 font-medium text-slate-500">생년월일</th>
-                                        <th className="px-4 py-3 font-medium text-slate-500">접수시간</th>
                                         <th className="px-4 py-3 font-medium text-slate-500">상태</th>
-                                        <th className="px-4 py-3 font-medium text-slate-500 text-right">관리</th>
+                                        <th className="px-4 py-3 font-medium text-slate-500">접수시간</th>
+                                        <th className="px-4 py-3 font-medium text-slate-500 text-right">진료실</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    <WaitingRow order={1} name="김철수" birth="800101" time="09:30" status="waiting" />
-                                    <WaitingRow order={2} name="이영희" birth="920505" time="09:45" status="waiting" />
-                                    <WaitingRow order={3} name="박민수" birth="751225" time="10:00" status="in-progress" />
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-slate-400">데이터를 불러오는 중...</td>
+                                        </tr>
+                                    ) : waitingList.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-slate-400">오늘 접수된 환자가 없습니다.</td>
+                                        </tr>
+                                    ) : (
+                                        waitingList.map((visit, index) => (
+                                            <tr key={visit.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-3 text-slate-900 font-medium">{index + 1}</td>
+                                                <td className="px-4 py-3 text-slate-700 font-bold">{visit.patientName}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                                        ${visit.status === 'reception' ? 'bg-yellow-100 text-yellow-800' :
+                                                            visit.status === 'consulting' ? 'bg-blue-100 text-blue-800' :
+                                                                'bg-emerald-100 text-emerald-800'}`}>
+                                                        {visit.status === 'reception' ? '대기중' :
+                                                            visit.status === 'consulting' ? '진료중' : '완료'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-500">{formatTime(visit.date)}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    {visit.status === 'reception' ? (
+                                                        <Link href={`/clinical/consulting/${visit.id}`} className="text-xs font-medium text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded">
+                                                            호출
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
-                            <div className="mt-4 text-center">
-                                <Link href="/clinical/patients" className="text-sm text-emerald-600 font-medium hover:underline">
-                                    전체 대기열 관리
+                            <div className="mt-4 text-center border-t border-slate-100 pt-4">
+                                <Link href="/clinical/reception" className="text-sm text-emerald-600 font-medium hover:underline flex items-center justify-center gap-1">
+                                    <Activity className="w-4 h-4" /> 전체 대기열 관리 (원무과) 이동
                                 </Link>
                             </div>
                         </div>
@@ -82,25 +180,23 @@ export default function ClinicalDashboard() {
                                 <Users className="w-6 h-6 mb-2" />
                                 <span className="text-sm font-semibold">신환 등록</span>
                             </Link>
-                            <button className="flex flex-col items-center justify-center p-4 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-colors">
+                            <Link href="/clinical/reception" className="flex flex-col items-center justify-center p-4 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-colors">
                                 <FileText className="w-6 h-6 mb-2" />
-                                <span className="text-sm font-semibold">진료 기록</span>
-                            </button>
+                                <span className="text-sm font-semibold">접수/수납</span>
+                            </Link>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                        <h3 className="text-lg font-bold text-slate-800 mb-4">최근 공지</h3>
-                        <ul className="space-y-3">
-                            <li className="text-sm">
-                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 mr-2">중요</span>
-                                <span className="text-slate-700">시스템 점검 안내 (22:00~)</span>
-                            </li>
-                            <li className="text-sm text-slate-600">
-                                <span className="text-slate-400 mr-2 text-xs">01/07</span>
-                                1월 진료 일정 변경 사항
-                            </li>
-                        </ul>
+                    <div className="bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-900/20 p-6 text-white overflow-hidden relative">
+                        <Activity className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-emerald-500/50" />
+                        <h3 className="text-lg font-bold mb-2 relative z-10">오늘의 진료 목표</h3>
+                        <div className="flex items-end gap-2 relative z-10">
+                            <span className="text-4xl font-bold">{stats.completed}</span>
+                            <span className="text-emerald-200 mb-1">/ 50명</span>
+                        </div>
+                        <div className="w-full bg-emerald-800/50 h-2 mt-4 rounded-full overflow-hidden relative z-10">
+                            <div className="bg-white h-full transition-all duration-1000" style={{ width: `${Math.min((stats.completed / 50) * 100, 100)}%` }}></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -110,40 +206,16 @@ export default function ClinicalDashboard() {
 
 function StatCard({ title, value, subtext, icon, color }: any) {
     return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-start justify-between">
+        <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-start justify-between relative overflow-hidden group hover:border-${color}-200 transition-all`}>
+            <div className={`absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-10 transition-opacity bg-${color}-500/20 rounded-bl-3xl w-24 h-24 -mr-4 -mt-4 pointer-events-none`}></div>
             <div>
                 <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-                <h3 className="text-2xl font-bold text-slate-900 mb-1">{value}</h3>
+                <h3 className="text-3xl font-bold text-slate-900 mb-1">{value}</h3>
                 <p className={`text-xs font-medium text-${color}-600`}>{subtext}</p>
             </div>
-            <div className={`p-3 rounded-xl bg-${color}-50`}>
+            <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>
                 {icon}
             </div>
         </div>
-    )
-}
-
-function WaitingRow({ order, name, birth, time, status }: any) {
-    return (
-        <tr className="hover:bg-slate-50">
-            <td className="px-4 py-3 text-slate-900 font-medium">{order}</td>
-            <td className="px-4 py-3 text-slate-700">{name}</td>
-            <td className="px-4 py-3 text-slate-500">{birth}</td>
-            <td className="px-4 py-3 text-slate-500">{time}</td>
-            <td className="px-4 py-3">
-                {status === 'waiting' ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        대기중
-                    </span>
-                ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        진료중
-                    </span>
-                )}
-            </td>
-            <td className="px-4 py-3 text-right">
-                <button className="text-xs font-medium text-blue-600 hover:underline">호출</button>
-            </td>
-        </tr>
     )
 }

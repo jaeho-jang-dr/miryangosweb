@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, addDoc, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, UserPlus } from 'lucide-react';
@@ -11,6 +11,11 @@ import Link from 'next/link';
 export default function NewPatientPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+
+    // Chart Number Mode State
+    const [chartMode, setChartMode] = useState<'auto' | 'manual'>('auto');
+    const [manualChartId, setManualChartId] = useState('');
+
     const [formData, setFormData] = useState({
         name: '',
         birthDate: '', // YYYY-MM-DD
@@ -21,7 +26,6 @@ export default function NewPatientPage() {
     });
 
     // Helper to generate a simple Chart Number (YYYYMMDD-XXXX)
-    // In production, this should be server-side or a transaction to ensure uniqueness
     const generateChartNumber = () => {
         const date = new Date();
         const yyyy = date.getFullYear();
@@ -36,14 +40,31 @@ export default function NewPatientPage() {
         setLoading(true);
 
         try {
-            const chartNumber = generateChartNumber();
+            let chartId = '';
 
-            // We use setDoc with a custom ID (Chart Number) for easier lookups
-            // Or use addDoc if we want auto-IDs. implementation_plan says "id: 차트 번호 (문자열/자동)"
-            // Let's use auto-generated ID for the document, but store chartNumber as a field?
-            // Actually, using chartNumber as DocID is very common in NoSQL for direct access.
+            if (chartMode === 'auto') {
+                chartId = generateChartNumber();
+            } else {
+                // Validate Manual Input
+                if (!manualChartId.trim()) {
+                    alert("차트 번호를 입력해주세요.");
+                    setLoading(false);
+                    return;
+                }
+                chartId = manualChartId.trim();
 
-            await setDoc(doc(db, 'patients', chartNumber), {
+                // Check for duplicates
+                const docRef = doc(db, 'patients', chartId);
+                const docSnap = await getDoc(docRef); // Import getDoc needed
+                if (docSnap.exists()) {
+                    alert("이미 존재하는 차트 번호입니다. 다른 번호를 사용해주세요.");
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            await setDoc(doc(db, 'patients', chartId), {
+                id: chartId, // Explicitly save ID in the doc as well
                 name: formData.name,
                 birthDate: formData.birthDate,
                 gender: formData.gender,
@@ -54,6 +75,7 @@ export default function NewPatientPage() {
                 createdAt: serverTimestamp(),
             });
 
+            // If entry successful, confirm alert not strictly needed since router pushes, but let's just push
             router.push(`/clinical/patients`);
         } catch (error) {
             console.error("Error registering patient:", error);
@@ -92,6 +114,52 @@ export default function NewPatientPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 space-y-8">
+
+                {/* Chart Number Section (New) */}
+                <section className="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2">차트 번호 설정</h3>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-6">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="chartMode"
+                                    value="auto"
+                                    checked={chartMode === 'auto'}
+                                    onChange={() => setChartMode('auto')}
+                                    className="text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span className="text-slate-700 font-medium">자동 생성 (신규)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="chartMode"
+                                    value="manual"
+                                    checked={chartMode === 'manual'}
+                                    onChange={() => setChartMode('manual')}
+                                    className="text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span className="text-slate-700 font-medium">직접 입력 (구 EMR 번호 유지)</span>
+                            </label>
+                        </div>
+
+                        {chartMode === 'manual' && (
+                            <div className="animate-in slide-in-from-top-2 fade-in">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">차트 번호 입력 <span className="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    value={manualChartId}
+                                    onChange={(e) => setManualChartId(e.target.value)}
+                                    className="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                    placeholder="예: 20231015-001"
+                                />
+                                <p className="text-xs text-slate-500 mt-1">※ 중복된 번호는 등록할 수 없습니다.</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
                 {/* Basic Info */}
                 <section>
                     <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">기본 정보</h3>

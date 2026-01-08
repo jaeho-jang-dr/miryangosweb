@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { auth } from "@/lib/firebase-public";
 import { uploadImage } from "@/actions/upload";
-import { getLocalFiles, uploadLocalFile } from "@/actions/local-files";
+import { getLocalFiles } from "@/actions/local-files";
 import { Loader2, X, ImagePlus } from "lucide-react";
 import Image from 'next/image';
 

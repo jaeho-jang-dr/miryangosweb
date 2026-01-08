@@ -24,7 +24,7 @@ export default function StaffPage() {
     useEffect(() => {
         const fetchStaff = async () => {
             try {
-                const q = query(collection(db, 'staff'), orderBy('order', 'asc'));
+                const q = query(collection(db, 'staff'));
                 const querySnapshot = await getDocs(q);
                 const staffData = querySnapshot.docs.map(doc => {
                     const data = doc.data();
@@ -42,6 +42,10 @@ export default function StaffPage() {
                         specialties
                     };
                 }) as Staff[];
+
+                // Client-side sort by 'order'
+                staffData.sort((a, b) => (a.order || 999) - (b.order || 999));
+
                 setStaffList(staffData);
             } catch (error) {
                 console.error("Error loading staff:", error);

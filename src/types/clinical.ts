@@ -1,0 +1,50 @@
+
+export type ClinicalStatus = 'reception' | 'consulting' | 'testing' | 'treatment' | 'completed';
+
+export interface Patient {
+    id: string;
+    name: string;
+    rrn: string; // Keep this secure in backend if possible, but for dev we store as is
+    gender: 'male' | 'female';
+    birthDate: string; // YYYY-MM-DD
+    phone: string;
+    address?: string;
+    memo?: string; // Critical alert like "Penicillin Allergy"
+    lastVisit?: any; // Firestore Timestamp
+    createdAt: any;
+}
+
+export interface Visit {
+    id: string;
+    patientId: string;
+    patientName: string; // Denormalized for easy display
+    date: any; // Timestamp
+    status: ClinicalStatus;
+
+    // Reception Data
+    type: 'new' | 'return'; // New patient or existing
+    insuranceType?: 'nhis' | 'auto' | 'none'; // National Health, Auto Insurance, etc.
+
+    // Clinical Data (Target for STT)
+    chiefComplaint?: string; // CC
+    history?: string; // History of Present Illness
+    symptoms?: string[];
+    diagnosis?: string;
+
+    // Plan/Orders
+    prescription?: string;
+    treatmentNote?: string;
+
+    createdAt: any;
+    updatedAt: any;
+}
+
+export interface MedicalOrder {
+    id: string;
+    visitId: string;
+    type: 'medication' | 'injection' | 'test' | 'procedure';
+    name: string;
+    status: 'ordered' | 'completed' | 'cancelled';
+    performerId?: string; // Who did it
+    createdAt: any;
+}
