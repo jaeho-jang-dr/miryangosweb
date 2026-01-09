@@ -33,7 +33,7 @@ export const RADIOLOGY_LIST = [
     { id: 'r_cl', text: 'Clavicle AP + 45 Tilt View', type: 'sided' },
     { id: 'r_el', text: 'Elbow AP/Lat', type: 'sided', subOptions: ['Both Oblique'] },
     { id: 'r_wr', text: 'Wrist AP/Lat', type: 'sided', subOptions: ['Both Oblique'] },
-    { id: 'r_hd', text: 'Hand AP / Finger Lat', type: 'sided' },
+    { id: 'r_hd', text: 'Hand AP / Oblique', type: 'sided', subOptions: ['Finger Lat'] },
 
     // Lower Extremities (Sided)
     { id: 'r_kn', text: 'Knee AP/Lat', type: 'sided', subOptions: ['Patella Axial', 'Merchant', 'Skyline', 'Tunnel', 'Both Oblique'] },

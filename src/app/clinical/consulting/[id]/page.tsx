@@ -14,7 +14,6 @@ interface Transcript {
 
 import { RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem } from '@/data/clinical-resources';
 import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressions';
-import { searchKCD } from '@/lib/kcd-search';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 
 // Bundle Definitions
@@ -42,8 +41,52 @@ export default function ConsultingDetailPage() {
     // KCD Search State
     interface KCDCode { code: string; ko: string; en: string; }
     const [diagnosisSuggestions, setDiagnosisSuggestions] = useState<KCDCode[]>([]);
+    const [diagnosisSearchQuery, setDiagnosisSearchQuery] = useState(''); // New state for debounce
     const [isKcdSearchOpen, setIsKcdSearchOpen] = useState(false);
     const [kcdQuery, setKcdQuery] = useState('');
+    const [kcdSearchResults, setKcdSearchResults] = useState<KCDCode[]>([]); // New state for modal results
+
+    // Async KCD Search Effect (Inline)
+    useEffect(() => {
+        const search = async () => {
+            if (!diagnosisSearchQuery || diagnosisSearchQuery.length < 2) {
+                setDiagnosisSuggestions([]);
+                return;
+            }
+            try {
+                const res = await fetch(`/api/clinical/diagnosis/search?q=${encodeURIComponent(diagnosisSearchQuery)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setDiagnosisSuggestions(data.slice(0, 5));
+                }
+            } catch (e) {
+                console.error("KCD Search Error", e);
+            }
+        };
+        const timeoutId = setTimeout(search, 300);
+        return () => clearTimeout(timeoutId);
+    }, [diagnosisSearchQuery]);
+
+    // Async KCD Search Effect (Modal)
+    useEffect(() => {
+        const search = async () => {
+            if (!kcdQuery) {
+                setKcdSearchResults([]);
+                return;
+            }
+            try {
+                const res = await fetch(`/api/clinical/diagnosis/search?q=${encodeURIComponent(kcdQuery)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setKcdSearchResults(data);
+                }
+            } catch (e) {
+                console.error("KCD Search Error", e);
+            }
+        };
+        const timeoutId = setTimeout(search, 300);
+        return () => clearTimeout(timeoutId);
+    }, [kcdQuery]);
 
     // STT Hook
     const { isListening, interimTranscript, toggle, isSupported } = useVoiceDictation({
@@ -394,12 +437,13 @@ export default function ConsultingDetailPage() {
                                         const lastLine = lines[lines.length - 1].trim();
 
                                         if (lastLine.length >= 2) {
-                                            const matches = searchKCD(lastLine).slice(0, 5);
-                                            setDiagnosisSuggestions(matches);
+                                            setDiagnosisSearchQuery(lastLine);
                                         } else {
+                                            setDiagnosisSearchQuery('');
                                             setDiagnosisSuggestions([]);
                                         }
                                     } else {
+                                        setDiagnosisSearchQuery('');
                                         setDiagnosisSuggestions([]);
                                     }
                                 }}
@@ -477,8 +521,8 @@ export default function ConsultingDetailPage() {
                                         />
                                     </div>
                                     <div className="max-h-[300px] overflow-y-auto space-y-1">
-                                        {kcdQuery && searchKCD(kcdQuery).length > 0 ? (
-                                            searchKCD(kcdQuery).map((item) => (
+                                        {kcdSearchResults.length > 0 ? (
+                                            kcdSearchResults.map((item) => (
                                                 <button
                                                     key={item.code}
                                                     onClick={() => {
@@ -693,8 +737,8 @@ export default function ConsultingDetailPage() {
                                                                     setActiveRadiologyOptions(prev => ({ ...prev, [item.id]: newOpts }));
                                                                 }}
                                                                 className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${(activeRadiologyOptions[item.id] || []).includes(opt)
-                                                                        ? 'bg-indigo-600 text-white border-indigo-600'
-                                                                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                                                                     }`}
                                                             >
                                                                 {opt}
