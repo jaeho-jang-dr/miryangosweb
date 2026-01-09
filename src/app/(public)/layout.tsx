@@ -170,7 +170,7 @@ export default function PublicLayout({
                         <div>
                             <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-white">바로가기</h4>
                             <ul className="space-y-3 text-sm text-slate-500 dark:text-slate-400">
-                                <li><Link href="/about" className="hover:text-blue-600">인사말</Link></li>
+                                <li><Link href="/staff/profile?view=greeting" className="hover:text-blue-600">인사말</Link></li>
                                 <li><Link href="/staff" className="hover:text-blue-600">의료진 소개</Link></li>
                                 <li><Link href="/archives" className="hover:text-blue-600">자료실</Link></li>
                                 <li><Link href="/notices" className="hover:text-blue-600">병원 소식</Link></li>

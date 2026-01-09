@@ -71,7 +71,7 @@ export default function StaffPage() {
                 <div className="text-center mb-16">
                     <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">의료진 소개</h1>
                     <p className="text-slate-600 dark:text-slate-400">
-                        밀양OS병원의 전문 의료진을 소개합니다.
+                        밀양정형외과의 전문 의료진을 소개합니다.
                     </p>
                 </div>
 

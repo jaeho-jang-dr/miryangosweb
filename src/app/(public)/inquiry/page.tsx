@@ -47,6 +47,7 @@ export default function InquiryPage() {
     const [checkForm, setCheckForm] = useState({ name: '', contact: '' });
     const [myReservations, setMyReservations] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
+    const [editingRes, setEditingRes] = useState<any | null>(null); // Modification State
 
     // Load Clinic Settings
     useEffect(() => {
@@ -233,75 +234,94 @@ export default function InquiryPage() {
         setError(null);
 
         try {
-            // 1. Check active reservation by User ID (if logged in)
-            const inquiriesRef = collection(db, 'inquiries');
-            if (user) {
-                const uidQuery = query(
+            if (!editingRes) { // Skip duplicate check if editing and user confirmed (or it's the same res)
+                // 1. Check active reservation by User ID (if logged in)
+                const inquiriesRef = collection(db, 'inquiries');
+                if (user) {
+                    const uidQuery = query(
+                        inquiriesRef,
+                        where('userId', '==', user.uid),
+                        where('type', '==', 'reservation'),
+                        where('status', 'in', ['new', 'confirmed'])
+                    );
+                    const uidSnapshot = await getDocs(uidQuery);
+                    if (!uidSnapshot.empty) {
+                        // Check if the found doc is NOT the one we are editing (if strictly checking duplications even during edit, 
+                        // but usually edit implies updating THIS one. Logic below handles new reservations.)
+                        // Since we are inside !editingRes block, this is only for NEW.
+                        if (confirm('이미 회원님 계정으로 접수된 예약이 있습니다.\n확인하시겠습니까? (예약 조회 탭으로 이동)')) {
+                            setActiveTab('check');
+                            setCheckForm({ name: formData.name, contact: formData.contact });
+                            setTimeout(() => fetchMyReservations(), 100);
+                        }
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+
+                // 2. Check active reservation by Name + Contact (Cross-Account Identity Check)
+                const identityQuery = query(
                     inquiriesRef,
-                    where('userId', '==', user.uid),
+                    where('name', '==', formData.name),
+                    where('contact', '==', formData.contact),
                     where('type', '==', 'reservation'),
                     where('status', 'in', ['new', 'confirmed'])
                 );
-                const uidSnapshot = await getDocs(uidQuery);
-                if (!uidSnapshot.empty) {
-                    if (confirm('이미 회원님 계정으로 접수된 예약이 있습니다.\n확인하시겠습니까? (예약 조회 탭으로 이동)')) {
+                const identitySnapshot = await getDocs(identityQuery);
+                if (!identitySnapshot.empty) {
+                    if (confirm('동일한 이름과 연락처로 이미 접수된 예약이 있습니다.\n확인하시겠습니까? (예약 조회 탭으로 이동)')) {
                         setActiveTab('check');
                         setCheckForm({ name: formData.name, contact: formData.contact });
-                        // Optionally auto-trigger fetch in useEffect by checking tab change + user
-                        setTimeout(() => fetchMyReservations(), 100);
                     }
                     setIsLoading(false);
                     return;
                 }
             }
 
-            // 2. Check active reservation by Name + Contact (Cross-Account Identity Check)
-            const identityQuery = query(
-                inquiriesRef,
-                where('name', '==', formData.name),
-                where('contact', '==', formData.contact),
-                where('type', '==', 'reservation'),
-                where('status', 'in', ['new', 'confirmed'])
-            );
-            const identitySnapshot = await getDocs(identityQuery);
-            if (!identitySnapshot.empty) {
-                if (confirm('동일한 이름과 연락처로 이미 접수된 예약이 있습니다.\n확인하시겠습니까? (예약 조회 탭으로 이동)')) {
-                    setActiveTab('check');
-                    setCheckForm({ name: formData.name, contact: formData.contact });
+            if (editingRes) {
+                // Update existing reservation
+                await updateDoc(doc(db, 'inquiries', editingRes.id), {
+                    ...formData,
+                    reservationDate: formData.type === 'reservation' ? format(selectedDate!, 'yyyy-MM-dd') : null,
+                    reservationTime: selectedTime,
+                    // Keep original ownership info
+                    updatedAt: serverTimestamp(),
+                });
+                alert('예약이 수정되었습니다.');
 
-                    // If not logged in but found a match, we can pre-fill search (but need user action usually)
-                    // Or if matched by identity but not UID, we still want to show it? 
-                    // Showing reservations by just name/phone without auth is a privacy risk if auto-fetched.
-                    // So we just move to tab and prefill form, user must click 'check'.
-
-                    // However, if user IS logged in, fetchMyReservations will work by UID.
-                    // If user is NOT logged in, we prefill inputs so they just click 'Submit'.
+                // Reset Edit Mode
+                setEditingRes(null);
+                setActiveTab('check');
+                // Auto refresh will happen in check tab due to useEffect or we trigger it
+                if (user || hasSearched) {
+                    setTimeout(() => fetchMyReservations(), 100);
                 }
-                setIsLoading(false);
-                return;
+            } else {
+                // Create New
+                await addDoc(collection(db, 'inquiries'), {
+                    ...formData,
+                    reservationDate: formData.type === 'reservation' ? format(selectedDate!, 'yyyy-MM-dd') : null,
+                    reservationTime: selectedTime,
+                    userId: user?.uid || null,
+                    userEmail: user?.email || null,
+                    createdAt: serverTimestamp(),
+                    status: 'new'
+                });
+
+                alert(formData.type === 'reservation' ? '예약이 접수되었습니다.' : '문의가 등록되었습니다.');
             }
 
-            await addDoc(collection(db, 'inquiries'), {
-                ...formData,
-                reservationDate: formData.type === 'reservation' ? format(selectedDate!, 'yyyy-MM-dd') : null,
-                reservationTime: selectedTime,
-                userId: user?.uid || null,
-                userEmail: user?.email || null,
-                createdAt: serverTimestamp(),
-                status: 'new'
-            });
-
-            alert(formData.type === 'reservation' ? '예약이 접수되었습니다.' : '문의가 등록되었습니다.');
-
-            setFormData({
-                type: 'reservation',
-                name: user?.displayName || '',
-                contact: '',
-                message: '',
-                agreedToPolicy: false
-            });
-            setSelectedDate(undefined);
-            setSelectedTime(null);
+            if (!editingRes) {
+                setFormData({
+                    type: 'reservation',
+                    name: user?.displayName || '',
+                    contact: '',
+                    message: '',
+                    agreedToPolicy: false
+                });
+                setSelectedDate(undefined);
+                setSelectedTime(null);
+            }
 
             // Switch to check tab if reservation made? Optional.
 
@@ -333,6 +353,39 @@ export default function InquiryPage() {
             console.error("Cancel failed", error);
             alert('취소 중 오류가 발생했습니다.');
         }
+    };
+
+    const handleModifyReservation = (res: any) => {
+        setEditingRes(res);
+        setFormData({
+            type: 'reservation',
+            name: res.name,
+            contact: res.contact,
+            message: res.message || '',
+            agreedToPolicy: true // Already agreed
+        });
+
+        // Parse date handling timezone issues if simplified string
+        const [year, month, day] = res.reservationDate.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        setSelectedDate(dateObj);
+
+        setSelectedTime(res.reservationTime);
+        setActiveTab('new');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+        setEditingRes(null);
+        setFormData({
+            type: 'reservation',
+            name: user?.displayName || '',
+            contact: '',
+            message: '',
+            agreedToPolicy: false
+        });
+        setSelectedDate(undefined);
+        setSelectedTime(null);
     };
 
     // Auto-fetch reservations when entering Check tab if logged in
@@ -501,6 +554,24 @@ export default function InquiryPage() {
                                                 </div>
                                             </div>
 
+                                            {editingRes && (
+                                                <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex justify-between items-center">
+                                                    <div>
+                                                        <div className="font-bold text-amber-800 dark:text-amber-200">예약 수정 모드</div>
+                                                        <div className="text-xs text-amber-700 dark:text-amber-300">
+                                                            기존 예약({editingRes.reservationDate} {editingRes.reservationTime})을 수정하고 있습니다.
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={cancelEdit}
+                                                        className="text-sm px-3 py-1 bg-white border border-amber-300 rounded hover:bg-amber-50 text-amber-800 transition-colors"
+                                                    >
+                                                        수정 취소
+                                                    </button>
+                                                </div>
+                                            )}
+
                                             {formData.type === 'reservation' && (
                                                 <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
                                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
@@ -622,7 +693,9 @@ export default function InquiryPage() {
                                                         처리 중...
                                                     </>
                                                 ) : (
-                                                    formData.type === 'reservation' ? '예약 신청하기' : '문의하기'
+                                                    formData.type === 'reservation'
+                                                        ? (editingRes ? '예약 수정하기' : '예약 신청하기')
+                                                        : '문의하기'
                                                 )}
                                             </button>
                                         </form>
@@ -684,12 +757,20 @@ export default function InquiryPage() {
                                                                 {res.name}님 ({res.status === 'new' ? '접수 대기' : '예약 확정'})
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => handleCancelReservation(res.id, res.reservationDate, res.reservationTime)}
-                                                            className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                                                        >
-                                                            예약 취소
-                                                        </button>
+                                                        <div className="flex">
+                                                            <button
+                                                                onClick={() => handleCancelReservation(res.id, res.reservationDate, res.reservationTime)}
+                                                                className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                                                            >
+                                                                예약 취소
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleModifyReservation(res)}
+                                                                className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 ml-2"
+                                                            >
+                                                                예약 변경
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))
                                             ) : (

@@ -69,7 +69,7 @@ export default function NoticesPage() {
             <div className="text-center mb-12">
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">병원 소식</h1>
                 <p className="text-slate-600 dark:text-slate-400">
-                    밀양OS병원의 새로운 소식과 공지사항을 확인하세요.
+                    밀양정형외과의 새로운 소식과 공지사항을 확인하세요.
                 </p>
             </div>
 

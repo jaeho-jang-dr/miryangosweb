@@ -14,12 +14,33 @@ export const SYMPTOMS = [
 ];
 
 export const RADIOLOGY_LIST = [
-    { id: 'r1', text: 'L-Spine AP/Lat + Pelvis AP', type: 'simple' },
-    { id: 'r2', text: 'C-Spine AP/Lat', type: 'simple' },
-    { id: 'r3', text: 'Shoulder AP/Lat', type: 'sided' },
-    { id: 'r4', text: 'Knee AP/Lat', type: 'sided' },
-    { id: 'r5', text: 'Ankle AP/Lat', type: 'sided' },
-    { id: 'r6', text: 'Wrist AP/Lat', type: 'sided' },
+    // Spine
+    { id: 'r_c', text: 'C-Spine AP/Lat', type: 'simple', subOptions: ['Both Oblique'] },
+    { id: 'r_l', text: 'L-Spine AP/Lat', type: 'simple', subOptions: ['Both Oblique'] },
+    { id: 'r_t', text: 'T-Spine AP/Lat', type: 'simple' },
+    { id: 'r_w', text: 'Whole Spine AP/Lat', type: 'simple' },
+
+    // Pelvis/Hip
+    { id: 'r_p1', text: 'Pelvis AP + Coccyx AP/Lat', type: 'simple' },
+    { id: 'r_p2', text: 'Pelvis AP + Both Hip Axial', type: 'simple' },
+    { id: 'r_h1', text: 'Total Hip View + Both Hip Axial', type: 'simple' },
+
+    // Skull
+    { id: 'r_s', text: 'Skull AP + Both Lat', type: 'simple' },
+
+    // Extremities (Sided)
+    { id: 'r_sh', text: 'Shoulder AP/Lat', type: 'sided' },
+    { id: 'r_cl', text: 'Clavicle AP + 45 Tilt View', type: 'sided' },
+    { id: 'r_el', text: 'Elbow AP/Lat', type: 'sided', subOptions: ['Both Oblique'] },
+    { id: 'r_wr', text: 'Wrist AP/Lat', type: 'sided', subOptions: ['Both Oblique'] },
+    { id: 'r_hd', text: 'Hand AP / Finger Lat', type: 'sided' },
+
+    // Lower Extremities (Sided)
+    { id: 'r_kn', text: 'Knee AP/Lat', type: 'sided', subOptions: ['Patella Axial', 'Merchant', 'Skyline', 'Tunnel', 'Both Oblique'] },
+    { id: 'r_an', text: 'Ankle AP/Lat', type: 'sided', subOptions: ['Mortise View'] },
+    { id: 'r_ft', text: 'Foot AP/Oblique', type: 'sided', subOptions: ['Toe Lat'] },
+
+    // Other
     { id: 'r7', text: 'Chest PA', type: 'simple' },
     { id: 'r8', text: 'Rib Series', type: 'sided' },
     { id: 'u1', text: 'Musculoskeletal Ultrasound', type: 'sided' },

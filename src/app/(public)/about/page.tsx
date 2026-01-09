@@ -2,6 +2,7 @@
 'use client';
 
 import { MapPin, Phone, Clock, Award, Shield, Users } from 'lucide-react';
+import Link from 'next/link';
 import Image from 'next/image';
 
 export default function AboutPage() {
@@ -33,14 +34,16 @@ export default function AboutPage() {
                                 모든 진료 과정에서 환자의 편안함과<br />안전을 최우선으로 생각합니다.
                             </p>
                         </div>
-                        <div className="text-center space-y-4">
-                            <div className="inline-flex p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 mb-4">
-                                <Award className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">전문성</h3>
-                            <p className="text-slate-600 dark:text-slate-400">
-                                풍부한 임상 경험을 가진 전문 의료진이<br />최상의 의료 서비스를 제공합니다.
-                            </p>
+                        <div className="text-center space-y-4 group">
+                            <Link href="/staff/profile" className="block p-6 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300 border border-transparent hover:border-slate-100 dark:hover:bg-slate-800 dark:hover:border-slate-700 cursor-pointer">
+                                <div className="inline-flex p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+                                    <Award className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">전문성</h3>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                    풍부한 임상 경험을 가진 전문 의료진이<br />최상의 의료 서비스를 제공합니다.
+                                </p>
+                            </Link>
                         </div>
                         <div className="text-center space-y-4">
                             <div className="inline-flex p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 mb-4">

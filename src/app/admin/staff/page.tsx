@@ -12,7 +12,8 @@ interface Staff {
     name: string;
     role: string; // e.g., 'Doctor', 'Nurse'
     specialties?: string[];
-    photoUrl?: string;
+    imageUrl?: string;
+    photoUrl?: string; // Legacy support
     order?: number;
 }
 
@@ -81,8 +82,8 @@ export default function StaffPage() {
                     staffList.map((staff) => (
                         <div key={staff.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
                             <div className="aspect-w-16 aspect-h-9 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                                {staff.photoUrl ? (
-                                    <img src={staff.photoUrl} alt={staff.name} className="object-cover w-full h-48" />
+                                {staff.imageUrl || staff.photoUrl ? (
+                                    <img src={staff.imageUrl || staff.photoUrl} alt={staff.name} className="object-cover w-full h-48" />
                                 ) : (
                                     <div className="flex items-center justify-center h-48 w-full text-slate-400">
                                         사진 없음

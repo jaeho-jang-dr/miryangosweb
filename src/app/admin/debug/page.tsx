@@ -39,7 +39,7 @@ export default function DebugPage() {
             const noticesRef = collection(db, 'notices');
             await addDoc(noticesRef, {
                 title: '홈페이지 개편 안내',
-                body: '밀양OS병원 홈페이지가 새롭게 개편되었습니다. 많은 이용 바랍니다.',
+                body: '밀양정형외과 홈페이지가 새롭게 개편되었습니다. 많은 이용 바랍니다.',
                 createdAt: Timestamp.now(),
                 isVisible: true,
                 isPinned: true

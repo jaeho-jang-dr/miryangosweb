@@ -12,16 +12,13 @@ interface Transcript {
     isFinal: boolean;
 }
 
-import { SYMPTOMS, RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem } from '@/data/clinical-resources';
+import { RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem } from '@/data/clinical-resources';
 import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressions';
 import { searchKCD } from '@/lib/kcd-search';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 
 // Bundle Definitions
-const BUNDLES = [
-    // ... (omitted)
 
-];
 
 export default function ConsultingDetailPage() {
     const params = useParams();
@@ -34,9 +31,10 @@ export default function ConsultingDetailPage() {
     const [activeField, setActiveField] = useState<'cc' | 'test' | 'diagnosis' | 'plan' | null>('plan');
 
     // State for Context-Aware Sidebar
-    const [symptomCategory, setSymptomCategory] = useState<'OS' | 'IM'>('OS');
+    const [symptomCategory, setSymptomCategory] = useState<string>('Musculoskeletal');
     const [testCategory, setTestCategory] = useState<'Radiology' | 'Lab'>('Radiology');
     const [activePrescriptionCategory, setActivePrescriptionCategory] = useState('nerve_joint');
+    const [activeRadiologyOptions, setActiveRadiologyOptions] = useState<Record<string, string[]>>({});
 
     // State for Symptom Suggestions
     const [symptomSuggestions, setSymptomSuggestions] = useState<SymptomExpression[]>([]);
@@ -149,26 +147,7 @@ export default function ConsultingDetailPage() {
         }
     };
 
-    const addBundleToPlan = (title: string, content: string) => {
-        setFormData(prev => ({
-            ...prev,
-            plan: (prev.plan ? prev.plan + '\n' : '') + `[${title}]\n- ${content}`
-        }));
-        setActiveField('plan');
-    };
 
-    // Filter Bundles Logic
-    const getFilteredBundles = () => {
-        if (!formData.diagnosis || formData.diagnosis.trim() === '') {
-            return BUNDLES; // Show all if diagnosis is empty
-        }
-        const relevant = BUNDLES.filter(bundle =>
-            bundle.keywords.some(keyword => formData.diagnosis.includes(keyword))
-        );
-        return relevant.length > 0 ? relevant : BUNDLES; // Fallback to all if no match
-    };
-
-    const filteredBundles = getFilteredBundles();
 
     if (loading) return <div className="p-20 text-center">Loading...</div>;
     if (!visit) return null;
@@ -572,33 +551,90 @@ export default function ConsultingDetailPage() {
                         {/* 1. SUBJECTIVE -> SYMPTOMS */}
                         {activeField === 'cc' && (
                             <div className="flex flex-col gap-2 h-full">
-                                {/* Category Tabs */}
-                                <div className="flex p-1 bg-slate-100 rounded-lg mb-2">
-                                    <button
-                                        onClick={() => setSymptomCategory('OS')}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${symptomCategory === 'OS' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    >
-                                        <Activity className="w-4 h-4" /> 외과/정형
-                                    </button>
-                                    <button
-                                        onClick={() => setSymptomCategory('IM')}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${symptomCategory === 'IM' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    >
-                                        <Stethoscope className="w-4 h-4" /> 내과/소아
-                                    </button>
+                                {/* Category Tabs (Scrollable) - Custom Ordered */}
+                                {/* Category Tabs (All Visible) */}
+                                <div className="flex flex-wrap gap-1.5 pb-2">
+                                    {/* Strict Order: Musculoskeletal -> Neurological -> General -> Others */}
+                                    {['Musculoskeletal', 'Neurological', 'General', 'Respiratory', 'Digestive', 'Circulatory', 'Skin', 'Eye/Ear', 'Urinary', 'Psychiatric']
+                                        .filter(cat => Array.from(new Set(SYMPTOM_EXPRESSIONS.map(s => s.category))).includes(cat as any))
+                                        .map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setSymptomCategory(cat)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${symptomCategory === cat
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105'
+                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-emerald-200'
+                                                    }`}
+                                            >
+                                                {
+                                                    {
+                                                        'Musculoskeletal': '근골격계',
+                                                        'Neurological': '신경계',
+                                                        'General': '전신/대사',
+                                                        'Respiratory': '호흡기',
+                                                        'Digestive': '소화기',
+                                                        'Circulatory': '순환기',
+                                                        'Skin': '피부',
+                                                        'Eye/Ear': '안/이비후',
+                                                        'Urinary': '비뇨기',
+                                                        'Psychiatric': '정신/심리'
+                                                    }[cat] || cat
+                                                }
+                                            </button>
+                                        ))}
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto space-y-2">
-                                    {(SYMPTOMS as any[]).filter(s => s.category === symptomCategory).map(symptom => (
-                                        <button
-                                            key={symptom.id}
-                                            onClick={() => setFormData(prev => ({ ...prev, cc: (prev.cc ? prev.cc + ', ' : '') + symptom.text }))}
-                                            className="w-full text-left p-3 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:shadow-sm transition-all text-sm font-medium text-slate-700 hover:text-emerald-700 hover:bg-emerald-50"
+                                {SYMPTOM_EXPRESSIONS.filter(s => s.category === symptomCategory).map((symptom, idx) => (
+                                    <div
+                                        key={`${symptom.standardTerm}-${idx}`}
+                                        className="w-full text-left p-3 bg-white border border-slate-200 rounded-xl hover:border-emerald-300 hover:shadow-sm transition-all group relative"
+                                    >
+                                        <div
+                                            className="cursor-pointer"
+                                            onClick={() => setFormData(prev => ({ ...prev, cc: (prev.cc ? prev.cc + '\n' : '') + symptom.standardTerm }))}
                                         >
-                                            {symptom.text}
-                                        </button>
-                                    ))}
-                                </div>
+                                            <div className="text-sm font-bold text-slate-700 group-hover:text-emerald-700">
+                                                {symptom.standardTerm}
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-1">
+                                                "{symptom.expression}"
+                                            </div>
+                                        </div>
+
+                                        {/* Side Selection Options for Musculoskeletal items with hasSide */}
+                                        {symptom.hasSide && (
+                                            <div className="mt-2 flex gap-1 border-t border-slate-100 pt-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFormData(prev => ({ ...prev, cc: (prev.cc ? prev.cc + '\n' : '') + `${symptom.standardTerm} (Lt)` }));
+                                                    }}
+                                                    className="flex-1 py-1 text-xs bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 rounded border border-slate-200"
+                                                >
+                                                    좌(L)
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFormData(prev => ({ ...prev, cc: (prev.cc ? prev.cc + '\n' : '') + `${symptom.standardTerm} (Rt)` }));
+                                                    }}
+                                                    className="flex-1 py-1 text-xs bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 rounded border border-slate-200"
+                                                >
+                                                    우(R)
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFormData(prev => ({ ...prev, cc: (prev.cc ? prev.cc + '\n' : '') + `${symptom.standardTerm} (Bi)` }));
+                                                    }}
+                                                    className="flex-1 py-1 text-xs bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 rounded border border-slate-200"
+                                                >
+                                                    양측
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -623,25 +659,62 @@ export default function ConsultingDetailPage() {
 
                                 <div className="flex-1 overflow-y-auto space-y-2">
                                     {testCategory === 'Radiology' ? (
-                                        RADIOLOGY_LIST.map(item => (
+                                        RADIOLOGY_LIST.map((item: any) => (
                                             <div key={item.id} className="w-full bg-white border border-slate-200 rounded-xl p-3 hover:border-indigo-300 transition-all">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="font-medium text-slate-700 text-sm">{item.text}</span>
                                                     {item.type === 'simple' && (
                                                         <button
-                                                            onClick={() => setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + item.text }))}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const opts = activeRadiologyOptions[item.id] || [];
+                                                                let text = item.text + (opts.length > 0 ? ` + ${opts.join(', ')}` : '');
+                                                                setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + text }));
+                                                            }}
                                                             className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100"
                                                         >
                                                             추가
                                                         </button>
                                                     )}
                                                 </div>
+
+                                                {/* Sub Options (Multi-select) */}
+                                                {item.subOptions && (
+                                                    <div className="flex flex-wrap gap-1 mt-2 mb-2">
+                                                        {item.subOptions.map((opt: string) => (
+                                                            <button
+                                                                key={opt}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const current = activeRadiologyOptions[item.id] || [];
+                                                                    const newOpts = current.includes(opt)
+                                                                        ? current.filter(o => o !== opt)
+                                                                        : [...current, opt];
+                                                                    setActiveRadiologyOptions(prev => ({ ...prev, [item.id]: newOpts }));
+                                                                }}
+                                                                className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${(activeRadiologyOptions[item.id] || []).includes(opt)
+                                                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                                                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                {opt}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+
                                                 {item.type === 'sided' && (
                                                     <div className="flex gap-2 mt-2">
                                                         {['Lt', 'Rt', 'Both'].map(side => (
                                                             <button
                                                                 key={side}
-                                                                onClick={() => setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + `${item.text} (${side})` }))}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const opts = activeRadiologyOptions[item.id] || [];
+                                                                    let text = item.text + (opts.length > 0 ? ` + ${opts.join(', ')}` : '');
+                                                                    text += ` (${side})`;
+                                                                    setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + text }));
+                                                                }}
                                                                 className="flex-1 py-1 text-xs border border-indigo-100 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 hover:font-bold transition-colors"
                                                             >
                                                                 {side}

@@ -2,120 +2,103 @@ export interface SymptomExpression {
     expression: string;
     standardTerm: string;
     keywords: string[];
-    category: 'General' | 'Respiratory' | 'Digestive' | 'Musculoskeletal' | 'Neurological' | 'Psychiatric' | 'Skin' | 'Eye/Ear' | 'Urinary';
+    category: 'General' | 'Respiratory' | 'Digestive' | 'Musculoskeletal' | 'Neurological' | 'Psychiatric' | 'Skin' | 'Eye/Ear' | 'Urinary' | 'Circulatory';
+    hasSide?: boolean;
 }
 
 export const SYMPTOM_EXPRESSIONS: SymptomExpression[] = [
-    // === General / Systemic (전신) ===
-    { expression: "으슬으슬 추워요", standardTerm: "오한 (Chills)", keywords: ["추워", "으슬", "몸살"], category: "General" },
-    { expression: "온몸이 얻어맞은 것처럼 아파요", standardTerm: "전신 근육통 (General Myalgia)", keywords: ["온몸", "근육통", "몸살"], category: "General" },
-    { expression: "열이 나는 것 같아요", standardTerm: "발열 (Fever)", keywords: ["열", "화끈"], category: "General" },
-    { expression: "기운이 하나도 없어요", standardTerm: "전신 쇠약 (General Weakness)", keywords: ["기운", "힘이", "쳐져"], category: "General" },
-    { expression: "식은땀이 나요", standardTerm: "발한 (Sweating)", keywords: ["땀", "식은땀"], category: "General" },
-    { expression: "입맛이 통 없어요", standardTerm: "식욕 부진 (Anorexia)", keywords: ["입맛", "식욕", "밥맛"], category: "General" },
-    { expression: "몸이 붓는 것 같아요", standardTerm: "부종 (Edema)", keywords: ["붓는", "부종"], category: "General" },
-    { expression: "살이 갑자기 빠졌어요", standardTerm: "체중 감소 (Weight Loss)", keywords: ["살", "체중", "빠졌"], category: "General" },
-    { expression: "자고 일어나도 피곤해요", standardTerm: "만성 피로 (Chronic Fatigue)", keywords: ["피곤", "피로"], category: "General" },
+    // === 1. 전신 및 대사 (General & Metabolic) ===
+    { expression: "몸이 천근만근이고 무거워요", standardTerm: "전신 권태감 (Malaise)", keywords: ["천근만근", "무겁다", "나른", "노곤"], category: "General" },
+    { expression: "기운이 하나도 없고 축 처져요", standardTerm: "무기력증 (Lethargy)", keywords: ["기운", "맥이", "처진다", "힘이"], category: "General" },
+    { expression: "몸이 불덩이 같이 뜨거워요", standardTerm: "발열 (Fever)", keywords: ["불덩이", "화끈", "열이"], category: "General" },
+    { expression: "몸이 으슬으슬 춥고 떨려요", standardTerm: "오한 (Chills)", keywords: ["오들오들", "으슬으슬", "시리다", "추워"], category: "General" },
+    { expression: "아침마다 얼굴과 손발이 부어요", standardTerm: "부종 (Edema)", keywords: ["붓는", "부석부석", "부종"], category: "General" },
+    { expression: "발이 너무 시려요", standardTerm: "말초 냉감/혈액순환 장애 (Cold Extremities)", keywords: ["발이", "시려", "차가워", "수족냉증"], category: "Circulatory" },
+    { expression: "식은땀이 줄줄 흘러요", standardTerm: "발한 (Sweating)", keywords: ["땀", "식은땀"], category: "General" },
+    { expression: "입맛이 뚝 떨어졌어요", standardTerm: "식욕 부진 (Anorexia)", keywords: ["입맛", "식욕", "밥맛", "밥이"], category: "General" },
+    { expression: "살이 갑자기 많이 빠졌어요", standardTerm: "체중 감소 (Weight Loss)", keywords: ["살", "체중", "빠졌"], category: "General" },
+    { expression: "자고 일어나도 피곤이 안 풀려요", standardTerm: "만성 피로 (Chronic Fatigue)", keywords: ["피곤", "피로", "만성"], category: "General" },
 
-    // === Head & Neck (머리/목) ===
-    { expression: "머리가 깨질 것 같아요", standardTerm: "두통 (Headache)", keywords: ["머리", "두통", "깨질"], category: "Neurological" },
-    { expression: "뒷목이 뻐근하고 당겨요", standardTerm: "경부통/긴장성 두통 (Neck Pain/Tension Headache)", keywords: ["뒷목", "뻐근", "당겨"], category: "Musculoskeletal" },
-    { expression: "관자놀이가 지끈거려요", standardTerm: "편두통 (Migraine)", keywords: ["관자놀이", "지끈", "한쪽"], category: "Neurological" },
-    { expression: "머리가 핑 도는 것 같아요", standardTerm: "현기증 (Dizziness)", keywords: ["핑", "어지러", "현기증"], category: "Neurological" },
-    { expression: "천장이 빙글빙글 돌아요", standardTerm: "회전성 현훈 (Vertigo)", keywords: ["빙글", "돌아", "어지러"], category: "Neurological" },
-    { expression: "일어날 때 눈앞이 캄캄해져요", standardTerm: "기립성 저혈압 (Orthostatic Hypotension)", keywords: ["일어날", "캄캄", "어지러"], category: "General" },
-    { expression: "목에 멍울이 만져져요", standardTerm: "경부 림프절 비대 (Cervical Lymphadenopathy)", keywords: ["목", "멍울", "혹"], category: "General" },
-    { expression: "잠을 잘 못 자요", standardTerm: "불면증 (Insomnia)", keywords: ["잠", "불면", "새벽"], category: "Psychiatric" },
+    // === 2. 두경부 및 신경계 (Head, Neck & Neuro) ===
+    { expression: "머리가 지끈거리고 울려요", standardTerm: "박동성 두통 (Throbbing Headache)", keywords: ["지끈", "쿵쿵", "울린다", "박동"], category: "Neurological" },
+    { expression: "머리가 띵하고 무거워요", standardTerm: "긴장성 두통 (Tension Headache)", keywords: ["머리", "띵하다", "무겁다", "안개", "두통"], category: "Neurological" },
+    { expression: "한쪽 머리가 콕콕 쑤셔요", standardTerm: "편두통 (Migraine)", keywords: ["관자놀이", "한쪽", "편두통", "쑤셔"], category: "Neurological" },
+    { expression: "눈이 침침하고 뻑뻑해요", standardTerm: "시력 저하/안구 건조 (Visual disturbance/Dry Eye)", keywords: ["침침", "깔깔", "꺼칠", "뻑뻑", "눈"], category: "Eye/Ear" },
+    { expression: "귀에서 윙 소리가 나요", standardTerm: "이명 (Tinnitus)", keywords: ["이명", "윙", "소리", "귀"], category: "Eye/Ear" },
+    { expression: "귀가 먹먹하고 잘 안 들려요", standardTerm: "이충만감/난청 (Ear Fullness/Hearing Loss)", keywords: ["먹먹", "안들려", "멍멍"], category: "Eye/Ear" },
+    { expression: "세상이 빙글빙글 돌아요", standardTerm: "회전성 현훈 (Vertigo)", keywords: ["빙글", "돈다", "현훈", "어지러"], category: "Neurological" },
+    { expression: "머리가 핑 도는 것 같이 어지러워요", standardTerm: "현기증 (Dizziness)", keywords: ["어찔", "핑", "어지러", "맑지"], category: "Neurological" },
+    { expression: "일어날 때 눈앞이 캄캄해요", standardTerm: "기립성 저혈압 (Orthostatic Hypotension)", keywords: ["기립", "일어날", "캄캄"], category: "Circulatory" },
 
-    // === Respiratory (호흡기) ===
-    { expression: "목이 따끔거리고 깊어요", standardTerm: "인후통 (Sore Throat)", keywords: ["목", "따끔", "아파"], category: "Respiratory" },
-    { expression: "침 삼킬 때 목이 아파요", standardTerm: "연하통 (Odynophagia)", keywords: ["침", "삼킬", "목"], category: "Respiratory" },
-    { expression: "콧물이 줄줄 흘러요", standardTerm: "콧물 (Rhinorrhea)", keywords: ["콧물", "코"], category: "Respiratory" },
-    { expression: "코가 꽉 막혔어요", standardTerm: "코막힘 (Nasal Congestion)", keywords: ["코", "막혀", "답답"], category: "Respiratory" },
-    { expression: "재채기가 계속 나와요", standardTerm: "재채기 (Sneezing)", keywords: ["재채기", "에취"], category: "Respiratory" },
-    { expression: "기침이 멈추질 않아요", standardTerm: "기침 (Cough)", keywords: ["기침", "콜록"], category: "Respiratory" },
-    { expression: "가래가 목에 걸려 있어요", standardTerm: "가래 (Sputum)", keywords: ["가래", "걸려"], category: "Respiratory" },
-    { expression: "누란 가래가 나와요", standardTerm: "화농성 가래 (Purulent Sputum)", keywords: ["누런", "가래", "노란"], category: "Respiratory" },
-    { expression: "숨쉴 때 쇳소리가 나요", standardTerm: "천명음 (Wheezing)", keywords: ["쇳소리", "숨", "소리"], category: "Respiratory" },
-    { expression: "조금만 걸어도 숨이 차요", standardTerm: "호흡곤란 (Dyspnea)", keywords: ["숨", "차요", "호흡"], category: "Respiratory" },
-    { expression: "가슴이 답답해요", standardTerm: "흉부 불편감 (Chest Discomfort)", keywords: ["가슴", "답답"], category: "Respiratory" },
+    // === 3. 소화기 및 흉부 순환기 (Digestive & Circulatory) ===
+    { expression: "가슴이 답답하고 막힌 것 같아요", standardTerm: "흉부 압박감/화병 (Chest Tightness/Hwa-byung)", keywords: ["답답", "덩어리", "막힌", "명치"], category: "Respiratory" },
+    { expression: "가슴이 두근거리고 조마조마해요", standardTerm: "심계항진 (Palpitations)", keywords: ["두근", "조마조마", "쿵쾅", "심장"], category: "Circulatory" },
+    { expression: "속이 쓰리고 타들어 가는 것 같아요", standardTerm: "위염/역류성 식도염 (Gastritis/GERD)", keywords: ["속이", "쓰리", "타들어", "뒤집어", "신물"], category: "Digestive" },
+    { expression: "속이 더부룩하고 체한 것 같아요", standardTerm: "소화불량 (Dyspepsia)", keywords: ["더부룩", "체한", "부대끼", "소화"], category: "Digestive" },
+    { expression: "배가 쥐어짜는 듯이 아파요", standardTerm: "복통 (Abdominal Pain)", keywords: ["쥐어짜", "사르르", "쌀쌀", "콕콕", "배가", "아파"], category: "Digestive" },
+    { expression: "변을 봐도 시원하지 않고 묵직해요", standardTerm: "후중감 (Tenesmus)", keywords: ["뒤가", "묵직", "시원치", "잔변"], category: "Digestive" },
+    { expression: "설사를 물처럼 계속 해요", standardTerm: "설사 (Diarrhea)", keywords: ["설사", "물똥", "좍좍"], category: "Digestive" },
+    { expression: "토할 것 같이 울렁거려요", standardTerm: "구역/구토 (Nausea/Vomiting)", keywords: ["울렁", "토할", "미식", "구역"], category: "Digestive" },
 
-    // === Digestive (소화기) ===
-    { expression: "소화가 안 되고 더부룩해요", standardTerm: "소화불량 (Dyspepsia)", keywords: ["소화", "더부룩", "체한"], category: "Digestive" },
-    { expression: "명치가 콕콕 쑤셔요", standardTerm: "심와부 통증 (Epigastric Pain)", keywords: ["명치", "콕콕", "아파"], category: "Digestive" },
-    { expression: "속이 쓰리고 타는 것 같아요", standardTerm: "속쓰림 (Heartburn)", keywords: ["속", "쓰려", "타는"], category: "Digestive" },
-    { expression: "신물이 올라와요", standardTerm: "위산 역류 (Acid Reflux)", keywords: ["신물", "역류"], category: "Digestive" },
-    { expression: "토할 것 같이 울렁거려요", standardTerm: "오심 (Nausea)", keywords: ["토", "울렁", "미식"], category: "Digestive" },
-    { expression: "계속 토해요", standardTerm: "구토 (Vomiting)", keywords: ["토", "게워"], category: "Digestive" },
-    { expression: "배가 전체적으로 살살 아파요", standardTerm: "복통 (Abdominal Pain)", keywords: ["배", "아파", "복통"], category: "Digestive" },
-    { expression: "설사를 물처럼 해요", standardTerm: "설사 (Diarrhea)", keywords: ["설사", "물"], category: "Digestive" },
-    { expression: "변비가 심해서 화장실을 못 가요", standardTerm: "변비 (Constipation)", keywords: ["변비", "똥", "대변"], category: "Digestive" },
-    { expression: "변에 피가 섞여 나왔어요", standardTerm: "혈변 (Hematochezia)", keywords: ["피", "변", "혈변"], category: "Digestive" },
-    { expression: "똥이 까맣게 나와요", standardTerm: "흑색변 (Melena)", keywords: ["검은", "까만", "변"], category: "Digestive" },
+    // === 4. 근골격계 및 피부 (Musculoskeletal & Skin) ===
+    // 순서: 척추(목) -> 상지(어깨-팔꿈치-손목-손) -> 척추(허리) -> 하지(고관절-무릎-발목-발) + 신경증상
 
-    // === Musculoskeletal - Spine (척추) ===
-    { expression: "허리가 끊어질 듯이 아파요", standardTerm: "요통 (Low Back Pain)", keywords: ["허리", "아파", "요통"], category: "Musculoskeletal" },
-    { expression: "허리를 삐끗했어요", standardTerm: "요추 염좌 (Lumbar Sprain)", keywords: ["허리", "삐끗", "다쳤"], category: "Musculoskeletal" },
-    { expression: "엉덩이부터 다리까지 저려요", standardTerm: "방사통/좌골신경통 (Sciatica)", keywords: ["다리", "저려", "엉덩이"], category: "Musculoskeletal" },
-    { expression: "오래 앉아있으면 허리가 아파요", standardTerm: "요통 (LBP - Postural)", keywords: ["앉아", "허리"], category: "Musculoskeletal" },
-    { expression: "자고 일어나면 허리가 뻣뻣해요", standardTerm: "조조 강직 (Morning Stiffness)", keywords: ["아침", "뻣뻣", "허리"], category: "Musculoskeletal" },
-    { expression: "목을 못 돌리겠어요", standardTerm: "경부 통증/운동제한 (Neck Pain/ROM Limit)", keywords: ["목", "안돌아", "돌리"], category: "Musculoskeletal" },
-    { expression: "자고 일어났더니 목이 안 돌아가요", standardTerm: "낙침/경추 염좌 (Acute Cervical Sprain)", keywords: ["아침", "잠", "목"], category: "Musculoskeletal" },
-    { expression: "어깨부터 팔까지 찌릿해요", standardTerm: "경추 디스크 의증 (C-Spine HIVD susp.)", keywords: ["팔", "저려", "찌릿", "어깨"], category: "Musculoskeletal" },
-    { expression: "등이 배기듯이 아파요", standardTerm: "배부통 (Dorsalgia)", keywords: ["등", "아파", "배기"], category: "Musculoskeletal" },
-    { expression: "날개뼈 안쪽이 쑤셔요", standardTerm: "능형근 통증 (Rhomboid Pain)", keywords: ["날개뼈", "견갑골", "안쪽"], category: "Musculoskeletal" },
+    // 1. 목 (Neck)
+    { expression: "목(경추부)가 아파요", standardTerm: "경부통 (Neck Pain)", keywords: ["목", "경추", "뒷목", "뻐근"], category: "Musculoskeletal" },
 
-    // === Musculoskeletal - Shoulder/Arm (어깨/팔) ===
-    { expression: "팔을 위로 못 올리겠어요", standardTerm: "어깨 운동제한 (Shoulder ROM Limit)", keywords: ["팔", "올리", "어깨"], category: "Musculoskeletal" },
-    { expression: "밤에 어깨가 아파서 잠을 깨요", standardTerm: "야간통 (Night Pain - Shoulder)", keywords: ["밤", "어깨", "잠"], category: "Musculoskeletal" },
-    { expression: "어깨가 빠진 것 같아요", standardTerm: "어깨 탈구 (Shoulder Dislocation)", keywords: ["빠진", "탈구"], category: "Musculoskeletal" },
-    { expression: "팔꿈치 바깥쪽이 아파요", standardTerm: "테니스 엘보 (Lateral Epicondylitis)", keywords: ["팔꿈치", "바깥", "엘보"], category: "Musculoskeletal" },
-    { expression: "팔꿈치 안쪽이 아파요", standardTerm: "골퍼 엘보 (Medial Epicondylitis)", keywords: ["팔꿈치", "안쪽", "엘보"], category: "Musculoskeletal" },
-    { expression: "손목이 시큰거려요", standardTerm: "손목 통증 (Wrist Pain)", keywords: ["손목", "시큰"], category: "Musculoskeletal" },
-    { expression: "손가락이 저리고 감각이 없어요", standardTerm: "손 저림 (Hand Numbness/CTS)", keywords: ["손가락", "저려", "감각"], category: "Musculoskeletal" },
-    { expression: "손가락 마디가 붓고 아파요", standardTerm: "관절염 (Arthritis - Finger)", keywords: ["손가락", "마디", "붓고"], category: "Musculoskeletal" },
+    // 2. 어깨 (Shoulder)
+    { expression: "어깨가 아파요", standardTerm: "어깨 통증 (Shoulder Pain)", keywords: ["어깨", "견관절", "아파"], category: "Musculoskeletal", hasSide: true },
+    { expression: "어깨가 안 움직여요", standardTerm: "견관절 운동제한/오십견 (Shoulder ROM Limit/Frozen Shoulder)", keywords: ["오십견", "안올라", "운동", "굳어"], category: "Musculoskeletal", hasSide: true },
 
-    // === Musculoskeletal - Knee/Leg (무릎/다리) ===
-    { expression: "계단 내려갈 때 무릎이 아파요", standardTerm: "슬관절통 (Knee Pain - Stair)", keywords: ["계단", "무릎", "내려"], category: "Musculoskeletal" },
-    { expression: "무릎에서 소리가 나요", standardTerm: "무릎 염발음 (Knee Crepitus)", keywords: ["무릎", "소리", "딱딱"], category: "Musculoskeletal" },
-    { expression: "무릎이 퉁퉁 부었어요", standardTerm: "무릎 부종 (Knee Swelling)", keywords: ["무릎", "부었", "물"], category: "Musculoskeletal" },
-    { expression: "무릎이 힘없이 꺾여요", standardTerm: "무릎 불안정성 (Knee Instability)", keywords: ["무릎", "꺾여", "힘이"], category: "Musculoskeletal" },
-    { expression: "쪼그려 앉기가 힘들어요", standardTerm: "무릎 굴곡 제한 (Knee Flexion Limit)", keywords: ["쪼그려", "앉기", "무릎"], category: "Musculoskeletal" },
-    { expression: "발목을 접질렀어요", standardTerm: "발목 염좌 (Ankle Sprain)", keywords: ["발목", "접질", "삐었"], category: "Musculoskeletal" },
-    { expression: "걸을 때 발바닥이 아파요", standardTerm: "족저근막염 의증 (Plantar Fasciitis)", keywords: ["발바닥", "걸을", "아파"], category: "Musculoskeletal" },
-    { expression: "엄지발가락이 붓고 너무 아파요", standardTerm: "통풍 발작 (Gout Attack)", keywords: ["엄지", "발가락", "붓고", "통풍"], category: "Musculoskeletal" },
-    { expression: "종아리에 쥐가 자주 나요", standardTerm: "하지 근육 경련 (Calf Cramp)", keywords: ["종아리", "쥐", "경련"], category: "Musculoskeletal" },
+    // 3. 팔꿈치 (Elbow)
+    { expression: "팔꿈치가 아파요", standardTerm: "엘보/팔꿈치 통증 (Elbow Pain)", keywords: ["팔꿈치", "엘보", "아파"], category: "Musculoskeletal", hasSide: true },
 
-    // === Skin (피부) ===
-    { expression: "온몸이 가려워요", standardTerm: "소양증 (Pruritus)", keywords: ["가려", "긁어"], category: "Skin" },
-    { expression: "피부에 붉은 반점이 생겼어요", standardTerm: "발진 (Rash)", keywords: ["반점", "붉은", "두드러기"], category: "Skin" },
-    { expression: "벌레 물린 것처럼 부어올랐어요", standardTerm: "두드러기 (Urticaria)", keywords: ["벌레", "부어", "두드러기"], category: "Skin" },
-    { expression: "대상포진인 것 같아요", standardTerm: "대상포진 (Herpes Zoster)", keywords: ["대상포진", "물집", "수포"], category: "Skin" },
-    { expression: "화상을 입었어요", standardTerm: "화상 (Burn)", keywords: ["화상", "데었", "뜨거운"], category: "Skin" },
-    { expression: "상처가 곪았어요", standardTerm: "창상 감염 (Wound Infection)", keywords: ["곪았", "고름", "염증"], category: "Skin" },
+    // 4. 손목/손 (Wrist/Hand)
+    { expression: "손목이 아파요", standardTerm: "손목 통증 (Wrist Pain)", keywords: ["손목", "아파", "시큰"], category: "Musculoskeletal", hasSide: true },
+    { expression: "손이 아파요", standardTerm: "수부 통증 (Hand Pain)", keywords: ["손", "손가락", "아파"], category: "Musculoskeletal", hasSide: true },
 
-    // === Eye/Ear (눈/귀) ===
-    { expression: "눈이 충혈되고 아파요", standardTerm: "결막염 (Conjunctivitis)", keywords: ["눈", "빨개", "충혈"], category: "Eye/Ear" },
-    { expression: "눈에 뭐가 들어간 것 같아요", standardTerm: "이물감 (Foreign Body Sensation)", keywords: ["이물감", "눈", "모래"], category: "Eye/Ear" },
-    { expression: "귀가 멍멍해요", standardTerm: "이충만감 (Ear Fullness)", keywords: ["귀", "멍멍", "먹먹"], category: "Eye/Ear" },
-    { expression: "귀에서 삐 소리가 나요", standardTerm: "이명 (Tinnitus)", keywords: ["이명", "소리", "삐"], category: "Eye/Ear" },
-    { expression: "귀가 아파요", standardTerm: "이통 (Otalgia)", keywords: ["귀", "아파"], category: "Eye/Ear" },
+    // 5. 상지 신경증상 (Arm Numbness)
+    { expression: "팔이 저려요", standardTerm: "상지 방사통 (Arm Radiculopathy)", keywords: ["팔", "저려", "전기"], category: "Musculoskeletal", hasSide: true },
 
-    // === Urinary (비뇨기) ===
-    { expression: "소변 볼 때 따가워요", standardTerm: "배뇨통 (Dysuria)", keywords: ["소변", "따가", "아파"], category: "Urinary" },
-    { expression: "소변이 너무 자주 마려워요", standardTerm: "빈뇨 (Frequency)", keywords: ["자주", "화장실", "빈뇨"], category: "Urinary" },
-    { expression: "소변 보고 나서도 시원하지 않아요", standardTerm: "잔뇨감 (Residual Urine Sensation)", keywords: ["시원", "잔뇨", "덜본"], category: "Urinary" },
-    { expression: "소변에 피가 섞여 나와요", standardTerm: "혈뇨 (Hematuria)", keywords: ["피", "소변", "혈뇨", "붉은"], category: "Urinary" },
-    { expression: "밤에 자다가 소변 보러 깨요", standardTerm: "야간뇨 (Nocturia)", keywords: ["밤", "자다가", "소변"], category: "Urinary" },
+    // 6. 허리 (Back)
+    { expression: "허리가 아파요", standardTerm: "요통 (Low Back Pain)", keywords: ["허리", "요통", "끊어", "삐끗"], category: "Musculoskeletal" },
 
-    // === Additional Expressions (Expansion to ~100 first, will add more dynamic logic for 250+) ===
-    { expression: "허리가 삐끗해서 꼼짝을 못하겠어요", standardTerm: "요추 염좌 (Acute Lumbar Sprain)", keywords: ["꼼짝", "허리", "삐끗"], category: "Musculoskeletal" },
-    { expression: "다리가 퉁퉁 부어서 신발이 안 맞아요", standardTerm: "하지 부종 (Leg Edema)", keywords: ["다리", "부어", "신발"], category: "General" },
-    { expression: "숨이 차서 눕지를 못하겠어요", standardTerm: " 기좌호흡 (Orthopnea)", keywords: ["눕지", "숨", "차서"], category: "Respiratory" },
-    { expression: "가슴이 쿵쾅거리고 두근거려요", standardTerm: "심계항진 (Palpitations)", keywords: ["두근", "쿵쾅", "심장"], category: "Circulatory" },
-    { expression: "손이 떨려요", standardTerm: "진전 (Tremor)", keywords: ["손", "떨려", "수전증"], category: "Neurological" },
-    { expression: "입이 돌아갔어요", standardTerm: "구안와사/안면마비 (Facial Palsy)", keywords: ["입", "돌아", "마비"], category: "Neurological" },
-    { expression: "말이 어눌해졌어요", standardTerm: "구음장애 (Dysarthria)", keywords: ["말", "어눌", "발음"], category: "Neurological" },
+    // 7. 고관절 (Hip)
+    { expression: "고관절이 아파요", standardTerm: "고관절 통증 (Hip Pain)", keywords: ["고관절", "엉덩이", "골반", "사타구니"], category: "Musculoskeletal", hasSide: true },
+
+    // 8. 하지 신경증상 (Leg Numbness)
+    { expression: "다리가 저려요", standardTerm: "하지 방사통/좌골신경통 (Leg Radiculopathy/Sciatica)", keywords: ["다리", "저려", "찌릿", "내려와"], category: "Musculoskeletal", hasSide: true },
+    { expression: "다리가 아파요", standardTerm: "하지 통증 (Leg Pain)", keywords: ["다리", "아파", "종아리"], category: "Musculoskeletal", hasSide: true },
+
+    // 9. 무릎 (Knee)
+    { expression: "무릎이 아파요", standardTerm: "무릎 통증 (Knee Pain)", keywords: ["무릎", "아파", "시큰"], category: "Musculoskeletal", hasSide: true },
+
+    // 10. 발목/발 (Ankle/Foot)
+    { expression: "발목이 아파요", standardTerm: "발목 통증 (Ankle Pain)", keywords: ["발목", "아파", "삐끗", "접질"], category: "Musculoskeletal", hasSide: true },
+
+    // Other existing items maintained
+    { expression: "다리가 우리하게 계속 아파요", standardTerm: "만성 심부 통증 (Deep Aching Pain)", keywords: ["우리하다", "우리", "은근", "둔탁"], category: "Musculoskeletal", hasSide: true },
+    { expression: "어깨가 결리고 담이 들었어요", standardTerm: "근막통증증후군 (Myofascial Pain)", keywords: ["결린다", "결려", "담", "뻐근"], category: "Musculoskeletal" },
+    { expression: "상처 부위가 욱신거려요", standardTerm: "박동성 통증/염증 (Throbbing Pain/Inflammation)", keywords: ["욱신", "쑤셔", "상처"], category: "Musculoskeletal" },
+    { expression: "손발이 저리고 남의 살 같아요", standardTerm: "감각 이상 (Paresthesia)", keywords: ["저리", "저림", "남의살", "전기", "감각"], category: "Musculoskeletal" },
+    { expression: "관절 마디마디가 쑤셔요", standardTerm: "다발성 관절통 (Polyarthralgia)", keywords: ["마디", "쑤셔", "관절"], category: "Musculoskeletal" },
+    { expression: "몸이 근질근질 가려워요", standardTerm: "소양증 (Pruritus)", keywords: ["근질", "가려", "긁어"], category: "Skin" },
+    { expression: "피부에 붉은 반점이 돋았어요", standardTerm: "피부 발진 (Sky Rash)", keywords: ["반점", "붉은", "두드러기", "뭐가나"], category: "Skin" },
+
+    // === 5. 정신 및 심리 (Psychiatric) ===
+    { expression: "자꾸 깜빡깜빡하고 정신이 멍해요", standardTerm: "기억력 저하/인지기능 저하 (Memory Loss/Cognitive Decline)", keywords: ["깜빡", "멍하다", "기억", "정신"], category: "Psychiatric" },
+    { expression: "마음이 안달 나고 불안해요", standardTerm: "불안 (Anxiety)", keywords: ["안달", "안절부절", "불안", "초조"], category: "Psychiatric" },
+    { expression: "울화가 치밀고 만사가 귀찮아요", standardTerm: "우울/화병 (Depression/Hwa-byung)", keywords: ["울화", "화병", "귀찮", "우울"], category: "Psychiatric" },
+    { expression: "손이나 몸이 저절로 떨려요", standardTerm: "진전 (Tremor)", keywords: ["덜덜", "떨려", "수전증", "제멋대로"], category: "Neurological" },
+    { expression: "잠을 통 못 자요", standardTerm: "불면증 (Insomnia)", keywords: ["잠", "불면", "새벽", "못자"], category: "Psychiatric" },
+
+    // === Additional Common User Expressions ===
+    { expression: "목이 따끔거리고 침 삼키기 힘들어요", standardTerm: "인후통 (Sore Throat)", keywords: ["목", "따끔", "삼키", "아파"], category: "Respiratory" },
+    { expression: "기침이 자꾸 나와요", standardTerm: "기침 (Cough)", keywords: ["기침", "콜록"], category: "Respiratory" },
+    { expression: "가래가 끓어요", standardTerm: "객담 (Sputum)", keywords: ["가래", "걸려"], category: "Respiratory" },
+    { expression: "숨이 차요", standardTerm: "호흡곤란 (Dyspnea)", keywords: ["숨", "차요", "호흡"], category: "Respiratory" },
+    { expression: "소변 볼 때 아파요", standardTerm: "배뇨통 (Dysuria)", keywords: ["소변", "오줌", "아파", "따가"], category: "Urinary" },
+    { expression: "소변을 너무 자주 봐요", standardTerm: "빈뇨 (Frequency)", keywords: ["자주", "빈뇨", "화장실"], category: "Urinary" }
 ];
 
 // Helper to expand list programmatically simply by variations if needed,
