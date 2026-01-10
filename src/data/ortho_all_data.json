@@ -1,0 +1,125 @@
+{
+    "metadata": {
+        "department": "Orthopedics",
+        "source": "KCD-8",
+        "note": "Initial Seed Data"
+    },
+    "diseases": [
+        {
+            "code": "M17",
+            "category_name": "무릎관절증 (Gonarthrosis)",
+            "sub_diseases": [
+                {
+                    "full_code": "M17.0",
+                    "korean_name": "양쪽 원발성 무릎관절증",
+                    "english_name": "Primary gonarthrosis, bilateral"
+                },
+                {
+                    "full_code": "M17.1",
+                    "korean_name": "기타 원발성 무릎관절증",
+                    "english_name": "Other primary gonarthrosis"
+                },
+                {
+                    "full_code": "M17.9",
+                    "korean_name": "상세불명의 무릎관절증",
+                    "english_name": "Gonarthrosis, unspecified"
+                }
+            ]
+        },
+        {
+            "code": "M51",
+            "category_name": "기타 추간판장애 (Other intervertebral disc disorders)",
+            "sub_diseases": [
+                {
+                    "full_code": "M51.0",
+                    "korean_name": "척수병증을 동반한 요추 및 기타 추간판장애",
+                    "english_name": "Lumbar and other intervertebral disc disorders with myelopathy"
+                },
+                {
+                    "full_code": "M51.1",
+                    "korean_name": "신경뿌리병증을 동반한 요추 및 기타 추간판장애",
+                    "english_name": "Lumbar and other intervertebral disc disorders with radiculopathy"
+                },
+                {
+                    "full_code": "M51.2",
+                    "korean_name": "기타 명시된 추간판전위",
+                    "english_name": "Other specified intervertebral disc displacement"
+                },
+                {
+                    "full_code": "M51.3",
+                    "korean_name": "기타 명시된 추간판변성",
+                    "english_name": "Other specified intervertebral disc degeneration"
+                }
+            ]
+        },
+        {
+            "code": "M54",
+            "category_name": "등통증 (Dorsalgia)",
+            "sub_diseases": [
+                {
+                    "full_code": "M54.5",
+                    "korean_name": "요통",
+                    "english_name": "Low back pain"
+                },
+                {
+                    "full_code": "M54.2",
+                    "korean_name": "경부통",
+                    "english_name": "Cervicalgia"
+                },
+                {
+                    "full_code": "M54.4",
+                    "korean_name": "좌골신경통을 동반한 요통",
+                    "english_name": "Lumbago with sciatica"
+                }
+            ]
+        },
+        {
+            "code": "M75",
+            "category_name": "어깨병변 (Shoulder lesions)",
+            "sub_diseases": [
+                {
+                    "full_code": "M75.0",
+                    "korean_name": "유착성 관절낭염(오십견)",
+                    "english_name": "Adhesive capsulitis of shoulder"
+                },
+                {
+                    "full_code": "M75.1",
+                    "korean_name": "회전근개 증후군",
+                    "english_name": "Rotator cuff syndrome"
+                },
+                {
+                    "full_code": "M75.4",
+                    "korean_name": "어깨의 충격증후군",
+                    "english_name": "Impingement syndrome of shoulder"
+                }
+            ]
+        },
+        {
+            "code": "M77",
+            "category_name": "기타 엔테소병증 (Other enthesopathies)",
+            "sub_diseases": [
+                {
+                    "full_code": "M77.0",
+                    "korean_name": "내측상과염(골퍼엘보)",
+                    "english_name": "Medial epicondylitis"
+                },
+                {
+                    "full_code": "M77.1",
+                    "korean_name": "외측상과염(테니스엘보)",
+                    "english_name": "Lateral epicondylitis"
+                }
+            ]
+        },
+        {
+            "code": "S93",
+            "category_name": "발목 및 발 부위의 관절 및 인대의 탈구, 염좌 및 긴장 (Dislocation, sprain and strain of joints and ligaments at ankle and foot level)",
+            "sub_diseases": [
+                {
+                    "full_code": "S93.4",
+                    "korean_name": "발목의 염좌 및 긴장",
+                    "english_name": "Sprain and strain of ankle"
+                }
+            ]
+        }
+    ]
+}
