@@ -61,7 +61,7 @@ export default function GlobalReservationsPage() {
 
             const q = query(
                 collection(db, 'inquiries'),
-                where('type', '==', 'reservation'),
+                // removing type filter to avoid composite index requirement with reservationDate range
                 where('reservationDate', '>=', startStr),
                 where('reservationDate', '<=', endStr)
             );
@@ -72,10 +72,12 @@ export default function GlobalReservationsPage() {
                 ...doc.data()
             })) as Reservation[];
 
-            setCalendarReservations(data);
+            // Client-side filter for type just in case
+            setCalendarReservations(data.filter(r => r.type === 'reservation'));
         } catch (error) {
             console.error('Error fetching calendar reservations:', error);
-            // Fallback for missing index
+            // Fallback for missing index not needed as we removed the composite requirement
+            // But keeping simple fallback just in case
             const q = query(collection(db, 'inquiries'), where('type', '==', 'reservation'));
             const snap = await getDocs(q);
             const all = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Reservation[];
@@ -95,12 +97,16 @@ export default function GlobalReservationsPage() {
                 // Client-side search (fetch latest 100)
                 const q = query(
                     collection(db, 'inquiries'),
-                    where('type', '==', 'reservation'),
+                    // where('type', '==', 'reservation'), // Removed to allow ordering by reservationDate without index
                     orderBy('reservationDate', 'desc'),
                     limit(100)
                 );
                 const snap = await getDocs(q);
-                const all = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Reservation[];
+                // Filter by type 'reservation' in memory if needed (orderBy likely filters non-dates)
+                const all = snap.docs
+                    .map(d => ({ id: d.id, ...d.data() } as Reservation))
+                    .filter(d => d.type === 'reservation');
+
                 const term = searchTerm.toLowerCase();
                 const filtered = all.filter(r => r.name.toLowerCase().includes(term) || r.contact?.includes(term));
                 setListReservations(filtered);
@@ -122,11 +128,12 @@ export default function GlobalReservationsPage() {
 
             const q = query(
                 collection(db, 'inquiries'),
-                where('type', '==', 'reservation'),
+                // where('type', '==', 'reservation'), // Removed to use Single Field Index on reservationDate
                 ...constraints
             );
 
             const snap = await getDocs(q);
+            // Implicitly filtered by having 'reservationDate' field due to orderBy
             setListReservations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation)));
 
             // Check More

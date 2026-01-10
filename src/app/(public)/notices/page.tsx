@@ -1,8 +1,6 @@
-// Updated imports
-import { Section3DBackground } from '@/components/Section3DBackground';
-
 'use client';
 
+import Section3DBackground from '@/components/Section3DBackground';
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';

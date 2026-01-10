@@ -120,7 +120,7 @@ export default function ArticleDetailPage() {
                     <div className="p-8 md:p-12 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-700 prose-img:rounded-xl">
                         {/* File Attachment Button */}
                         {article.attachmentUrl && (
-                            <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+                            <div className="not-prose mb-8 p-6 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
                                 <div>
                                     <h3 className="text-lg font-bold text-blue-900 mb-1">첨부 파일</h3>
                                     <p className="text-sm text-blue-700">{article.attachmentName || '파일 보기'}</p>
