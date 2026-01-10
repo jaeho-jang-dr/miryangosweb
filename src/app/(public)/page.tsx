@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -6,6 +5,7 @@ import { ArrowRight, Clock, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';
+import Section3DBackground from '@/components/Section3DBackground';
 
 export default function LandingPage() {
     const [notices, setNotices] = useState<any[]>([]);
@@ -48,16 +48,17 @@ export default function LandingPage() {
     return (
         <div className="flex flex-col">
             {/* Hero Section */}
-            <section className="relative h-[600px] flex items-center justify-center bg-slate-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 to-slate-900/80 z-10" />
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center" />
+            <section id="hero" className="relative z-10 h-[600px] flex items-center justify-center overflow-hidden">
+                {/* 3D Background */}
+                <Section3DBackground variant="waves" className="opacity-40" />
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-50/50 via-slate-50/30 to-slate-50/80 dark:from-slate-900/50 dark:via-slate-900/30 dark:to-slate-900/80 z-0 pointer-events-none" />
 
-                <div className="container relative z-20 px-4 md:px-6 text-center text-white">
+                <div className="container relative z-20 px-4 md:px-6 text-center text-slate-900 dark:text-white">
                     <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 animate-fade-in-up">
                         건강한 삶을 위한 <br />
-                        <span className="text-blue-400">든든한 파트너</span>
+                        <span className="text-blue-600">든든한 파트너</span>
                     </h1>
-                    <p className="text-lg md:text-xl text-slate-200 mb-8 max-w-2xl mx-auto">
+                    <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-8 max-w-2xl mx-auto">
                         {clinicInfo.name}은 최신 의료 장비와 전문 의료진이 함께합니다.<br />
                         환자분의 쾌유를 위해 정성을 다하겠습니다.
                     </p>
@@ -70,7 +71,7 @@ export default function LandingPage() {
                         </Link>
                         <Link
                             href="/staff"
-                            className="inline-flex items-center justify-center rounded-full bg-white/10 px-8 py-3 text-base font-semibold text-white border border-white/20 hover:bg-white/20 transition-all backdrop-blur-sm"
+                            className="inline-flex items-center justify-center rounded-full bg-white/50 px-8 py-3 text-base font-semibold text-slate-700 border border-slate-200 hover:bg-white/80 transition-all backdrop-blur-sm dark:bg-white/10 dark:text-white dark:border-white/20"
                         >
                             의료진 소개
                         </Link>
@@ -117,8 +118,9 @@ export default function LandingPage() {
             </section>
 
             {/* Recent Notices Section */}
-            <section className="py-20 bg-white dark:bg-slate-950">
-                <div className="container mx-auto px-4 md:px-6">
+            <section className="py-20 bg-white dark:bg-slate-950 relative overflow-hidden">
+                <Section3DBackground variant="waves" className="opacity-60" />
+                <div className="container mx-auto px-4 md:px-6 relative z-10">
                     <div className="flex justify-between items-end mb-10">
                         <div>
                             <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">병원 소식</h2>
@@ -159,8 +161,9 @@ export default function LandingPage() {
             </section>
 
             {/* Location Section */}
-            <section className="py-20 bg-slate-50 dark:bg-slate-900">
-                <div className="container mx-auto px-4 md:px-6">
+            <section className="py-20 bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
+                <Section3DBackground variant="waves" className="opacity-50" />
+                <div className="container mx-auto px-4 md:px-6 relative z-10">
                     <div className="flex flex-col md:flex-row gap-12 items-center">
                         <div className="w-full md:w-1/2 space-y-6">
                             <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -213,8 +216,9 @@ export default function LandingPage() {
             </section>
 
             {/* CTA Section */}
-            <section className="py-20 bg-blue-600 dark:bg-blue-900">
-                <div className="container mx-auto px-4 text-center">
+            <section className="py-20 bg-blue-600 dark:bg-blue-900 relative overflow-hidden">
+                <Section3DBackground variant="diamonds" className="opacity-30" />
+                <div className="container mx-auto px-4 text-center relative z-10">
                     <h2 className="text-3xl font-bold text-white mb-6">진료가 필요하신가요?</h2>
                     <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
                         간편하게 온라인으로 예약을 신청하거나 문의를 남겨주세요.<br />

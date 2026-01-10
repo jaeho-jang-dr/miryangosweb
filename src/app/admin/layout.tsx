@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
 import { useAdminRole } from '@/hooks/useAdminRole';
-import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare, Activity, Building } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare, Activity, Building, Hospital } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function AdminLayout({
@@ -43,6 +43,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     <p className="text-xs text-slate-500 mt-1">Miryang OS Hospital</p>
                 </div>
                 <nav className="flex-1 p-4 space-y-1">
+                    {/* Shortcuts */}
+                    <div className="flex gap-2 mb-4 px-2">
+                        <Link href="/" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-rose-500 hover:text-rose-600 transition-colors" title="홈페이지 바로가기">
+                            <Hospital className="w-5 h-5" />
+                        </Link>
+                        <Link href="/clinical" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-emerald-600 hover:text-emerald-700 transition-colors" title="진료실 바로가기">
+                            <Stethoscope className="w-5 h-5" />
+                        </Link>
+                    </div>
+
                     <NavItem href="/admin" label="대시보드" icon={<LayoutDashboard className="h-4 w-4" />} active={pathname === '/admin'} />
                     <NavItem href="/clinical" label="환자 관리 (진료실)" icon={<Activity className="h-4 w-4" />} active={pathname.startsWith('/clinical')} />
                     <NavItem href="/admin/users" label="회원 관리" icon={<UserIcon className="h-4 w-4" />} active={pathname.startsWith('/admin/users')} />

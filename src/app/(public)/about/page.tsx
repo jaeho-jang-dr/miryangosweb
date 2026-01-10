@@ -1,3 +1,5 @@
+// Updated imports
+import { Section3DBackground } from '@/components/Section3DBackground';
 
 'use client';
 
@@ -9,8 +11,10 @@ export default function AboutPage() {
     return (
         <div className="flex flex-col">
             {/* Hero Section */}
-            <section className="bg-slate-50 dark:bg-slate-900 py-20">
-                <div className="container mx-auto px-4 text-center">
+            <section className="section-3d relative bg-slate-50 dark:bg-slate-900 py-20">
+                <Section3DBackground variant="waves" />
+                <div className="absolute inset-0 bg-white/30 dark:bg-black/30 backdrop-blur-sm" />
+                <div className="container mx-auto px-4 text-center relative z-10">
                     <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
                         병원 소개
                     </h1>
@@ -22,8 +26,10 @@ export default function AboutPage() {
             </section>
 
             {/* Philosophy Section */}
-            <section className="py-20">
-                <div className="container mx-auto px-4">
+            <section className="section-3d relative py-20">
+                <Section3DBackground variant="particles" />
+                <div className="absolute inset-0 bg-white/30 dark:bg-black/30 backdrop-blur-sm" />
+                <div className="container mx-auto px-4 relative z-10">
                     <div className="grid md:grid-cols-3 gap-12">
                         <div className="text-center space-y-4">
                             <div className="inline-flex p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 mb-4">
@@ -59,8 +65,10 @@ export default function AboutPage() {
             </section>
 
             {/* Location & Info Section */}
-            <section className="py-20 bg-slate-50 dark:bg-slate-900/50">
-                <div className="container mx-auto px-4">
+            <section className="section-3d relative py-20 bg-slate-50 dark:bg-slate-900/50">
+                <Section3DBackground variant="grid" />
+                <div className="absolute inset-0 bg-white/30 dark:bg-black/30 backdrop-blur-sm" />
+                <div className="container mx-auto px-4 relative z-10">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="h-[400px] bg-slate-200 dark:bg-slate-800 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-lg">
                             <iframe

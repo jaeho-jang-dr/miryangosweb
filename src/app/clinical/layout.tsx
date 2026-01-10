@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
-import { Activity, Users, FileText, Settings, LogOut, Search, ClipboardList, Stethoscope, Syringe, Menu, X } from 'lucide-react';
+import { Activity, Users, FileText, Settings, LogOut, Search, ClipboardList, Stethoscope, Syringe, Menu, X, Hospital } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -51,6 +51,14 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                         <NavItem href="/clinical/treatment" label="치료실" active={pathname.startsWith('/clinical/treatment')} />
                         <NavItem href="/clinical/lab" label="검사실" active={pathname.startsWith('/clinical/lab')} />
                         <NavItem href="/clinical/records" label="기록조회" active={pathname.startsWith('/clinical/records')} />
+                        <div className="flex items-center gap-1 ml-2">
+                            <Link href="/" target="_blank" className="relative px-2 py-2 text-rose-500 hover:scale-110 transition-transform" title="홈페이지 바로가기">
+                                <Hospital className="w-5 h-5" />
+                            </Link>
+                            <Link href="/admin" target="_blank" className="relative px-2 py-2 text-xl hover:scale-110 transition-transform" title="CMS 대시보드 바로가기">
+                                🦄
+                            </Link>
+                        </div>
                     </div>
 
                     {/* User Profile / Search */}

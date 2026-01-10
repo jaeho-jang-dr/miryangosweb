@@ -3,11 +3,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Phone, Calendar } from 'lucide-react';
+import { Menu, X, Phone, Calendar, Stethoscope } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase-public';
+import dynamic from 'next/dynamic';
+
+const Background3D = dynamic(() => import('@/components/ui/Background3D'), { ssr: false });
+
 
 export default function PublicLayout({
     children,
@@ -67,7 +71,8 @@ export default function PublicLayout({
     }, []);
 
     return (
-        <div className="flex min-h-screen flex-col font-sans">
+        <div className="flex min-h-screen flex-col font-sans relative">
+            <Background3D />
             {/* Header */}
             <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 dark:border-slate-800">
                 <div className="container mx-auto px-4 md:px-6">
@@ -88,10 +93,21 @@ export default function PublicLayout({
                             <NavLink href="/staff" label="의료진" active={pathname === '/staff'} />
                             <NavLink href="/archives" label="자료실" active={pathname === '/archives'} />
                             <NavLink href="/notices" label="공지사항" active={pathname === '/notices'} />
+
                             <NavLink href="/inquiry" label="예약/문의" active={pathname === '/inquiry'} />
                         </nav>
 
                         <div className="hidden md:flex items-center space-x-4">
+                            {/* Dev Shortcuts (Temporary) */}
+                            <div className="flex items-center gap-1 mr-2">
+                                <Link href="/admin" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors" title="홈페이지 대시보드 (CMS)">
+                                    <span className="text-xl">🦄</span>
+                                </Link>
+                                <Link href="/clinical" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-600 dark:text-slate-300 hover:text-emerald-600" title="환자진료 대시보드 (EMR)">
+                                    <Stethoscope className="w-5 h-5" />
+                                </Link>
+                            </div>
+
                             {/* Login Status */}
                             <div>
                                 {user ? (
