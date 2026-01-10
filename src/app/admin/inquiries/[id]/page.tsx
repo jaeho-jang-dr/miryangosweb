@@ -4,9 +4,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';
-import { ChevronLeft, Loader2, Calendar, Phone, User, MessageSquare, Check, X, Clock } from 'lucide-react';
+import { ChevronLeft, Loader2, Calendar, Phone, User, MessageSquare, Check, X, Clock, Trash2 } from 'lucide-react';
 
 export default function InquiryDetailPage() {
     const params = useParams();
@@ -126,6 +126,27 @@ export default function InquiryDetailPage() {
                 </div>
 
                 <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end space-x-3">
+                    <button
+                        onClick={async () => {
+                            if (!confirm('정말 이 예약/문의를 삭제하시겠습니까? 삭제 후에는 복구할 수 없습니다.')) return;
+                            setProcessing(true);
+                            try {
+                                await deleteDoc(doc(db, 'inquiries', id));
+                                alert('삭제되었습니다.');
+                                router.push('/admin/inquiries');
+                            } catch (error) {
+                                console.error('Error deleting:', error);
+                                alert('삭제에 실패했습니다.');
+                                setProcessing(false);
+                            }
+                        }}
+                        disabled={processing}
+                        className="inline-flex items-center px-4 py-2 border border-red-200 dark:border-red-900/50 shadow-sm text-sm font-medium rounded-md text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 mr-auto"
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        예약 취소 및 삭제
+                    </button>
+
                     {inquiry.status !== 'completed' && (
                         <>
                             {inquiry.status === 'new' && (

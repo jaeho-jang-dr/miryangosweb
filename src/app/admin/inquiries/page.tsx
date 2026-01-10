@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';
-import { Loader2, Calendar, MessageSquare, CheckCircle, Circle, Clock } from 'lucide-react';
+import { Loader2, Calendar, MessageSquare, CheckCircle, Circle, Clock, Trash2 } from 'lucide-react';
 
 interface Inquiry {
     id: string;
@@ -116,9 +116,27 @@ export default function InquiriesPage() {
                                         {inquiry.createdAt?.toDate ? inquiry.createdAt.toDate().toLocaleDateString() : '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <Link href={`/admin/inquiries/${inquiry.id}`} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
-                                            상세보기
-                                        </Link>
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <Link href={`/admin/inquiries/${inquiry.id}`} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                                상세보기
+                                            </Link>
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation(); // Prevent row click
+                                                    if (!confirm('정말 삭제하시겠습니까?')) return;
+                                                    try {
+                                                        await deleteDoc(doc(db, 'inquiries', inquiry.id));
+                                                        setInquiries(prev => prev.filter(i => i.id !== inquiry.id));
+                                                    } catch (error) {
+                                                        console.error('Error deleting:', error);
+                                                        alert('삭제 실패');
+                                                    }
+                                                }}
+                                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
