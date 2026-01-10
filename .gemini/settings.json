@@ -1,0 +1,18 @@
+{
+  "general": {
+    "debugKeystrokeLogging": true,
+    "sessionRetention": {
+      "enabled": true
+    }
+  },
+  "output": {
+    "format": "json"
+  },
+  "ui": {
+    "showStatusInTitle": true,
+    "footer": {
+      "hideContextPercentage": true
+    },
+    "showMemoryUsage": true
+  }
+}

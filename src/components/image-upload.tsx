@@ -46,24 +46,17 @@ export default function ImageUpload({
 
         try {
             const user = auth.currentUser;
-            if (!user) {
-                alert("로그인이 필요합니다.");
-                setUploading(false);
-                return;
-            }
-
-            // Upload via API Route
-            const idToken = await user.getIdToken();
+            const idToken = user ? await user.getIdToken() : undefined;
             const formData = new FormData();
             formData.append('file', file);
-            // Note: path is currently ignored by the API in favor of public/uploads, but we send it for completeness
             formData.append('path', `${directory}/${Date.now()}_${file.name}`);
+
+            const headers: HeadersInit = {};
+            if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
 
             const response = await fetch('/api/upload', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                },
+                headers: headers,
                 body: formData,
             });
 
@@ -93,11 +86,6 @@ export default function ImageUpload({
         setUploading(true);
         try {
             const user = auth.currentUser;
-            if (!user) {
-                alert("로그인이 필요합니다.");
-                setUploading(false);
-                return;
-            }
 
             // 1. Get file content from server
             const { readLocalFile } = await import("@/actions/local-files");
@@ -118,16 +106,17 @@ export default function ImageUpload({
             const file = new File([blob], fileName, { type: result.mimeType });
 
             // 3. Upload via API Route
-            const idToken = await user.getIdToken();
+            const idToken = user ? await user.getIdToken() : undefined;
             const formData = new FormData();
             formData.append('file', file);
             formData.append('path', `${directory}/${Date.now()}_${fileName}`);
 
+            const headers: HeadersInit = {};
+            if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
             const response = await fetch('/api/upload', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                },
+                headers: headers,
                 body: formData,
             });
 

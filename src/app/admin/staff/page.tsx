@@ -81,14 +81,25 @@ export default function StaffPage() {
                 ) : (
                     staffList.map((staff) => (
                         <div key={staff.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
-                            <div className="aspect-w-16 aspect-h-9 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                            <div className="aspect-w-16 aspect-h-9 bg-slate-100 dark:bg-slate-700 flex items-center justify-center relative group">
                                 {staff.imageUrl || staff.photoUrl ? (
-                                    <img src={staff.imageUrl || staff.photoUrl} alt={staff.name} className="object-cover w-full h-48" />
-                                ) : (
-                                    <div className="flex items-center justify-center h-48 w-full text-slate-400">
-                                        사진 없음
-                                    </div>
-                                )}
+                                    <img
+                                        src={staff.imageUrl || staff.photoUrl}
+                                        alt={staff.name}
+                                        className="object-cover w-full h-48 block"
+                                        onError={(e) => {
+                                            e.currentTarget.style.display = 'none';
+                                            // Find the fallback div which is next sibling
+                                            const fallback = e.currentTarget.parentElement?.querySelector('.fallback-text') as HTMLElement;
+                                            if (fallback) fallback.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <div
+                                    className={`fallback-text flex items-center justify-center h-48 w-full text-slate-400 text-sm ${staff.imageUrl || staff.photoUrl ? 'hidden' : ''}`}
+                                >
+                                    {staff.imageUrl || staff.photoUrl ? '이미지 로드 실패 (재업로드)' : '사진 없음'}
+                                </div>
                             </div>
                             <div className="p-4 flex-1">
                                 <div className="flex items-start justify-between">

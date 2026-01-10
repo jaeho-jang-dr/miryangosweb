@@ -1,10 +1,23 @@
 // Section3DBackground.tsx
-// A lightweight 3D background component using react-three-fiber.
-// Each `variant` renders a different simple geometry with bright pastel colors.
+// A premium 3D background component using react-three-fiber and drei.
+// Implements "Apple-style" minimalist yet dynamic aesthetics with glassmorphism and smooth animations.
 
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Stars, Plane, Sphere, Torus, TorusKnot, RoundedBox, Octahedron, Float, Environment } from "@react-three/drei";
-import { useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import {
+    OrbitControls,
+    Sphere,
+    MeshDistortMaterial,
+    MeshWobbleMaterial,
+    Float,
+    Sparkles,
+    Octahedron,
+    TorusKnot,
+    Environment,
+    ContactShadows,
+    Stars
+} from "@react-three/drei";
+import { useMemo, useRef } from "react";
+import * as THREE from 'three';
 
 export type Variant = "waves" | "particles" | "grid" | "dots" | "cubes" | "rings" | "diamonds";
 
@@ -13,117 +26,145 @@ interface Props {
     className?: string;
 }
 
-// Helper to pick material/color per variant
+// Configuration for colors and geometries
 const variantConfig = {
-    waves: { color: "#a0e7e5", geometry: "plane" },
-    particles: { color: "#ffeb99", geometry: "sphere" },
-    grid: { color: "#b7e4c7", geometry: "torus" },
-    dots: { color: "#f5c6ff", geometry: "sphere" },
-    cubes: { color: "#93c5fd", geometry: "box" }, // Pastel Blue, solid shading
-    rings: { color: "#c4b5fd", geometry: "knot" }, // Pastel Purple, solid shading
-    diamonds: { color: "#e0f2fe", geometry: "octahedron" }, // Very light blue/white for CTA
+    waves: { color: "#3b82f6", secondary: "#93c5fd" }, // Blue blob
+    particles: { color: "#fcd34d", secondary: "#fbbf24" }, // Gold sparkles
+    grid: { color: "#6ee7b7", secondary: "#34d399" }, // Greenish
+    dots: { color: "#f0abfc", secondary: "#e879f9" }, // Pink
+    cubes: { color: "#93c5fd", secondary: "#60a5fa" }, // Blue cubes
+    rings: { color: "#c4b5fd", secondary: "#8b5cf6" }, // Purple rings
+    diamonds: { color: "#e0f2fe", secondary: "#ffffff" }, // White/Ice
 } as const;
+
+function AnimatedBlob({ color }: { color: string }) {
+    const meshRef = useRef<THREE.Mesh>(null!);
+
+    useFrame((state) => {
+        const t = state.clock.getElapsedTime();
+        meshRef.current.rotation.x = Math.sin(t / 2);
+        meshRef.current.rotation.y = Math.sin(t / 4);
+    });
+
+    return (
+        <Sphere args={[1, 64, 64]} scale={2} ref={meshRef}>
+            <MeshDistortMaterial
+                color={color}
+                envMapIntensity={1}
+                clearcoat={1}
+                clearcoatRoughness={0}
+                metalness={0.1}
+                distort={0.4}
+                speed={2}
+            />
+        </Sphere>
+    );
+}
+
+function FloatingDiamonds({ color }: { color: string }) {
+    return (
+        <group>
+            {[...Array(6)].map((_, i) => (
+                <Float key={i} speed={2} rotationIntensity={2} floatIntensity={2} floatingRange={[-1, 1]}>
+                    <Octahedron
+                        args={[0.8, 0]}
+                        position={[
+                            (Math.random() - 0.5) * 10,
+                            (Math.random() - 0.5) * 6,
+                            (Math.random() - 0.5) * 4
+                        ]}
+                    >
+                        <meshPhysicalMaterial
+                            color={color}
+                            roughness={0}
+                            metalness={0.2}
+                            transmission={0.6}
+                            thickness={2}
+                            transparent
+                            opacity={0.8}
+                        />
+                    </Octahedron>
+                </Float>
+            ))}
+            <Sparkles count={50} scale={10} size={4} speed={0.4} opacity={0.5} color={color} />
+        </group>
+    );
+}
+
+function WobbleRings({ color }: { color: string }) {
+    return (
+        <group>
+            <Float speed={1.5} rotationIntensity={1.5} floatIntensity={1.5}>
+                <TorusKnot args={[1.5, 0.2, 128, 32]} position={[0, 0, 0]} rotation={[0, 0, 0]}>
+                    <MeshWobbleMaterial color={color} factor={1} speed={1} roughness={0.1} metalness={0.5} />
+                </TorusKnot>
+            </Float>
+            <Sparkles count={30} scale={8} size={2} speed={0.4} opacity={0.3} color="white" />
+        </group>
+    );
+}
 
 export default function Section3DBackground({ variant, className }: Props) {
     const config = variantConfig[variant];
 
-    const mesh = useMemo(() => {
-        switch (config.geometry) {
-            case "plane":
-                return (
-                    <Plane args={[10, 10, 32, 32]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <meshStandardMaterial color={config.color} wireframe={true} opacity={0.4} transparent />
-                    </Plane>
-                );
-            case "sphere":
-                return (
-                    <Sphere args={[2, 32, 32]}>
-                        <meshStandardMaterial color={config.color} wireframe={true} opacity={0.5} transparent />
-                    </Sphere>
-                );
-            case "torus":
-                return (
-                    <Torus args={[2, 0.5, 16, 100]}>
-                        <meshStandardMaterial color={config.color} wireframe={true} opacity={0.5} transparent />
-                    </Torus>
-                );
-            case "box":
-                // Floating randomized cubes
-                return (
-                    <group>
-                        {[...Array(8)].map((_, i) => (
-                            <Float key={i} speed={1.5} rotationIntensity={1} floatIntensity={2}>
-                                <RoundedBox
-                                    args={[1.2, 1.2, 1.2]}
-                                    radius={0.2}
-                                    smoothness={4}
-                                    position={[
-                                        (Math.random() - 0.5) * 15,
-                                        (Math.random() - 0.5) * 8,
-                                        (Math.random() - 0.5) * 5
-                                    ]}
-                                    rotation={[Math.random() * Math.PI, Math.random() * Math.PI, 0]}
-                                >
-                                    <meshStandardMaterial color={config.color} roughness={0.3} metalness={0.1} />
-                                </RoundedBox>
-                            </Float>
-                        ))}
-                    </group>
-                );
-            case "knot":
-                // Floating TorusKnots
-                return (
-                    <group>
-                        <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
-                            <TorusKnot args={[2.8, 0.6, 128, 32]} rotation={[0, 0, 0]} position={[3, 0, -2]}>
-                                <meshStandardMaterial color={config.color} roughness={0.2} metalness={0.6} />
-                            </TorusKnot>
-                        </Float>
-                        <Float speed={1.5} rotationIntensity={0.7} floatIntensity={1.5}>
-                            <TorusKnot args={[1.5, 0.4, 100, 16]} rotation={[Math.PI / 2, 0, 0]} position={[-4, 2, -4]}>
-                                <meshStandardMaterial color="#a78bfa" roughness={0.2} metalness={0.6} />
-                            </TorusKnot>
-                        </Float>
-                    </group>
-                );
-            case "octahedron":
-                // Floating Diamonds/Octahedrons
-                return (
-                    <group>
-                        {[...Array(10)].map((_, i) => (
-                            <Float key={i} speed={2} rotationIntensity={2} floatIntensity={1.5} floatingRange={[-1, 1]}>
-                                <Octahedron
-                                    args={[0.8]}
-                                    position={[
-                                        (Math.random() - 0.5) * 12,
-                                        (Math.random() - 0.5) * 6,
-                                        (Math.random() - 0.5) * 4
-                                    ]}
-                                    rotation={[Math.random() * Math.PI, Math.random() * Math.PI, 0]}
-                                >
-                                    <meshStandardMaterial color={config.color} roughness={0.1} metalness={0.8} />
-                                </Octahedron>
-                            </Float>
-                        ))}
-                    </group>
-                );
+    const Scene = useMemo(() => {
+        switch (variant) {
+            case "waves":
+                // Hero Section: A beautiful, distorted liquid blob
+                return <AnimatedBlob color={config.color} />;
+
+            case "diamonds":
+                // CTA Section: Premium floating glass diamonds
+                return <FloatingDiamonds color={config.diamonds} />;
+
+            case "rings":
+            case "grid":
+                // Rings: Abstract wobbling shapes
+                return <WobbleRings color={config.color} />;
+
+            case "particles":
+            case "dots":
             default:
-                return null;
+                // Subtle sparkle dust for content heavy sections
+                return (
+                    <group>
+                        <Sparkles
+                            count={100}
+                            scale={12}
+                            size={6}
+                            speed={0.4}
+                            opacity={0.6}
+                            color={config.secondary}
+                        />
+                        <Stars radius={100} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
+                    </group>
+                );
         }
-    }, [config]);
+    }, [variant, config]);
 
     return (
-        <div className={`absolute inset-0 z-0 pointer-events-none ${className || ''}`}>
-            <Canvas camera={{ position: [0, 0, 8], fov: 50 }}>
-                <ambientLight intensity={0.7} />
-                <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-                <pointLight position={[-10, -10, -5]} intensity={0.5} color={config.color} />
+        <div className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000 ease-in-out ${className || ''}`}>
+            <Canvas camera={{ position: [0, 0, 6], fov: 45 }} dpr={[1, 2]}>
+                {/* Lighting setup for "Premium" feel */}
+                <ambientLight intensity={0.5} />
+                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
+                <pointLight position={[-10, -10, -10]} intensity={1} color={config.secondary} />
+
+                {/* Environment for reflections */}
                 <Environment preset="city" />
-                {mesh}
-                {/* Subtle rotation for liveliness */}
-                <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />
-                {/* Optional star field for extra sparkle */}
-                <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+
+                {Scene}
+
+                {/* Mouse Interaction */}
+                <OrbitControls
+                    enableZoom={false}
+                    enablePan={false}
+                    enableRotate={true}
+                    autoRotate={true}
+                    autoRotateSpeed={0.5}
+                    maxPolarAngle={Math.PI / 1.5}
+                    minPolarAngle={Math.PI / 3}
+                />
             </Canvas>
         </div>
     );

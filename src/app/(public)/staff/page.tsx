@@ -14,7 +14,29 @@ interface Staff {
     role: string;
     specialties: string[];
     imageUrl?: string;
+    imageUrl?: string;
     order?: number;
+}
+
+function StaffImage({ src, alt }: { src?: string, alt: string }) {
+    const [error, setError] = useState(false);
+
+    if (error || !src) {
+        return (
+            <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                <User className="h-24 w-24 text-slate-400" />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={alt}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={() => setError(true)}
+        />
+    );
 }
 
 export default function StaffPage() {
@@ -79,15 +101,7 @@ export default function StaffPage() {
                     {staffList.map((staff) => (
                         <div key={staff.id} className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg border border-slate-100 dark:border-slate-700 transition-transform hover:-translate-y-1">
                             <div className="aspect-[3/4] relative bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden group">
-                                {staff.imageUrl ? (
-                                    <img
-                                        src={staff.imageUrl}
-                                        alt={staff.name}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    />
-                                ) : (
-                                    <User className="h-24 w-24 text-slate-400" />
-                                )}
+                                <StaffImage src={staff.imageUrl} alt={staff.name} />
                             </div>
                             <div className="p-6">
                                 <div className="mb-4">
