@@ -190,7 +190,7 @@ export default function ReceptionPage() {
                                     />
                                 </div>
                                 <div className="flex-1 overflow-y-auto space-y-3">
-                                    {searchResults.map((patient) => (
+                                    {searchResults.length > 0 && searchResults.map((patient) => (
                                         <div key={patient.id} onClick={() => handleRegister(patient)} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 cursor-pointer group">
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${patient.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>{patient.name[0]}</div>
@@ -199,6 +199,16 @@ export default function ReceptionPage() {
                                             <span className="text-slate-600 font-bold text-sm opacity-0 group-hover:opacity-100">접수하기</span>
                                         </div>
                                     ))}
+                                    {searchTerm.length > 1 && searchResults.length === 0 && !isSearching && (
+                                        <div className="text-center py-10 px-4">
+                                            <p className="text-slate-500 mb-4">"{searchTerm}"에 대한 검색 결과가 없습니다.</p>
+                                            <Link href="/clinical/patients/new">
+                                                <button className="bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-emerald-600 transition-all">
+                                                    신규 환자 등록하기
+                                                </button>
+                                            </Link>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

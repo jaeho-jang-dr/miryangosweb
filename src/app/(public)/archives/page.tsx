@@ -69,6 +69,8 @@ export default function ArchivesPage() {
         return matchesType && matchesSearch && matchesTag;
     });
 
+    // ... (imports remain)
+
     const getBadgeInfo = (type: string) => {
         switch (type) {
             case 'disease':
@@ -79,6 +81,10 @@ export default function ArchivesPage() {
                 return { label: '건강 뉴스', className: 'bg-green-100 text-green-700' };
             case 'webtoon':
                 return { label: '웹툰', className: 'bg-yellow-100 text-yellow-700' };
+            case 'gallery':
+                return { label: '갤러리', className: 'bg-orange-100 text-orange-700' };
+            case 'app':
+                return { label: 'AI/앱', className: 'bg-teal-100 text-teal-700' };
             default:
                 return { label: '기타', className: 'bg-slate-100 text-slate-700' };
         }
@@ -86,6 +92,7 @@ export default function ArchivesPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 py-12">
+            {/* ... title part ... */}
             <div className="container mx-auto px-4 md:px-6">
                 <div className="text-center mb-12">
                     <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">자료실</h1>
@@ -98,6 +105,7 @@ export default function ArchivesPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Sidebar / Filters */}
                     <div className="lg:col-span-1 space-y-6">
+                        {/* ... search ... */}
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                             <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                                 <Search className="w-4 h-4" /> 검색
@@ -118,7 +126,9 @@ export default function ArchivesPage() {
                                     { id: 'all', label: '전체 보기' },
                                     { id: 'disease', label: '의학/질환 정보' },
                                     { id: 'news', label: '건강 뉴스' },
-                                    { id: 'webtoon', label: '웹툰' }
+                                    { id: 'gallery', label: '갤러리' },
+                                    { id: 'webtoon', label: '웹툰' },
+                                    { id: 'app', label: 'AI/앱' }
                                 ].map((type) => (
                                     <button
                                         key={type.id}
@@ -137,6 +147,7 @@ export default function ArchivesPage() {
                         </div>
 
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            {/* ... tags ... */}
                             <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                                 <Tag className="w-4 h-4" /> 태그
                             </h3>

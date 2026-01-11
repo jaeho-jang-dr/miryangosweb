@@ -18,7 +18,10 @@ export default function EditArticlePage() {
         type: 'disease',
         tags: '',
         summary: '',
-        content: ''
+        content: '',
+        images: [] as string[], // Store image URLs or Base64
+        attachmentUrl: '',
+        attachmentName: ''
     });
 
     useEffect(() => {
@@ -35,7 +38,10 @@ export default function EditArticlePage() {
                         type: data.type || 'disease',
                         tags: data.tags ? data.tags.join(', ') : '',
                         summary: data.summary || '',
-                        content: data.content || ''
+                        content: data.content || '',
+                        images: data.images || [],
+                        attachmentUrl: data.attachmentUrl || '',
+                        attachmentName: data.attachmentName || ''
                     });
                 } else {
                     alert('자료를 찾을 수 없습니다.');
@@ -78,6 +84,7 @@ export default function EditArticlePage() {
 
     return (
         <div className="max-w-4xl mx-auto">
+            {/* ... Header ... */}
             <div className="flex items-center gap-4 mb-6">
                 <Link
                     href="/admin/articles"
@@ -109,7 +116,11 @@ export default function EditArticlePage() {
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="disease">질환 정보</option>
+                            <option value="guide">의학 가이드</option>
                             <option value="news">건강 뉴스</option>
+                            <option value="gallery">갤러리</option>
+                            <option value="webtoon">웹툰</option>
+                            <option value="app">AI/앱</option>
                         </select>
                     </div>
 
@@ -122,6 +133,56 @@ export default function EditArticlePage() {
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
+
+                    {/* --- File Preview Section --- */}
+                    <div className="col-span-2 space-y-4">
+                        <label className="block text-sm font-medium text-slate-700">첨부 파일 / 이미지 미리보기</label>
+
+                        {/* Attachment Link */}
+                        {formData.attachmentUrl && (
+                            <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                <Link
+                                    href={formData.attachmentUrl}
+                                    target="_blank"
+                                    className="text-blue-600 hover:underline text-sm font-medium truncate"
+                                >
+                                    {formData.attachmentName || '첨부파일 열기'}
+                                </Link>
+                                <span className="text-xs text-slate-400">
+                                    (클릭하여 다운로드/미리보기)
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Image Gallery (Webtoon / Gallery / Single Image) */}
+                        {formData.images && formData.images.length > 0 && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                {formData.images.map((imgUrl, idx) => (
+                                    <div key={idx} className="relative group aspect-square bg-white rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                                        <img
+                                            src={imgUrl}
+                                            alt={`Preview ${idx + 1}`}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                                            {idx + 1}
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className="col-span-full text-xs text-center text-slate-400 mt-2">
+                                    * 이미지는 수정 시 미리보기만 가능하며, 교체를 원하시면 새 자료 등록을 이용해주세요.
+                                </div>
+                            </div>
+                        )}
+
+                        {!formData.attachmentUrl && (!formData.images || formData.images.length === 0) && (
+                            <div className="text-sm text-slate-400 italic p-2">
+                                첨부된 파일이나 이미지가 없습니다.
+                            </div>
+                        )}
+                    </div>
+                    {/* --------------------------- */}
 
                     <div className="col-span-2">
                         <label className="block text-sm font-medium text-slate-700 mb-1">요약</label>
@@ -137,7 +198,7 @@ export default function EditArticlePage() {
                     <div className="col-span-2">
                         <label className="block text-sm font-medium text-slate-700 mb-1">본문 (Markdown 지원)</label>
                         <textarea
-                            required
+                            required={formData.type !== 'webtoon'}
                             rows={15}
                             value={formData.content}
                             onChange={(e) => setFormData({ ...formData, content: e.target.value })}

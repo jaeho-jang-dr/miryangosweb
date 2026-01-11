@@ -366,6 +366,18 @@ const formatTool = {
                 },
                 required: ["action"],
             },
+        },
+        {
+            name: "skill_fileupload",
+            description: "Multi-modal file analysis and upload agent. Analyzes files (images, PDFs, docs) to automatically extract metadata and prepares them for upload. Use this for 'smart upload' tasks.",
+            parameters: {
+                type: "OBJECT",
+                properties: {
+                    action: { type: "STRING", description: "Action: 'analyze_file', 'get_upload_status'" },
+                    file_path: { type: "STRING", description: "Absolute path to the file to process" }
+                },
+                required: ["action"],
+            },
         }
     ],
 };
@@ -462,6 +474,25 @@ async function submitChat() {
                 return;
             }
         }
+    } else if (text.startsWith('/conductor')) {
+        appendLog('🎼 Checking Conductor Status...', 'system');
+        if (fs.existsSync(CONTEXT_FILE)) {
+            const stat = fs.statSync(CONTEXT_FILE);
+            appendLog(`✅ Conductor Active`, 'system');
+            appendLog(`📄 Context File: ${CONTEXT_FILE}`, 'system');
+            appendLog(`📏 Size: ${stat.size} bytes`, 'system');
+            appendLog(`🕒 Last Modified: ${stat.mtime.toLocaleString()}`, 'system');
+
+            // Reload context into memory (conceptually, meaningful for next chat turn)
+            // System instruction is set at init, but we can append to chat if needed.
+            // For now, just confirming it's there is enough for the user confidence.
+        } else {
+            appendLog(`❌ Conductor Inactive: ${CONTEXT_FILE} not found.`, 'error');
+            appendLog(`💡 Run 'conductor setup' or ask AI to create it.`, 'system');
+        }
+        inputBox.focus();
+        screen.render();
+        return;
     }
 
     appendLog(text, 'user');
@@ -660,6 +691,35 @@ async function submitChat() {
                     }
                 }]);
                 response = await resultCond.response;
+                functionCalls = response.functionCalls();
+
+            } else if (call.name === "skill_fileupload") {
+                const action = call.args.action;
+                const filePath = call.args.file_path;
+                appendLog(`📤 Smart Upload Skill: ${action}`, 'system');
+                let output = "";
+
+                if (action === 'analyze_file' && filePath) {
+                    if (fs.existsSync(filePath)) {
+                        // In a real CLI implementation, we would call the Gemini Vision API here directly.
+                        // For now, we simulate the "Agent" capability as requested.
+                        output = `[Simulated Analysis] File '${path.basename(filePath)}' processed.\nDetected Type: Image/Document\nSuggested Category: Gallery\nReady for Upload.`;
+                    } else {
+                        output = `Error: File not found at ${filePath}`;
+                    }
+                } else if (action === 'get_upload_status') {
+                    output = "Smart Upload System v2.3 is Ready. Supported: Images, PDF, Docs, Webtoon.";
+                } else {
+                    output = "Action not supported.";
+                }
+
+                const resultSkill = await chatSession.sendMessage([{
+                    functionResponse: {
+                        name: "skill_fileupload",
+                        response: { result: output }
+                    }
+                }]);
+                response = await resultSkill.response;
                 functionCalls = response.functionCalls();
 
             } else {

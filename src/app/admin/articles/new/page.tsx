@@ -23,9 +23,48 @@ export default function NewArticlePage() {
     const [attachment, setAttachment] = useState<File | null>(null);
     const [webtoonImages, setWebtoonImages] = useState<File[]>([]);
 
+    // AI Analysis Handler
+    const analyzeFile = async (file: File) => {
+        setUploadProgress('AI가 파일 내용을 분석 중입니다...');
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/analyze-file', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) throw new Error("분석 실패");
+
+            const data = await res.json();
+
+            // Auto-fill form (preserve existing values if user already typed them, or overwrite? 
+            // Better to overwrite empty fields or ask? heuristic: just overwrite for convenience as per user request)
+            setFormData(prev => ({
+                ...prev,
+                title: data.title || prev.title,
+                type: data.category || 'disease', // AI-detected category
+                tags: data.tags ? data.tags.join(', ') : prev.tags,
+                summary: data.summary || prev.summary,
+                content: data.content || prev.content
+            }));
+
+            setUploadProgress('AI 분석 완료! 내용을 자동으로 채웠습니다.');
+            setTimeout(() => setUploadProgress(''), 3000);
+
+        } catch (e) {
+            console.error(e);
+            setUploadProgress('AI 분석에 실패했습니다. 직접 입력해주세요.');
+        }
+    };
+
     const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setAttachment(e.target.files[0]);
+            const file = e.target.files[0];
+            setAttachment(file);
+            // Trigger AI Analysis
+            analyzeFile(file);
         }
     };
 
@@ -33,7 +72,13 @@ export default function NewArticlePage() {
         if (!e.target.files || !e.target.files[0]) return;
 
         const file = e.target.files[0];
-        setUploadProgress('ZIP 파일 분석 중...');
+
+        // 1. Trigger AI Analysis for ZIP (Webtoon)
+        // analysis API handles ZIPs now too, or at least we can shim it.
+        // Actually, let's analyze it first to get Title/Tags.
+        analyzeFile(file);
+
+        setUploadProgress('ZIP 파일 이미지 추출 중...');
 
         try {
             const JSZip = (await import('jszip')).default;
@@ -56,7 +101,8 @@ export default function NewArticlePage() {
             }
 
             setWebtoonImages(imageFiles);
-            setUploadProgress(`이미지 ${imageFiles.length}장 추출 완료`);
+            // setUploadProgress(`이미지 ${imageFiles.length}장 추출 완료`); 
+            // (Let the AI message overwrite or coexist)
         } catch (error) {
             console.error("Error unzipping:", error);
             alert("ZIP 파일 처리 중 오류가 발생했습니다.");
@@ -183,8 +229,11 @@ export default function NewArticlePage() {
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="disease">질환 정보</option>
+                            <option value="guide">의학 가이드</option>
                             <option value="news">건강 뉴스</option>
+                            <option value="gallery">갤러리</option>
                             <option value="webtoon">웹툰</option>
+                            <option value="app">AI/앱</option>
                         </select>
                     </div>
 

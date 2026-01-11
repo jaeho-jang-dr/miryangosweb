@@ -13,7 +13,7 @@ import clsx from 'clsx';
 interface Article {
     id: string;
     title: string;
-    type: 'disease' | 'news';
+    type: string;
     tags: string[];
     summary: string;
     content: string;
@@ -22,6 +22,18 @@ interface Article {
     images?: string[];
     createdAt: any;
 }
+
+const getBadgeInfo = (type: string) => {
+    switch (type) {
+        case 'disease': return { label: '질환 정보', className: 'bg-purple-100 text-purple-700' };
+        case 'guide': return { label: '의학 가이드', className: 'bg-indigo-100 text-indigo-700' };
+        case 'news': return { label: '건강 뉴스', className: 'bg-green-100 text-green-700' };
+        case 'webtoon': return { label: '웹툰', className: 'bg-yellow-100 text-yellow-700' };
+        case 'gallery': return { label: '갤러리', className: 'bg-orange-100 text-orange-700' };
+        case 'app': return { label: 'AI/앱', className: 'bg-teal-100 text-teal-700' };
+        default: return { label: '기타', className: 'bg-slate-100 text-slate-700' };
+    }
+};
 
 export default function ArticleDetailPage() {
     const params = useParams();
@@ -88,16 +100,17 @@ export default function ArticleDetailPage() {
 
                 <article className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     {/* Header */}
+                    {/* Header */}
                     <div className="p-8 border-b border-slate-100">
                         <div className="flex items-center gap-3 mb-4">
-                            <span className={clsx(
-                                "text-xs font-bold px-3 py-1 rounded-full",
-                                article.type === 'disease'
-                                    ? "bg-purple-100 text-purple-700"
-                                    : "bg-green-100 text-green-700"
-                            )}>
-                                {article.type === 'disease' ? '질환 정보' : '건강 뉴스'}
-                            </span>
+                            {article && (
+                                <span className={clsx(
+                                    "text-xs font-bold px-3 py-1 rounded-full",
+                                    getBadgeInfo(article.type).className
+                                )}>
+                                    {getBadgeInfo(article.type).label}
+                                </span>
+                            )}
                             <span className="text-sm text-slate-500 flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 {article.createdAt?.toDate ? article.createdAt.toDate().toLocaleDateString() : ''}
