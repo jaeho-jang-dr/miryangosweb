@@ -1,0 +1,39 @@
+# ================================
+# Firebase Configuration
+# ================================
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key_here
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# ================================
+# Site Configuration
+# ================================
+# ⚠️ 중요: 포트 3001을 사용해야 Kakao/Naver 로그인이 정상 작동합니다
+NEXT_PUBLIC_SITE_URL=http://localhost:3001
+
+# ================================
+# Kakao Login
+# ================================
+# Kakao Developers 콘솔에서 발급받은 JavaScript 키를 입력하세요
+# 콘솔: https://developers.kakao.com/console
+# 경로: [앱 설정] > [앱 키] > JavaScript 키
+NEXT_PUBLIC_KAKAO_JS_KEY=
+
+# ================================
+# Naver Login
+# ================================
+# Naver Developers 콘솔에서 발급받은 Client ID와 Secret을 입력하세요
+# 콘솔: https://developers.naver.com/apps
+NEXT_PUBLIC_NAVER_CLIENT_ID=
+NEXT_PUBLIC_NAVER_CLIENT_SECRET=
+
+# ================================
+# 설정 후 다음 단계:
+# ================================
+# 1. 이 내용을 '.env.local' 파일에 복사하세요
+# 2. 위의 모든 값들을 실제 키로 교체하세요
+# 3. 개발 서버를 재시작하세요: npx next dev -p 3001
+# 4. 자세한 설정 가이드: SOCIAL_LOGIN_TROUBLESHOOTING.md 참고

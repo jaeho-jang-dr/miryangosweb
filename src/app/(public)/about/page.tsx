@@ -1,7 +1,7 @@
-// Updated imports
-import { Section3DBackground } from '@/components/Section3DBackground';
-
 'use client';
+
+// Updated imports
+import Section3DBackground from '@/components/Section3DBackground';
 
 import { MapPin, Phone, Clock, Award, Shield, Users } from 'lucide-react';
 import Link from 'next/link';

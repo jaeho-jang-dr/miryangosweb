@@ -24,7 +24,7 @@ function LoginContent() {
     }, [router, nextUrl]);
 
     const handleLoginSuccess = () => {
-        // Redirection handled by onAuthStateChanged
+        router.replace(nextUrl);
     };
 
     if (isLoading) {

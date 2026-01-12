@@ -17,7 +17,9 @@ export default function NewStaffPage() {
         role: '',
         specialties: '',
         imageUrl: '',
-        order: 0
+        order: 0,
+        greeting: '',
+        profile: ''
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -31,6 +33,8 @@ export default function NewStaffPage() {
                 specialties: formData.specialties.split(',').map(s => s.trim()).filter(s => s),
                 imageUrl: formData.imageUrl,
                 order: Number(formData.order),
+                greeting: formData.greeting,
+                profile: formData.profile,
                 createdAt: serverTimestamp(),
             });
 
@@ -115,6 +119,40 @@ export default function NewStaffPage() {
                         placeholder="1"
                     />
                     <p className="text-xs text-slate-500 mt-1">낮은 숫자가 먼저 표시됩니다.</p>
+                </div>
+
+                <div className="border-t border-slate-200 pt-6 mt-6">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">프로필 정보 (선택사항)</h3>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">인사말</label>
+                        <textarea
+                            value={formData.greeting}
+                            onChange={(e) => setFormData({ ...formData, greeting: e.target.value })}
+                            rows={4}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            placeholder="의료진 소개 인사말을 입력하세요..."
+                        />
+                        <p className="text-xs text-slate-500 mt-1">공개 페이지에 표시될 인사말입니다.</p>
+                    </div>
+
+                    <div className="mt-4">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">약력 및 경력</label>
+                        <textarea
+                            value={formData.profile}
+                            onChange={(e) => setFormData({ ...formData, profile: e.target.value })}
+                            rows={8}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm resize-y"
+                            placeholder={`학력 및 경력 사항을 입력하세요. 예:
+
+- 00대학교 의과대학 졸업
+- 00대학교 대학원 의학석사
+- 전) 00대학교병원 정형외과 교수
+- 현) 밀양정형외과 과장
+- 대한정형외과학회 정회원`}
+                        />
+                        <p className="text-xs text-slate-500 mt-1">줄바꿈이 그대로 반영됩니다.</p>
+                    </div>
                 </div>
 
                 <div className="flex justify-end pt-4">

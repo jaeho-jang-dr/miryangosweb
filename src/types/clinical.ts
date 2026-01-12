@@ -38,6 +38,8 @@ export interface Visit {
     prescription?: string;
     treatmentNote?: string;
 
+    images?: string[];
+
     createdAt: any;
     updatedAt: any;
 }

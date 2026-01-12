@@ -37,10 +37,7 @@ export default function ImageUpload({
         }
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    const uploadFile = async (file: File) => {
         setUploading(true);
         setProgress(0);
 
@@ -77,6 +74,30 @@ export default function ImageUpload({
             console.error("Upload failed:", error);
             setUploading(false);
             alert(`이미지 업로드 실패: ${error.message}`);
+        }
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        await uploadFile(file);
+    };
+
+    const handlePaste = async (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    // Create a more descriptive filename for pasted image
+                    const extension = file.type.split('/')[1] || 'png';
+                    const pastedFile = new File([file], `pasted_image_${Date.now()}.${extension}`, { type: file.type });
+                    await uploadFile(pastedFile);
+                    break;
+                }
+            }
         }
     };
 
@@ -145,7 +166,7 @@ export default function ImageUpload({
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4" onPaste={handlePaste}>
             <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     {label}
@@ -209,7 +230,7 @@ export default function ImageUpload({
                                             file:bg-blue-50 file:text-blue-700
                                             hover:file:bg-blue-100"
                                     />
-                                    <p className="mt-2 text-xs text-slate-400">PC에 있는 사진을 선택하세요.</p>
+                                    <p className="mt-2 text-xs text-slate-400">PC에 있는 사진을 선택하거나 <b>Ctrl+V</b>로 붙여넣으세요.</p>
                                 </div>
                             )}
 

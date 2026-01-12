@@ -69,10 +69,26 @@ export default function InquiryPage() {
     // Auth Listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
             if (currentUser) {
+                setUser(currentUser);
                 if (!formData.name && currentUser.displayName) {
                     setFormData(prev => ({ ...prev, name: currentUser.displayName! }));
+                }
+            } else {
+                // Check for local social login
+                const localUserStr = localStorage.getItem('localUser');
+                if (localUserStr) {
+                    try {
+                        const localUser = JSON.parse(localUserStr);
+                        setUser(localUser as any);
+                        if (!formData.name && localUser.displayName) {
+                            setFormData(prev => ({ ...prev, name: localUser.displayName }));
+                        }
+                    } catch (e) {
+                        console.error('Local user parse error', e);
+                    }
+                } else {
+                    setUser(null);
                 }
             }
         });
@@ -159,6 +175,8 @@ export default function InquiryPage() {
 
     const handleLogout = async () => {
         await signOut(auth);
+        localStorage.removeItem('localUser');
+        setUser(null);
         setMyReservations([]);
         setHasSearched(false);
     };

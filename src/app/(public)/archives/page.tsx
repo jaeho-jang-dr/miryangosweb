@@ -188,47 +188,116 @@ export default function ArchivesPage() {
                                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                             </div>
                         ) : filteredArticles.length > 0 ? (
-                            <div className="grid gap-6">
-                                {filteredArticles.map((article) => {
-                                    const badge = getBadgeInfo(article.type);
-                                    return (
-                                        <Link
-                                            href={`/archives/${article.id}`} // Ensure this route exists or create it
-                                            key={article.id}
-                                            className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all group"
-                                        >
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className={clsx(
-                                                            "text-xs font-bold px-2.5 py-0.5 rounded-full",
-                                                            badge.className
-                                                        )}>
-                                                            {badge.label}
-                                                        </span>
-                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                                            <Calendar className="w-3 h-3" />
-                                                            {article.createdAt?.toDate ? article.createdAt.toDate().toLocaleDateString() : ''}
-                                                        </span>
+                            <div className="space-y-8">
+                                {/* Group articles by title */}
+                                {(() => {
+                                    // Group articles by title
+                                    const groupedArticles = filteredArticles.reduce((groups, article) => {
+                                        const title = article.title;
+                                        if (!groups[title]) {
+                                            groups[title] = [];
+                                        }
+                                        groups[title].push(article);
+                                        return groups;
+                                    }, {} as Record<string, Article[]>);
+
+                                    return Object.entries(groupedArticles).map(([title, articlesInGroup]) => {
+                                        const badge = getBadgeInfo(articlesInGroup[0].type);
+
+                                        // If only one article with this title, show it full width
+                                        if (articlesInGroup.length === 1) {
+                                            const article = articlesInGroup[0];
+                                            return (
+                                                <Link
+                                                    href={`/archives/${article.id}`}
+                                                    key={article.id}
+                                                    className="block bg-white px-6 py-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all group"
+                                                >
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <span className={clsx(
+                                                                    "text-xs font-bold px-2.5 py-0.5 rounded-full",
+                                                                    badge.className
+                                                                )}>
+                                                                    {badge.label}
+                                                                </span>
+                                                                <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                                    <Calendar className="w-3 h-3" />
+                                                                    {article.createdAt?.toDate ? article.createdAt.toDate().toLocaleDateString() : ''}
+                                                                </span>
+                                                            </div>
+                                                            <h2 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                                                                {article.title}
+                                                            </h2>
+                                                            <p className="text-slate-600 mb-4 line-clamp-2">
+                                                                {article.summary}
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {article.tags && article.tags.map(tag => (
+                                                                    <span key={tag} className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                                                        #{tag}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <h2 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                                                        {article.title}
-                                                    </h2>
-                                                    <p className="text-slate-600 mb-4 line-clamp-2">
-                                                        {article.summary}
-                                                    </p>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {article.tags && article.tags.map(tag => (
-                                                            <span key={tag} className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                                                                #{tag}
-                                                            </span>
+                                                </Link>
+                                            );
+                                        }
+
+                                        // Multiple articles with same title - show horizontally
+                                        return (
+                                            <div key={title} className="space-y-3">
+                                                {/* Group Title Header */}
+                                                <div className="flex items-center gap-3 px-2">
+                                                    <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+                                                    <span className={clsx(
+                                                        "text-xs font-bold px-2.5 py-0.5 rounded-full",
+                                                        badge.className
+                                                    )}>
+                                                        {badge.label}
+                                                    </span>
+                                                    <span className="text-sm text-slate-400">
+                                                        {articlesInGroup.length}개의 자료
+                                                    </span>
+                                                </div>
+
+                                                {/* Horizontal scrollable container */}
+                                                <div className="overflow-x-auto pb-4 -mx-2 px-2">
+                                                    <div className="flex gap-4" style={{ minWidth: 'min-content' }}>
+                                                        {articlesInGroup.map((article) => (
+                                                            <Link
+                                                                href={`/archives/${article.id}`}
+                                                                key={article.id}
+                                                                className="flex-shrink-0 w-80 bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all group"
+                                                            >
+                                                                <div className="flex flex-col h-full">
+                                                                    <div className="flex items-center gap-2 mb-3">
+                                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                                            <Calendar className="w-3 h-3" />
+                                                                            {article.createdAt?.toDate ? article.createdAt.toDate().toLocaleDateString() : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-slate-600 mb-4 line-clamp-3 flex-1">
+                                                                        {article.summary}
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {article.tags && article.tags.map(tag => (
+                                                                            <span key={tag} className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                                                                #{tag}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            </Link>
                                                         ))}
                                                     </div>
                                                 </div>
                                             </div>
-                                        </Link>
-                                    );
-                                })}
+                                        );
+                                    });
+                                })()}
                             </div>
                         ) : (
                             <div className="text-center py-20 bg-white rounded-xl border border-slate-200">

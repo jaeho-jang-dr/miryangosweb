@@ -15,6 +15,7 @@ interface Transcript {
 import { RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem } from '@/data/clinical-resources';
 import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressions';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
+import ImageUpload from '@/components/image-upload';
 
 // Bundle Definitions
 
@@ -108,6 +109,7 @@ export default function ConsultingDetailPage() {
         diagnosis: '',
         plan: ''
     });
+    const [medicalImages, setMedicalImages] = useState<string[]>([]);
 
     useEffect(() => {
         if (visitId) fetchVisit();
@@ -127,6 +129,7 @@ export default function ConsultingDetailPage() {
                     diagnosis: data.diagnosis || '',
                     plan: data.treatmentNote || ''
                 });
+                setMedicalImages(data.images || []);
 
                 if (data.status === 'reception') {
                     await updateDoc(docRef, {
@@ -167,6 +170,7 @@ export default function ConsultingDetailPage() {
                 testStatus: formData.testResult.trim() ? 'completed' : (visit?.testStatus || 'ordered'),
                 diagnosis: formData.diagnosis,
                 treatmentNote: formData.plan,
+                images: medicalImages,
                 updatedAt: serverTimestamp()
             };
 
@@ -575,6 +579,33 @@ export default function ConsultingDetailPage() {
                                 <Mic className="w-3 h-3" /> 듣고 있습니다...
                             </div>
                         )}
+                    </div>
+
+                    {/* Section: Medical Images */}
+                    <div className="bg-white rounded-xl border-2 border-slate-200 p-6">
+                        <label className="block text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
+                            Medical Images (검사 결과지 / 사진)
+                        </label>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+                            {medicalImages.map((url, idx) => (
+                                <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 group">
+                                    <img src={url} alt={`Medical ${idx}`} className="w-full h-full object-cover" />
+                                    <button
+                                        onClick={() => setMedicalImages(prev => prev.filter((_, i) => i !== idx))}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <ImageUpload
+                            directory="medical_records"
+                            label="새 이미지 추가 (Ctrl+V로 붙여넣기 가능)"
+                            onImageUploaded={(url) => setMedicalImages(prev => [...prev, url])}
+                        />
                     </div>
                 </div>
 
