@@ -101,6 +101,30 @@ export default function ImageUpload({
         }
     };
 
+    const handleKeyDown = async (e: React.KeyboardEvent) => {
+        // Alt+V shortcut for paste from clipboard
+        if (e.altKey && e.key.toLowerCase() === 'v') {
+            e.preventDefault();
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const item of clipboardItems) {
+                    for (const type of item.types) {
+                        if (type.startsWith('image/')) {
+                            const blob = await item.getType(type);
+                            const extension = type.split('/')[1] || 'png';
+                            const file = new File([blob], `pasted_image_${Date.now()}.${extension}`, { type });
+                            await uploadFile(file);
+                            return;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Clipboard access failed:', error);
+                alert('클립보드 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
+            }
+        }
+    };
+
     const handleLocalUpload = async (fileName: string) => {
         if (!confirm(`'${fileName}' 이미지를 업로드 하시겠습니까?`)) return;
 
@@ -166,7 +190,7 @@ export default function ImageUpload({
     };
 
     return (
-        <div className="space-y-4" onPaste={handlePaste}>
+        <div className="space-y-4" onPaste={handlePaste} onKeyDown={handleKeyDown} tabIndex={0}>
             <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     {label}
@@ -230,7 +254,7 @@ export default function ImageUpload({
                                             file:bg-blue-50 file:text-blue-700
                                             hover:file:bg-blue-100"
                                     />
-                                    <p className="mt-2 text-xs text-slate-400">PC에 있는 사진을 선택하거나 <b>Ctrl+V</b>로 붙여넣으세요.</p>
+                                    <p className="mt-2 text-xs text-slate-400">PC에 있는 사진을 선택하거나 <b>Ctrl+V</b> 또는 <b>Alt+V</b>로 붙여넣으세요.</p>
                                 </div>
                             )}
 
