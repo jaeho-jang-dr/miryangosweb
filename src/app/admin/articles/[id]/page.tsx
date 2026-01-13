@@ -8,6 +8,43 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
+// 원본 이미지를 새 탭에서 보여주는 함수
+const openImageInNewTab = (imageUrl: string) => {
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+        newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>원본 이미지</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        min-height: 100vh;
+                        background: #1a1a1a;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 5vh 5vw;
+                    }
+                    img {
+                        width: 80vw;
+                        height: 80vh;
+                        object-fit: contain;
+                        border-radius: 8px;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="${imageUrl}" alt="원본 이미지" />
+            </body>
+            </html>
+        `);
+        newWindow.document.close();
+    }
+};
+
 export default function EditArticlePage() {
     const params = useParams();
     const router = useRouter();
@@ -158,20 +195,30 @@ export default function EditArticlePage() {
                         {formData.images && formData.images.length > 0 && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                                 {formData.images.map((imgUrl, idx) => (
-                                    <div key={idx} className="relative group aspect-square bg-white rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                                    <div
+                                        key={idx}
+                                        className="relative group aspect-square bg-white rounded-lg overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-blue-400"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            openImageInNewTab(imgUrl);
+                                        }}
+                                        title="클릭하여 원본 이미지 보기"
+                                    >
                                         <img
                                             src={imgUrl}
                                             alt={`Preview ${idx + 1}`}
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover pointer-events-none"
                                             loading="lazy"
                                         />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                                            {idx + 1}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white pointer-events-none">
+                                            <span className="text-xs font-bold mb-1">{idx + 1}</span>
+                                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded">🔍 원본 보기</span>
                                         </div>
                                     </div>
                                 ))}
                                 <div className="col-span-full text-xs text-center text-slate-400 mt-2">
-                                    * 이미지는 수정 시 미리보기만 가능하며, 교체를 원하시면 새 자료 등록을 이용해주세요.
+                                    * 이미지를 클릭하면 원본을 볼 수 있습니다. 교체를 원하시면 새 자료 등록을 이용해주세요.
                                 </div>
                             </div>
                         )}

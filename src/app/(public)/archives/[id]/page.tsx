@@ -10,6 +10,43 @@ import { ArrowLeft, Calendar, Tag, Share2, Loader2, AlertCircle } from 'lucide-r
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
 
+// 원본 이미지를 새 탭에서 보여주는 함수
+const openImageInNewTab = (imageUrl: string) => {
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+        newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>원본 이미지</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        min-height: 100vh;
+                        background: #1a1a1a;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 5vh 5vw;
+                    }
+                    img {
+                        width: 80vw;
+                        height: 80vh;
+                        object-fit: contain;
+                        border-radius: 8px;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="${imageUrl}" alt="원본 이미지" />
+            </body>
+            </html>
+        `);
+        newWindow.document.close();
+    }
+};
+
 interface Article {
     id: string;
     title: string;
@@ -33,6 +70,19 @@ const getBadgeInfo = (type: string) => {
         case 'app': return { label: 'AI/앱', className: 'bg-teal-100 text-teal-700' };
         default: return { label: '기타', className: 'bg-slate-100 text-slate-700' };
     }
+};
+
+// 내부용 태그 필터링
+const HIDDEN_TAGS = ['SmartUpload', 'smartupload', '자동생성', '검토필요'];
+const cleanTag = (tag: string): string => tag.replace(/^#+/, '').trim();
+const isVisibleTag = (tag: string): boolean => {
+    const cleaned = cleanTag(tag);
+    if (!cleaned) return false;
+    return !HIDDEN_TAGS.some(hidden => cleaned.toLowerCase() === hidden.toLowerCase());
+};
+const cleanTags = (tags: string[] | undefined): string[] => {
+    if (!tags) return [];
+    return tags.map(cleanTag).filter(isVisibleTag).filter((tag, i, arr) => arr.indexOf(tag) === i);
 };
 
 export default function ArticleDetailPage() {
@@ -88,14 +138,14 @@ export default function ArticleDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 py-12">
+        <div className="min-h-screen bg-slate-50 pt-24 pb-12">
             <div className="container mx-auto px-4 max-w-4xl">
                 <Link
                     href="/archives"
-                    className="inline-flex items-center text-sm text-slate-500 hover:text-blue-600 mb-6 transition-colors"
+                    className="inline-flex items-center text-sm text-slate-500 hover:text-blue-600 mb-6 transition-colors bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm hover:shadow"
                 >
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    목록으로
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    목록으로 돌아가기
                 </Link>
 
                 <article className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -120,7 +170,7 @@ export default function ArticleDetailPage() {
                             {article.title}
                         </h1>
                         <div className="flex flex-wrap gap-2">
-                            {article.tags.map(tag => (
+                            {cleanTags(article.tags).map(tag => (
                                 <span key={tag} className="flex items-center text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
                                     <Tag className="w-3 h-3 mr-1" />
                                     {tag}
@@ -158,13 +208,24 @@ export default function ArticleDetailPage() {
                         {article.images && article.images.length > 0 && (
                             <div className="mt-8 flex flex-col items-center">
                                 {article.images.map((url, index) => (
-                                    <img
+                                    <div
                                         key={index}
-                                        src={url}
-                                        alt={`Webtoon Page ${index + 1}`}
-                                        className="w-full max-w-3xl mb-0 rounded-none shadow-sm" // Increased width, removed margin, standard shadow
-                                        loading="lazy"
-                                    />
+                                        className="relative group cursor-pointer w-full max-w-3xl"
+                                        onClick={() => openImageInNewTab(url)}
+                                        title="클릭하여 원본 이미지 보기"
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={`Webtoon Page ${index + 1}`}
+                                            className="w-full mb-0 rounded-none shadow-sm"
+                                            loading="lazy"
+                                        />
+                                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <span className="bg-white/90 text-slate-800 px-4 py-2 rounded-lg font-medium text-sm shadow-lg">
+                                                🔍 원본 이미지 보기
+                                            </span>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}

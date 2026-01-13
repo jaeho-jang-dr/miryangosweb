@@ -6,7 +6,44 @@ import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/fi
 import { db } from '@/lib/firebase-public';
 import Link from 'next/link';
 // ... imports
-import { Plus, Edit, Trash2, Loader2, FileText, Search, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Loader2, FileText, Search, Sparkles, Image as ImageIcon } from 'lucide-react';
+
+// 원본 이미지를 새 탭에서 보여주는 함수
+const openImageInNewTab = (imageUrl: string) => {
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+        newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>원본 이미지</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        min-height: 100vh;
+                        background: #1a1a1a;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 5vh 5vw;
+                    }
+                    img {
+                        width: 80vw;
+                        height: 80vh;
+                        object-fit: contain;
+                        border-radius: 8px;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="${imageUrl}" alt="원본 이미지" />
+            </body>
+            </html>
+        `);
+        newWindow.document.close();
+    }
+};
 
 interface Article {
     id: string;
@@ -15,6 +52,7 @@ interface Article {
     tags: string[];
     createdAt: any;
     isVisible: boolean;
+    images?: string[]; // Image URLs or Base64
 }
 
 export default function ArticlesPage() {
@@ -111,7 +149,8 @@ export default function ArticlesPage() {
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                            <th className="px-6 py-4 font-semibold text-slate-700">분류</th>
+                            <th className="px-4 py-4 font-semibold text-slate-700 w-16">이미지</th>
+                            <th className="px-4 py-4 font-semibold text-slate-700">분류</th>
                             <th className="px-6 py-4 font-semibold text-slate-700">제목</th>
                             <th className="px-6 py-4 font-semibold text-slate-700">태그</th>
                             <th className="px-6 py-4 font-semibold text-slate-700">등록일</th>
@@ -128,7 +167,39 @@ export default function ArticlesPage() {
                                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                                     onClick={() => window.location.href = `/admin/articles/${article.id}`}
                                 >
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-4">
+                                        {article.images && article.images.length > 0 ? (
+                                            <div
+                                                className="relative group w-12 h-12 rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:ring-2 hover:ring-blue-400"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    openImageInNewTab(article.images![0]);
+                                                }}
+                                                title="클릭하여 원본 보기"
+                                            >
+                                                <img
+                                                    src={article.images[0]}
+                                                    alt={article.title}
+                                                    className="w-full h-full object-cover pointer-events-none"
+                                                    loading="lazy"
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                    <ImageIcon className="w-4 h-4 text-white" />
+                                                </div>
+                                                {article.images.length > 1 && (
+                                                    <div className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[10px] px-1 rounded pointer-events-none">
+                                                        +{article.images.length - 1}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center">
+                                                <FileText className="w-5 h-5 text-slate-400" />
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badge.cls}`}>
                                             {badge.label}
                                         </span>
@@ -174,7 +245,7 @@ export default function ArticlesPage() {
 
                         }) : (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                                     등록된 자료가 없습니다.
                                 </td>
                             </tr>

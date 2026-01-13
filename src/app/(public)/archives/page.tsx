@@ -17,6 +17,33 @@ interface Article {
     createdAt: any;
 }
 
+// 내부용/시스템 태그 필터링 (사용자에게 보이지 않아야 할 태그들)
+const HIDDEN_TAGS = ['SmartUpload', 'smartupload', '자동생성', '검토필요'];
+
+// 태그 정제 함수
+const cleanTag = (tag: string): string => {
+    // ## 또는 # 로 시작하는 경우 정리
+    return tag.replace(/^#+/, '').trim();
+};
+
+// 표시할 태그인지 확인
+const isVisibleTag = (tag: string): boolean => {
+    const cleaned = cleanTag(tag);
+    if (!cleaned) return false;
+    return !HIDDEN_TAGS.some(hidden =>
+        cleaned.toLowerCase() === hidden.toLowerCase()
+    );
+};
+
+// 태그 배열 정제
+const cleanTags = (tags: string[] | undefined): string[] => {
+    if (!tags) return [];
+    return tags
+        .map(cleanTag)
+        .filter(isVisibleTag)
+        .filter((tag, index, self) => self.indexOf(tag) === index); // 중복 제거
+};
+
 export default function ArchivesPage() {
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
@@ -46,7 +73,10 @@ export default function ArchivesPage() {
         fetchArticles();
     }, []);
 
-    const allTags = Array.from(new Set(articles.flatMap(article => article.tags || [])));
+    // 모든 태그 수집 (정제된 태그만)
+    const allTags = Array.from(new Set(
+        articles.flatMap(article => cleanTags(article.tags))
+    )).sort();
 
     const filteredArticles = articles.filter(article => {
         // Filter Logic:
@@ -63,8 +93,8 @@ export default function ArchivesPage() {
         }
 
         const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (article.tags && article.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
-        const matchesTag = selectedTag ? (article.tags && article.tags.includes(selectedTag)) : true;
+            cleanTags(article.tags).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesTag = selectedTag ? cleanTags(article.tags).includes(selectedTag) : true;
 
         return matchesType && matchesSearch && matchesTag;
     });
@@ -91,7 +121,7 @@ export default function ArchivesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 py-12">
+        <div className="min-h-screen bg-slate-50 pt-24 pb-12">
             {/* ... title part ... */}
             <div className="container mx-auto px-4 md:px-6">
                 <div className="text-center mb-12">
@@ -234,7 +264,7 @@ export default function ArchivesPage() {
                                                                 {article.summary}
                                                             </p>
                                                             <div className="flex flex-wrap gap-2">
-                                                                {article.tags && article.tags.map(tag => (
+                                                                {cleanTags(article.tags).slice(0, 5).map(tag => (
                                                                     <span key={tag} className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
                                                                         #{tag}
                                                                     </span>
@@ -283,7 +313,7 @@ export default function ArchivesPage() {
                                                                         {article.summary}
                                                                     </p>
                                                                     <div className="flex flex-wrap gap-2">
-                                                                        {article.tags && article.tags.map(tag => (
+                                                                        {cleanTags(article.tags).slice(0, 4).map(tag => (
                                                                             <span key={tag} className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
                                                                                 #{tag}
                                                                             </span>
