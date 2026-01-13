@@ -14,7 +14,6 @@ interface Staff {
     role: string;
     specialties: string[];
     imageUrl?: string;
-    imageUrl?: string;
     order?: number;
 }
 

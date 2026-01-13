@@ -3,6 +3,32 @@
         "rules": "firestore.rules",
         "indexes": "firestore.indexes.json"
     },
+    "hosting": {
+        "public": "out",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**",
+            "**/*.map"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ],
+        "headers": [
+            {
+                "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "max-age=31536000"
+                    }
+                ]
+            }
+        ]
+    },
     "storage": {
         "rules": "storage.rules"
     }

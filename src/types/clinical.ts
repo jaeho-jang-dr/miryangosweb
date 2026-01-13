@@ -20,6 +20,7 @@ export interface Visit {
     patientName: string; // Denormalized for easy display
     date: any; // Timestamp
     status: ClinicalStatus;
+    doctorName?: string; // Attending physician
 
     testResult?: string; // Lab/Imaging Result
     testStatus?: 'ordered' | 'processing' | 'completed';
@@ -37,6 +38,7 @@ export interface Visit {
     // Plan/Orders
     prescription?: string;
     treatmentNote?: string;
+    physicalTherapy?: string;
 
     images?: string[];
 

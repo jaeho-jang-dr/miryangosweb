@@ -115,7 +115,7 @@ export default function Section3DBackground({ variant, className }: Props) {
 
             case "diamonds":
                 // CTA Section: Premium floating glass diamonds
-                return <FloatingDiamonds color={config.diamonds} />;
+                return <FloatingDiamonds color={config.color} />;
 
             case "rings":
             case "grid":

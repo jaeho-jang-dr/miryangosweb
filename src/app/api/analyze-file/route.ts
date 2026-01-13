@@ -1,13 +1,20 @@
 
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-const pdf = require('pdf-parse');
 import JSZip from 'jszip';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+// Optional PDF parsing - gracefully handle if pdf-parse or canvas not available
+let pdfParse: any = null;
+try {
+    pdfParse = require('pdf-parse');
+} catch (error) {
+    console.warn('[SmartUpload] pdf-parse not available - PDF text extraction disabled');
+}
 
 function bufferToPart(buffer: Buffer, mimeType: string) {
     return {
@@ -102,14 +109,24 @@ export async function POST(request: Request) {
         }
         // --- STRATEGY 2: PDF ---
         else if (file.type === 'application/pdf') {
-            try {
-                const data = await pdf(buffer);
-                const text = data.text.substring(0, 15000);
-                prompt = `Analyze PDF. JSON. Detect category from: disease, guide, news, gallery, webtoon, app. Text: ${text}`;
-                contentParts = [];
-            } catch (e) {
-                console.error("PDF Parsing failed");
-                prompt = `Analyze basic file info. Name: ${file.name}`;
+            if (pdfParse) {
+                try {
+                    const data = await pdfParse(buffer);
+                    const text = data.text.substring(0, 15000);
+                    prompt = `Analyze PDF. JSON. Detect category from: disease, guide, news, gallery, webtoon, app. Text: ${text}`;
+                    contentParts = [];
+                } catch (e) {
+                    console.error("PDF Parsing failed:", e);
+                    prompt = `Analyze PDF file (text extraction failed). Name: ${file.name}. Infer category from filename.`;
+                    contentParts = [];
+                }
+            } else {
+                // PDF parsing not available - use filename and metadata only
+                console.warn("[SmartUpload] PDF parsing unavailable - using filename analysis");
+                prompt = `Analyze PDF file based on filename only (PDF text extraction not available).
+                Filename: ${file.name}
+                Infer the category and content from the filename.
+                Return JSON with: title, tags, summary, category, content.`;
                 contentParts = [];
             }
         }
