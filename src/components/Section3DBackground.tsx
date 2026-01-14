@@ -17,6 +17,7 @@ import {
     Stars
 } from "@react-three/drei";
 import { useMemo, useRef } from "react";
+import * as React from "react";
 import * as THREE from 'three';
 
 export type Variant = "waves" | "particles" | "grid" | "dots" | "cubes" | "rings" | "diamonds";
@@ -107,6 +108,13 @@ function WobbleRings({ color }: { color: string }) {
 export default function Section3DBackground({ variant, className }: Props) {
     const config = variantConfig[variant];
 
+    // Client-side only rendering to avoid SSR issues
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const Scene = useMemo(() => {
         switch (variant) {
             case "waves":
@@ -142,6 +150,11 @@ export default function Section3DBackground({ variant, className }: Props) {
                 );
         }
     }, [variant, config]);
+
+    // Don't render on server
+    if (!mounted) {
+        return <div className={`absolute inset-0 z-0 pointer-events-none ${className || ''}`} />;
+    }
 
     return (
         <div className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000 ease-in-out ${className || ''}`}>

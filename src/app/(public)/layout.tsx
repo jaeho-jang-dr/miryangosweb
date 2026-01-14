@@ -7,7 +7,8 @@ import { Menu, X, Phone, Calendar, Stethoscope } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase-public';
+import { auth, db } from '@/lib/firebase-public';
+import { doc, getDoc } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 
 const Background3D = dynamic(() => import('@/components/ui/Background3D'), { ssr: false });
@@ -20,10 +21,31 @@ export default function PublicLayout({
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+
+            if (currentUser) {
+                try {
+                    // Check if user has admin role in Firestore
+                    const userDocRef = doc(db, 'users', currentUser.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        setIsAdmin(userData?.role === 'admin');
+                    } else {
+                        setIsAdmin(false);
+                    }
+                } catch (error) {
+                    console.error('Error checking admin role:', error);
+                    setIsAdmin(false);
+                }
+            } else {
+                setIsAdmin(false);
+            }
         });
         return () => unsubscribe();
     }, []);
@@ -98,15 +120,17 @@ export default function PublicLayout({
                         </nav>
 
                         <div className="hidden md:flex items-center space-x-4">
-                            {/* Dev Shortcuts (Temporary) */}
-                            <div className="flex items-center gap-1 mr-2">
-                                <Link href="/admin" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors" title="홈페이지 대시보드 (CMS)">
-                                    <span className="text-xl">🦄</span>
-                                </Link>
-                                <Link href="/clinical" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-600 dark:text-slate-300 hover:text-emerald-600" title="환자진료 대시보드 (EMR)">
-                                    <Stethoscope className="w-5 h-5" />
-                                </Link>
-                            </div>
+                            {/* Dev Shortcuts - Only show to admin */}
+                            {isAdmin && (
+                                <div className="flex items-center gap-1 mr-2">
+                                    <Link href="/admin" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors" title="홈페이지 대시보드 (CMS)">
+                                        <span className="text-xl">🦄</span>
+                                    </Link>
+                                    <Link href="/clinical" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-600 dark:text-slate-300 hover:text-emerald-600" title="환자진료 대시보드 (EMR)">
+                                        <Stethoscope className="w-5 h-5" />
+                                    </Link>
+                                </div>
+                            )}
 
                             {/* Login Status */}
                             <div>

@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button"
 import { AnimatePresence, motion } from "framer-motion"
 import { InteractiveElement } from "@/components/ui/interactive-element"
 import { useLanguage } from "@/lib/language-context"
+import { auth, db } from "@/lib/firebase-public"
+import { onAuthStateChanged } from "firebase/auth"
+import { doc, getDoc } from "firebase/firestore"
 
 
 
@@ -16,7 +19,34 @@ export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isScrolled, setIsScrolled] = React.useState(false)
     const [isLogoHovered, setIsLogoHovered] = React.useState(false)
+    const [isAdmin, setIsAdmin] = React.useState(false)
     const { language, toggleLanguage, t } = useLanguage()
+
+    // Listen to authentication state and check admin role
+    React.useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    // Check if user has admin role in Firestore
+                    const userDocRef = doc(db, 'users', user.uid)
+                    const userDoc = await getDoc(userDocRef)
+
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data()
+                        setIsAdmin(userData?.role === 'admin')
+                    } else {
+                        setIsAdmin(false)
+                    }
+                } catch (error) {
+                    console.error('Error checking admin role:', error)
+                    setIsAdmin(false)
+                }
+            } else {
+                setIsAdmin(false)
+            }
+        })
+        return () => unsubscribe()
+    }, [])
 
     const navItems = [
         { name: t.navbar.menu.intro, href: "#intro" },
@@ -57,27 +87,31 @@ export function Navbar() {
                             </InteractiveElement>
                         </div>
 
-                        {/* Admin Link Button - Next to Logo */}
-                        <div className="ml-3 relative z-50">
-                            <Link
-                                href="/admin/settings"
-                                className="text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1 transition-colors"
-                            >
-                                관리자
-                            </Link>
-                        </div>
+                        {/* Admin Link Button - Only show when logged in as admin */}
+                        {isAdmin && (
+                            <div className="ml-3 relative z-50">
+                                <Link
+                                    href="/admin/settings"
+                                    className="text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded px-2 py-1 transition-colors"
+                                >
+                                    관리자
+                                </Link>
+                            </div>
+                        )}
 
-                        {/* Language Toggle Button - Next to Logo */}
-                        <div className="ml-4 mr-auto md:ml-6">
-                            <button
-                                onClick={toggleLanguage}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-xs font-medium text-gray-600"
-                                aria-label="Toggle Language"
-                            >
-                                <Globe className="w-3.5 h-3.5" />
-                                <span>{language === 'ko' ? 'En' : '한글'}</span>
-                            </button>
-                        </div>
+                        {/* Language Toggle Button - Only show when logged in as admin */}
+                        {isAdmin && (
+                            <div className="ml-4 mr-auto md:ml-6">
+                                <button
+                                    onClick={toggleLanguage}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-xs font-medium text-gray-600"
+                                    aria-label="Toggle Language"
+                                >
+                                    <Globe className="w-3.5 h-3.5" />
+                                    <span>{language === 'ko' ? 'En' : '한글'}</span>
+                                </button>
+                            </div>
+                        )}
 
                         {/* Desktop Nav */}
                         <nav className="hidden md:flex items-center space-x-8">
