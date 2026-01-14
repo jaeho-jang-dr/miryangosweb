@@ -54,6 +54,19 @@ async function getClipboardImage() {
     });
 }
 
+// Clipboard Text Helper
+async function getClipboardText() {
+    return new Promise((resolve) => {
+        const ps = spawn('powershell', ['-Command', 'Get-Clipboard']);
+        let stdout = '';
+        ps.stdout.on('data', data => { stdout += data.toString(); });
+        ps.on('close', () => {
+            resolve(stdout);
+        });
+        ps.on('error', () => resolve(''));
+    });
+}
+
 // File Walker
 function getFilesFromDir(dirPath, allowedExtensions = ['.ts', '.tsx', '.js', '.json', '.css', '.md']) {
     let fileList = [];
@@ -745,6 +758,26 @@ async function submitChat() {
 // Key Handlers
 inputBox.key(['C-s', 'C-enter'], async () => {
     await submitChat();
+});
+
+// Ctrl+V Handler for Image/Text Paste
+inputBox.key(['C-v'], async () => {
+    // 1. Try Image First
+    const imgPath = await getClipboardImage();
+    if (imgPath) {
+        attachedImages.push(imgPath);
+        appendLog(`Image attached from clipboard (Ctrl+V)`, 'system');
+        updateStatus();
+        screen.render();
+        return;
+    }
+
+    // 2. Fallback to Text
+    const text = await getClipboardText();
+    if (text) {
+        inputBox.insertString(text);
+        screen.render();
+    }
 });
 
 // Button events

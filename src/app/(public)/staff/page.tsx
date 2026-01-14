@@ -104,15 +104,9 @@ export default function StaffPage() {
                             </div>
                             <div className="p-6">
                                 <div className="mb-4">
-                                    {staff.role === '원장' ? (
-                                        <Link href="/admin/settings" className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs font-bold rounded-full mb-2 hover:bg-blue-200 transition-colors cursor-pointer">
-                                            {staff.role}
-                                        </Link>
-                                    ) : (
-                                        <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs font-bold rounded-full mb-2">
-                                            {staff.role}
-                                        </span>
-                                    )}
+                                    <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-full mb-2">
+                                        {staff.role}
+                                    </span>
                                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{staff.name}</h3>
                                 </div>
                                 <div className="space-y-2">

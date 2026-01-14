@@ -25,6 +25,15 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
     const { user, signOut } = useAdminAuth();
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
+
+    React.useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 10);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     return (
         <div className="relative min-h-screen bg-slate-50 overflow-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
@@ -33,7 +42,14 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
 
             {/* Navigation Bar */}
             <div className="fixed top-0 left-0 right-0 z-50 px-4 pt-4 flex justify-center">
-                <nav className="mx-auto flex items-center justify-between gap-2 p-2 bg-white/70 backdrop-blur-xl border border-white/40 shadow-sm rounded-full transition-all hover:shadow-md hover:bg-white/80 max-w-5xl w-full">
+                <nav
+                    className={clsx(
+                        "mx-auto flex items-center justify-between gap-2 p-2 rounded-full transition-all duration-300 max-w-7xl w-full",
+                        isScrolled
+                            ? "bg-white/80 backdrop-blur-xl border border-white/40 shadow-sm"
+                            : "bg-transparent border border-transparent shadow-none"
+                    )}
+                >
 
                     {/* Logo / Brand */}
                     <div className="flex items-center px-4">
@@ -156,7 +172,7 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
 
 function NavItem({ href, label, active }: { href: string; label: string; active: boolean }) {
     return (
-        <Link href={href} className="relative px-5 py-2.5 text-sm font-medium transition-colors">
+        <Link href={href} className="relative px-4 py-2 text-sm font-semibold transition-colors whitespace-nowrap">
             {active && (
                 <motion.div
                     layoutId="nav-pill"

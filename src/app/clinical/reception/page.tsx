@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, limit, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { Search, UserPlus, Clock, Calendar, User, ChevronRight, Stethoscope, AlertCircle, CheckCircle } from 'lucide-react';
+import { FaNotesMedical } from 'react-icons/fa';
 import Link from 'next/link';
 import { Patient, Visit } from '@/types/clinical';
 import { startOfDay, subDays } from 'date-fns';
