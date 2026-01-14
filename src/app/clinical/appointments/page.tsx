@@ -91,7 +91,7 @@ export default function AppointmentsPage() {
                 department: '일반진료',
                 doctor: '원장님',
                 notes: '',
-                status: 'scheduled'
+                status: 'confirmed' as const
             });
 
             setShowNewForm(false);
