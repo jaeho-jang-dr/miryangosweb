@@ -3,10 +3,24 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, limit, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
-import { Search, UserPlus, Clock, Calendar, User, ChevronRight, Stethoscope, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, UserPlus, Clock, Calendar, User, ChevronRight, Stethoscope, AlertCircle, CheckCircle, CalendarCheck, Plus, Phone, FileText, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { Patient, Visit } from '@/types/clinical';
-import { startOfDay, subDays } from 'date-fns';
+import { startOfDay, subDays, format, addDays, startOfDay as startOfDayFns, endOfDay } from 'date-fns';
+import { ko } from 'date-fns/locale';
+
+interface Appointment {
+    id: string;
+    patientName: string;
+    patientPhone: string;
+    appointmentDate: any;
+    appointmentTime: string;
+    department: string;
+    doctor: string;
+    notes: string;
+    status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed';
+    createdAt: any;
+}
 
 const getStatusLabel = (status: string) => {
     switch (status) {
@@ -33,7 +47,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function ReceptionPage() {
-    const [activeTab, setActiveTab] = useState<'reception' | 'payment' | 'documents'>('reception');
+    const [activeTab, setActiveTab] = useState<'reception' | 'payment' | 'documents' | 'appointments'>('reception');
 
     // Left Panel: Search
     const [searchTerm, setSearchTerm] = useState('');
@@ -42,12 +56,29 @@ export default function ReceptionPage() {
 
     // Data Lists
     const [todayVisits, setTodayVisits] = useState<Visit[]>([]);
+    const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Selected Visit for Payment/Documents
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [modalMode, setModalMode] = useState<'none' | 'invoice' | 'documents' | 'preview'>('none');
     const [previewType, setPreviewType] = useState<'prescription' | 'receipt' | 'detailed_receipt' | 'certificate' | 'diagnosis' | 'referral' | null>(null);
+
+    // Appointments Tab State
+    const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+    const [showNewAppointmentForm, setShowNewAppointmentForm] = useState(false);
+    const [selectedAppointmentDate, setSelectedAppointmentDate] = useState(new Date());
+    const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [appointmentFormData, setAppointmentFormData] = useState({
+        patientName: '',
+        patientPhone: '',
+        appointmentDate: format(new Date(), 'yyyy-MM-dd'),
+        appointmentTime: '09:00',
+        department: '일반진료',
+        doctor: '원장님',
+        notes: '',
+        status: 'confirmed' as const
+    });
 
     // Initial Load & Real-time Subscription
     useEffect(() => {
@@ -71,6 +102,54 @@ export default function ReceptionPage() {
 
         return () => unsubscribe();
     }, []);
+
+    // Real-time subscription for today's appointments
+    useEffect(() => {
+        const startOfToday = startOfDay(new Date());
+        const endOfToday = new Date(startOfToday);
+        endOfToday.setHours(23, 59, 59, 999);
+
+        const q = query(
+            collection(db, 'appointments'),
+            where('appointmentDate', '>=', Timestamp.fromDate(startOfToday)),
+            where('appointmentDate', '<=', Timestamp.fromDate(endOfToday)),
+            where('status', '==', 'confirmed')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const appointments = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setTodayAppointments(appointments);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    // Real-time subscription for all appointments (for appointments tab)
+    useEffect(() => {
+        const startDate = startOfDayFns(selectedAppointmentDate);
+        const endDate = endOfDay(selectedAppointmentDate);
+
+        const q = query(
+            collection(db, 'appointments'),
+            where('appointmentDate', '>=', startDate),
+            where('appointmentDate', '<=', endDate),
+            orderBy('appointmentDate', 'asc')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const appointmentData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Appointment[];
+
+            setAllAppointments(appointmentData);
+        });
+
+        return () => unsubscribe();
+    }, [selectedAppointmentDate]);
 
     // ... (Search & Register Logic - Same as before) ...
     const handleSearch = async (term: string) => {
@@ -101,6 +180,11 @@ export default function ReceptionPage() {
     };
 
     const handleCallPatient = async (visitId: string) => await updateDoc(doc(db, 'visits', visitId), { status: 'consulting', startedAt: serverTimestamp() });
+
+    // Check if patient has an appointment
+    const hasAppointment = (patientName: string) => {
+        return todayAppointments.some(apt => apt.patientName === patientName);
+    };
 
     // Payment Logic
     const openInvoice = (visit: Visit) => {
@@ -134,6 +218,59 @@ export default function ReceptionPage() {
         window.print();
     };
 
+    // Appointment Functions
+    const timeSlots = [
+        '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+        '12:00', '12:30', '14:00', '14:30', '15:00', '15:30',
+        '16:00', '16:30', '17:00', '17:30', '18:00'
+    ];
+
+    const filteredAppointments = filterStatus === 'all'
+        ? allAppointments
+        : allAppointments.filter(apt => apt.status === filterStatus);
+
+    const handleAppointmentSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        try {
+            const appointmentDateTime = new Date(`${appointmentFormData.appointmentDate}T${appointmentFormData.appointmentTime}:00`);
+
+            await addDoc(collection(db, 'appointments'), {
+                ...appointmentFormData,
+                appointmentDate: Timestamp.fromDate(appointmentDateTime),
+                createdAt: serverTimestamp()
+            });
+
+            // Reset form
+            setAppointmentFormData({
+                patientName: '',
+                patientPhone: '',
+                appointmentDate: format(new Date(), 'yyyy-MM-dd'),
+                appointmentTime: '09:00',
+                department: '일반진료',
+                doctor: '원장님',
+                notes: '',
+                status: 'confirmed'
+            });
+
+            setShowNewAppointmentForm(false);
+            alert('예약이 등록되었습니다.');
+        } catch (error) {
+            console.error('Error adding appointment:', error);
+            alert('예약 등록에 실패했습니다.');
+        }
+    };
+
+    const updateAppointmentStatus = async (id: string, newStatus: Appointment['status']) => {
+        try {
+            await updateDoc(doc(db, 'appointments', id), {
+                status: newStatus
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
+    };
+
     // Filtered Lists
     const receptionList = todayVisits.filter(v => ['reception', 'consulting', 'treatment', 'testing'].includes(v.status));
     const paymentList = todayVisits.filter(v => v.status === 'completed');
@@ -160,6 +297,12 @@ export default function ReceptionPage() {
                     className={`pb-3 px-2 text-lg font-bold transition-all ${activeTab === 'documents' ? 'text-emerald-600 border-b-4 border-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                     제증명/완료 ({historyList.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('appointments')}
+                    className={`pb-3 px-2 text-lg font-bold transition-all ${activeTab === 'appointments' ? 'text-blue-600 border-b-4 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                    진료예약 ({todayAppointments.length})
                 </button>
             </div>
 
@@ -216,16 +359,60 @@ export default function ReceptionPage() {
                         <div className="w-full lg:w-[480px] bg-slate-800 text-white rounded-2xl flex flex-col overflow-hidden">
                             <div className="p-6 border-b border-slate-700"><h2 className="text-xl font-bold flex gap-2"><Clock className="text-emerald-400" /> 실시간 대기 현황 <span className="ml-auto text-3xl">{receptionList.length}</span></h2></div>
                             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white text-slate-800">
-                                {receptionList.map(visit => (
-                                    <div key={visit.id} className="relative bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${visit.status === 'reception' ? 'bg-yellow-400' : visit.status === 'consulting' ? 'bg-blue-500' : 'bg-purple-500'}`} />
-                                        <div className="pl-2 flex-1">
-                                            <div className="flex justify-between"><h3 className="font-bold text-lg">{visit.patientName}</h3><span className={`text-xs px-2 py-0.5 rounded-full border ${getStatusColor(visit.status)}`}>{getStatusLabel(visit.status)}</span></div>
-                                            <div className="text-xs text-slate-500 mt-1">{new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                {receptionList.map(visit => {
+                                    const isAppointment = hasAppointment(visit.patientName);
+                                    return (
+                                        <div
+                                            key={visit.id}
+                                            className={`relative border rounded-xl p-4 shadow-sm flex items-center gap-4 transition-all ${
+                                                isAppointment
+                                                    ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200'
+                                                    : 'bg-white border-slate-200'
+                                            }`}
+                                        >
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
+                                                isAppointment
+                                                    ? 'bg-emerald-500'
+                                                    : visit.status === 'reception'
+                                                        ? 'bg-yellow-400'
+                                                        : visit.status === 'consulting'
+                                                            ? 'bg-blue-500'
+                                                            : 'bg-purple-500'
+                                            }`} />
+                                            <div className="pl-2 flex-1">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-lg">{visit.patientName}</h3>
+                                                        {isAppointment && (
+                                                            <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                                                                <CalendarCheck className="w-3 h-3" />
+                                                                예약 확정
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full border ${getStatusColor(visit.status)}`}>
+                                                        {getStatusLabel(visit.status)}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-slate-500 mt-1">
+                                                    {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </div>
+                                            {visit.status === 'reception' && (
+                                                <button
+                                                    onClick={() => handleCallPatient(visit.id)}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                                                        isAppointment
+                                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                            : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                    }`}
+                                                >
+                                                    호출
+                                                </button>
+                                            )}
                                         </div>
-                                        {visit.status === 'reception' && <button onClick={() => handleCallPatient(visit.id)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold">호출</button>}
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 {receptionList.length === 0 && <div className="text-center py-10 text-slate-400">대기 환자가 없습니다.</div>}
                             </div>
                         </div>
@@ -294,6 +481,273 @@ export default function ReceptionPage() {
                                     {historyList.length === 0 && <tr><td colSpan={5} className="text-center py-10 text-slate-400">발급 가능한 내역이 없습니다.</td></tr>}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 4: APPOINTMENTS */}
+                {activeTab === 'appointments' && (
+                    <div className="space-y-6">
+                        {/* Header */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                                    <CalendarDays className="w-7 h-7 text-emerald-600" />
+                                    진료 예약 관리
+                                </h2>
+                                <p className="text-slate-500 text-sm mt-1">환자 진료 예약을 등록하고 관리하세요.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowNewAppointmentForm(!showNewAppointmentForm)}
+                                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-lg hover:shadow-xl"
+                            >
+                                <Plus className="w-5 h-5" />
+                                신규 예약 등록
+                            </button>
+                        </div>
+
+                        {/* Date selector */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div className="flex flex-wrap items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-5 h-5 text-slate-400" />
+                                    <span className="text-sm font-medium text-slate-600">예약 날짜:</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setSelectedAppointmentDate(new Date())}
+                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        오늘
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedAppointmentDate(addDays(new Date(), 1))}
+                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        내일
+                                    </button>
+                                    <input
+                                        type="date"
+                                        value={format(selectedAppointmentDate, 'yyyy-MM-dd')}
+                                        onChange={(e) => setSelectedAppointmentDate(new Date(e.target.value))}
+                                        className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                    />
+                                </div>
+                                <div className="flex-1"></div>
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-500"
+                                >
+                                    <option value="all">전체 상태</option>
+                                    <option value="scheduled">예약됨</option>
+                                    <option value="confirmed">확정됨</option>
+                                    <option value="completed">완료</option>
+                                    <option value="cancelled">취소</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* New appointment form */}
+                        {showNewAppointmentForm && (
+                            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                                <h3 className="text-lg font-bold text-slate-800 mb-4">신규 예약 등록</h3>
+                                <form onSubmit={handleAppointmentSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">환자명 *</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={appointmentFormData.patientName}
+                                                onChange={(e) => setAppointmentFormData({ ...appointmentFormData, patientName: e.target.value })}
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                placeholder="홍길동"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">연락처 *</label>
+                                            <input
+                                                type="tel"
+                                                required
+                                                value={appointmentFormData.patientPhone}
+                                                onChange={(e) => setAppointmentFormData({ ...appointmentFormData, patientPhone: e.target.value })}
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                placeholder="010-1234-5678"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">예약 날짜 *</label>
+                                            <input
+                                                type="date"
+                                                required
+                                                value={appointmentFormData.appointmentDate}
+                                                onChange={(e) => setAppointmentFormData({ ...appointmentFormData, appointmentDate: e.target.value })}
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">예약 시간 *</label>
+                                            <select
+                                                required
+                                                value={appointmentFormData.appointmentTime}
+                                                onChange={(e) => setAppointmentFormData({ ...appointmentFormData, appointmentTime: e.target.value })}
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            >
+                                                {timeSlots.map(time => (
+                                                    <option key={time} value={time}>{time}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">진료 과목</label>
+                                            <select
+                                                value={appointmentFormData.department}
+                                                onChange={(e) => setAppointmentFormData({ ...appointmentFormData, department: e.target.value })}
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            >
+                                                <option value="일반진료">일반진료</option>
+                                                <option value="물리치료">물리치료</option>
+                                                <option value="검사">검사</option>
+                                                <option value="상담">상담</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">담당 의사</label>
+                                            <input
+                                                type="text"
+                                                value={appointmentFormData.doctor}
+                                                onChange={(e) => setAppointmentFormData({ ...appointmentFormData, doctor: e.target.value })}
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                placeholder="원장님"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">메모</label>
+                                        <textarea
+                                            value={appointmentFormData.notes}
+                                            onChange={(e) => setAppointmentFormData({ ...appointmentFormData, notes: e.target.value })}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            rows={3}
+                                            placeholder="특이사항이나 요청사항을 입력하세요"
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewAppointmentForm(false)}
+                                            className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-300 transition-colors"
+                                        >
+                                            취소
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+                                        >
+                                            예약 등록
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {/* Appointments list */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-slate-200">
+                                <h3 className="text-lg font-bold text-slate-800">
+                                    {format(selectedAppointmentDate, 'yyyy년 M월 d일 (EEEE)', { locale: ko })} 예약 목록
+                                    <span className="ml-2 text-sm font-normal text-slate-500">
+                                        ({filteredAppointments.length}건)
+                                    </span>
+                                </h3>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">시간</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">환자명</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">연락처</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">진료과목</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">담당의</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">상태</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">메모</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {loading ? (
+                                            <tr>
+                                                <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
+                                                    로딩 중...
+                                                </td>
+                                            </tr>
+                                        ) : filteredAppointments.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
+                                                    예약된 일정이 없습니다.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredAppointments.map((appointment) => (
+                                                <tr key={appointment.id} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center text-sm font-medium text-slate-900">
+                                                            <Clock className="w-4 h-4 mr-2 text-slate-400" />
+                                                            {appointment.appointmentTime}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center text-sm font-bold text-slate-900">
+                                                            <User className="w-4 h-4 mr-2 text-slate-400" />
+                                                            {appointment.patientName}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                                        <div className="flex items-center">
+                                                            <Phone className="w-4 h-4 mr-2 text-slate-400" />
+                                                            {appointment.patientPhone}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                                        {appointment.department}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                                        {appointment.doctor}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <select
+                                                            value={appointment.status}
+                                                            onChange={(e) => updateAppointmentStatus(appointment.id, e.target.value as Appointment['status'])}
+                                                            className={`px-3 py-1 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-emerald-500 ${
+                                                                appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                                                                appointment.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
+                                                                appointment.status === 'completed' ? 'bg-slate-100 text-slate-800' :
+                                                                'bg-red-100 text-red-800'
+                                                            }`}
+                                                        >
+                                                            <option value="scheduled">예약됨</option>
+                                                            <option value="confirmed">확정됨</option>
+                                                            <option value="completed">완료</option>
+                                                            <option value="cancelled">취소</option>
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                        {appointment.notes && (
+                                                            <button
+                                                                title={appointment.notes}
+                                                                className="text-slate-400 hover:text-slate-600 transition-colors"
+                                                            >
+                                                                <FileText className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}

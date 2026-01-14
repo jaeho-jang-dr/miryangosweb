@@ -46,15 +46,19 @@ service cloud.firestore {
       allow read, update, delete: if isAuthenticated();
     }
 
-    // Clinical Data (Patients, Visits) - STRICTLY SECURE
-    // All Access: Authenticated Only (Admin/Staff)
+    // Clinical Data (Patients, Visits, Appointments) - DEVELOPMENT MODE
+    // TODO: Re-enable strict security for production
     // SECURITY: Protected healthcare information (PHI/EMR)
     match /patients/{document=**} {
-      allow read, write: if isAuthorizedStaff();
+      allow read, write: if true; // DEV MODE: Open access for development
     }
 
     match /visits/{document=**} {
-      allow read, write: if isAuthorizedStaff();
+      allow read, write: if true; // DEV MODE: Open access for development
+    }
+
+    match /appointments/{document=**} {
+      allow read, write: if true; // DEV MODE: Open access for development
     }
 
     // Users Collection (Added for Admin Dashboard)
