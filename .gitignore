@@ -41,3 +41,15 @@ yarn-error.log*
 
 # user uploads
 /public/uploads
+
+# Claude AI configuration and guides
+.claude/
+CLAUDE_SETUP_GUIDE.md
+
+# Firebase logs
+.firebase/logs/
+
+# Development and test files
+auth_info.txt
+auth_output_*.txt
+gemini.bat
