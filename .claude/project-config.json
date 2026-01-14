@@ -1,0 +1,69 @@
+{
+  "projectName": "miryangosweb",
+  "projectPath": "D:\\Entertainments\\DevEnvironment\\miryangosweb",
+  "description": "밀양 정형외과 웹사이트 - Next.js 16, Firebase, AI 통합",
+  "environment": {
+    "ANTHROPIC_BASE_URL": "http://localhost:9097",
+    "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+    "NODE_ENV": "development"
+  },
+  "proxy": {
+    "enabled": true,
+    "type": "antigravity-claude-proxy",
+    "version": "2.0.4",
+    "port": 9097,
+    "command": "antigravity-claude-proxy",
+    "autoStart": true
+  },
+  "claude": {
+    "cliPath": "C:\\CleanDev\\npm-global\\claude.cmd",
+    "configPath": "C:\\Users\\장재호\\.claude\\config.json",
+    "workingDirectory": "D:\\Entertainments\\DevEnvironment\\miryangosweb"
+  },
+  "mcpServers": {
+    "playwright": {
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "@smithery/cli@latest", "run", "@microsoft/playwright-mcp"]
+    },
+    "filesystem": {
+      "enabled": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "G:\\내 드라이브",
+        "C:\\Users\\장재호\\OneDrive\\바탕 화면",
+        "C:\\Users\\장재호\\OneDrive\\사진\\스크린샷",
+        "C:\\Users\\장재호\\OneDrive\\문서"
+      ]
+    },
+    "context7": {
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "context7-mcp"]
+    },
+    "sequential-thinking": {
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "memory": {
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "magic": {
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "magic-mcp"]
+    }
+  },
+  "autoCommands": {
+    "onStart": [
+      "cd D:\\Entertainments\\DevEnvironment\\miryangosweb",
+      "git status"
+    ]
+  },
+  "lastUpdated": "2026-01-14T04:15:00Z"
+}

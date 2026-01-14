@@ -44,6 +44,8 @@ yarn-error.log*
 
 # Claude AI configuration and guides
 .claude/
+!.claude/project-config.json
+!.claude/README.md
 CLAUDE_SETUP_GUIDE.md
 
 # Firebase logs

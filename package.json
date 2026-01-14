@@ -16,6 +16,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
+    "claude": "bash start-claude.sh",
+    "claude:proxy": "antigravity-claude-proxy",
     "drjay": "node scripts/drjay-assistant.js",
     "deploy": "node scripts/firebase-deploy.js",
     "deploy:hosting": "node scripts/firebase-deploy.js --target=hosting",
