@@ -7,6 +7,16 @@ import JSZip from 'jszip';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Lazy load pdf-parse to avoid build errors
+let pdfParse: any = null;
+async function getPdfParse() {
+    if (!pdfParse) {
+        const pdfModule: any = await import('pdf-parse');
+        pdfParse = pdfModule.default || pdfModule;
+    }
+    return pdfParse;
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Initialize OpenAI for ChatGPT
@@ -19,14 +29,6 @@ const openai = new OpenAI({
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY || 'dummy-key',
 });
-
-// Optional PDF parsing
-let pdfParse: any = null;
-try {
-    pdfParse = require('pdf-parse');
-} catch (error) {
-    console.warn('[SmartUpload] pdf-parse not available - PDF text extraction disabled');
-}
 
 function bufferToPart(buffer: Buffer, mimeType: string) {
     return {
@@ -412,6 +414,7 @@ export async function POST(request: Request) {
         }
         // --- STRATEGY 2: PDF ---
         else if (file.type === 'application/pdf') {
+<<<<<<< HEAD
             if (pdfParse) {
                 try {
                     const data = await pdfParse(buffer);
@@ -426,6 +429,17 @@ export async function POST(request: Request) {
             } else {
                 console.warn("PDF 파싱 불가 - 파일명 분석");
                 prompt = `PDF 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
+=======
+            try {
+                const pdf = await getPdfParse();
+                const data = await pdf(buffer);
+                const text = data.text.substring(0, 15000);
+                prompt = `Analyze PDF. JSON. Detect category from: disease, guide, news, gallery, webtoon, app. Text: ${text}`;
+                contentParts = [];
+            } catch (e) {
+                console.error("PDF Parsing failed");
+                prompt = `Analyze basic file info. Name: ${file.name}`;
+>>>>>>> 37420c5 (feat: Add SEO optimization, social login enhancement, and error handling pages)
                 contentParts = [];
             }
         }

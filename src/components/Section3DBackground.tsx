@@ -34,7 +34,7 @@ const variantConfig = {
     dots: { color: "#f0abfc", secondary: "#e879f9" }, // Pink
     cubes: { color: "#93c5fd", secondary: "#60a5fa" }, // Blue cubes
     rings: { color: "#c4b5fd", secondary: "#8b5cf6" }, // Purple rings
-    diamonds: { color: "#e0f2fe", secondary: "#ffffff" }, // White/Ice
+    diamonds: { color: "#e0f2fe", secondary: "#ffffff", diamonds: "#bae6fd" }, // White/Ice
 } as const;
 
 function AnimatedBlob({ color }: { color: string }) {
@@ -115,7 +115,8 @@ export default function Section3DBackground({ variant, className }: Props) {
 
             case "diamonds":
                 // CTA Section: Premium floating glass diamonds
-                return <FloatingDiamonds color={config.color} />;
+                const diamondsConfig = variantConfig.diamonds;
+                return <FloatingDiamonds color={diamondsConfig.diamonds} />;
 
             case "rings":
             case "grid":

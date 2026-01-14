@@ -8,6 +8,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Helper function to check if user is admin or staff
+    function isAuthorizedStaff() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'staff']);
+    }
+
+    // Helper function to check if user is admin only
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Public Content (Notices, Archives, Staff)
     // Read: Public
     // Write: Authenticated Only (Admin)
@@ -36,18 +48,22 @@ service cloud.firestore {
 
     // Clinical Data (Patients, Visits) - STRICTLY SECURE
     // All Access: Authenticated Only (Admin/Staff)
-    // TEMPORARY: Allow public access for development to fix permission errors
+    // SECURITY: Protected healthcare information (PHI/EMR)
     match /patients/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAuthorizedStaff();
     }
-    
+
     match /visits/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAuthorizedStaff();
     }
 
     // Users Collection (Added for Admin Dashboard)
-    match /users/{document=**} {
-      allow read, write: if isAuthenticated();
+    // Users can read their own data, Admin can manage all users
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
     
     // Settings (Clinic Info)
