@@ -1,99 +1,104 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Script from 'next/script';
-
-declare global {
-    interface Window {
-        naver: any;
-    }
-}
+import { signInWithCustomToken } from 'firebase/auth';
+import { auth } from '@/lib/firebase-public';
 
 export default function LoginCallbackPage() {
-    const router = useRouter();
     const [status, setStatus] = useState('처리 중...');
 
     useEffect(() => {
-        const initNaverLogin = () => {
-            if (!window.naver || !window.naver.LoginWithNaverId) {
-                return;
-            }
+        const handleNaverCallback = async () => {
+            try {
+                // Get code and state from URL
+                const params = new URLSearchParams(window.location.search);
+                const code = params.get('code');
+                const state = params.get('state');
+                const error = params.get('error');
 
-            const naverLogin = new window.naver.LoginWithNaverId({
-                clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || "TEST_CLIENT_ID",
-                callbackUrl: process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/login/callback` : window.location.origin + '/login/callback',
-                isPopup: false, // Callback page is not a popup usually, or it handles the popup closing
-                callbackHandle: true
-            });
+                if (error) {
+                    throw new Error(error);
+                }
 
-            naverLogin.init();
+                if (!code || !state) {
+                    throw new Error('Invalid callback parameters');
+                }
 
-            naverLogin.getLoginStatus(async function (status: boolean) {
-                if (status) {
-                    const email = naverLogin.user.getEmail();
-                    const name = naverLogin.user.getName();
-                    
-                    console.log('Naver Login Success:', email, name);
-                    
-                    // Save to localStorage for client-side session handling
-                    localStorage.setItem('localUser', JSON.stringify({
-                        displayName: name,
-                        email: email,
-                        provider: 'naver',
-                        uid: 'naver_' + email // Mock UID
-                    }));
+                // Verify state
+                const savedState = sessionStorage.getItem('naver_state');
+                if (state !== savedState) {
+                    throw new Error('State mismatch - possible CSRF attack');
+                }
 
-                    setStatus(`${name}님, 로그인 성공! 메인으로 이동합니다.`);
-                    
-                    // Note: Since we don't have a backend integration for Custom Auth Tokens yet,
-                    // we cannot strictly sign in to Firebase here. 
-                    // This is a placeholder for the successful OAuth flow.
-                    
-                    // If this was opened in a popup (which logic suggests it might be), close it and refresh opener
-                    if (window.opener) {
-                        alert(`네이버 로그인 성공!\n${name} (${email})`);
-                        window.opener.location.reload();
-                        window.close();
-                    } else {
-                        // Redirect to home after a short delay
-                        setTimeout(() => {
-                            router.push('/');
-                        }, 1500);
-                    }
+                setStatus('네이버 사용자 정보 확인 중...');
+
+                // Exchange code for token and get user info via backend
+                const response = await fetch('/api/auth/naver-callback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, state }),
+                });
+
+                const data = await response.json();
+
+                if (!data.success || !data.customToken) {
+                    throw new Error(data.error || 'Failed to process Naver login');
+                }
+
+                setStatus('Firebase 인증 중...');
+
+                // Sign in to Firebase with custom token
+                await signInWithCustomToken(auth, data.customToken);
+
+                setStatus('로그인 성공! 메인으로 이동합니다...');
+
+                // If this is a popup, close it and notify opener
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'NAVER_LOGIN_SUCCESS',
+                    }, window.location.origin);
+                    setTimeout(() => window.close(), 500);
                 } else {
-                    console.log("Naver Callback Error");
-                    setStatus('로그인 정보 확인 실패. 다시 시도해주세요.');
+                    // If not a popup, redirect to home
                     setTimeout(() => {
-                        router.push('/login');
+                        window.location.href = '/';
+                    }, 1000);
+                }
+
+            } catch (error: any) {
+                console.error('Naver callback error:', error);
+                setStatus(`로그인 실패: ${error.message}`);
+
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'NAVER_LOGIN_FAILED',
+                        error: error.message,
+                    }, window.location.origin);
+                    setTimeout(() => window.close(), 2000);
+                } else {
+                    setTimeout(() => {
+                        window.location.href = '/login';
                     }, 2000);
                 }
-            });
+            }
         };
 
-        // If SDK is already loaded
-        if (window.naver) {
-            initNaverLogin();
-        }
-    }, [router]);
+        handleNaverCallback();
+    }, []);
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-white">
-            <Script 
-                src="https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js" 
-                onLoad={() => {
-                     // Trigger the effect if script loads after mount
-                     window.dispatchEvent(new Event('naverLoaded'));
-                }}
-            />
-            <div className="text-center p-8">
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-green-100">
+            <div className="text-center p-8 bg-white rounded-xl shadow-lg max-w-md">
                 <div className="mb-4">
-                    <svg className="w-16 h-16 mx-auto text-green-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-3xl font-bold text-green-600">N</span>
+                    </div>
                 </div>
                 <h2 className="text-xl font-bold text-gray-800 mb-2">네이버 로그인</h2>
                 <p className="text-gray-600">{status}</p>
+                <div className="mt-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                </div>
             </div>
         </div>
     );

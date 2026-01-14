@@ -17,6 +17,7 @@ import {
     Stars
 } from "@react-three/drei";
 import { useMemo, useRef } from "react";
+import * as React from "react";
 import * as THREE from 'three';
 
 export type Variant = "waves" | "particles" | "grid" | "dots" | "cubes" | "rings" | "diamonds";
@@ -34,7 +35,7 @@ const variantConfig = {
     dots: { color: "#f0abfc", secondary: "#e879f9" }, // Pink
     cubes: { color: "#93c5fd", secondary: "#60a5fa" }, // Blue cubes
     rings: { color: "#c4b5fd", secondary: "#8b5cf6" }, // Purple rings
-    diamonds: { color: "#e0f2fe", secondary: "#ffffff" }, // White/Ice
+    diamonds: { color: "#e0f2fe", secondary: "#ffffff", diamonds: "#bae6fd" }, // White/Ice
 } as const;
 
 function AnimatedBlob({ color }: { color: string }) {
@@ -107,6 +108,13 @@ function WobbleRings({ color }: { color: string }) {
 export default function Section3DBackground({ variant, className }: Props) {
     const config = variantConfig[variant];
 
+    // Client-side only rendering to avoid SSR issues
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const Scene = useMemo(() => {
         switch (variant) {
             case "waves":
@@ -115,7 +123,8 @@ export default function Section3DBackground({ variant, className }: Props) {
 
             case "diamonds":
                 // CTA Section: Premium floating glass diamonds
-                return <FloatingDiamonds color={config.color} />;
+                const diamondsConfig = variantConfig.diamonds;
+                return <FloatingDiamonds color={diamondsConfig.diamonds} />;
 
             case "rings":
             case "grid":
@@ -141,6 +150,11 @@ export default function Section3DBackground({ variant, className }: Props) {
                 );
         }
     }, [variant, config]);
+
+    // Don't render on server
+    if (!mounted) {
+        return <div className={`absolute inset-0 z-0 pointer-events-none ${className || ''}`} />;
+    }
 
     return (
         <div className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000 ease-in-out ${className || ''}`}>

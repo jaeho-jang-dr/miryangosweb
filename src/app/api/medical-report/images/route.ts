@@ -65,9 +65,11 @@ export async function POST(request: Request) {
     } catch (error: any) {
         console.error("Image Gen Error:", error);
         // Even if AI fails, return generic fallbacks so app doesn't crash
+        const fallbackTopic = "medical illustration";
+        const encodedFallback = encodeURIComponent(fallbackTopic + " flat vector art");
         const seed = Math.floor(Math.random() * 9999);
         return NextResponse.json({
-            images: [`https://image.pollinations.ai/prompt/${topic}?width=800&height=600&seed=${seed}`],
+            images: [`https://image.pollinations.ai/prompt/${encodedFallback}?width=800&height=600&seed=${seed}`],
             error: "AI prompt generation failed, using generic fallback."
         });
     }

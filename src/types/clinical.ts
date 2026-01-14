@@ -20,8 +20,7 @@ export interface Visit {
     patientName: string; // Denormalized for easy display
     date: any; // Timestamp
     status: ClinicalStatus;
-    doctorName?: string; // Attending physician
-
+    doctorName?: string; // 담당의 이름 / Attending physician
     testResult?: string; // Lab/Imaging Result
     testStatus?: 'ordered' | 'processing' | 'completed';
     type: 'new' | 'return'; // New patient or existing
@@ -38,7 +37,7 @@ export interface Visit {
     // Plan/Orders
     prescription?: string;
     treatmentNote?: string;
-    physicalTherapy?: string;
+    physicalTherapy?: string; // 물리치료 기록
 
     images?: string[];
 

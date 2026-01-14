@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '50mb', // Increase limit for file uploads
     },
   },
+  serverExternalPackages: ['pdf-parse'], // Externalize pdf-parse for build
   async headers() {
     return [
       {
