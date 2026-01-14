@@ -12,7 +12,7 @@ export default function AboutPage() {
         <div className="flex flex-col">
             {/* Hero Section */}
             <section className="section-3d relative bg-slate-50 dark:bg-slate-900 py-20">
-                <Section3DBackground variant="waves" />
+                <Section3DBackground variant="waves" className="opacity-40" />
                 <div className="absolute inset-0 bg-white/30 dark:bg-black/30 backdrop-blur-sm" />
                 <div className="container mx-auto px-4 text-center relative z-10">
                     <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
@@ -27,7 +27,7 @@ export default function AboutPage() {
 
             {/* Philosophy Section */}
             <section className="section-3d relative py-20">
-                <Section3DBackground variant="particles" />
+                <Section3DBackground variant="waves" className="opacity-60" />
                 <div className="absolute inset-0 bg-white/30 dark:bg-black/30 backdrop-blur-sm" />
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="grid md:grid-cols-3 gap-12">
@@ -66,7 +66,7 @@ export default function AboutPage() {
 
             {/* Location & Info Section */}
             <section className="section-3d relative py-20 bg-slate-50 dark:bg-slate-900/50">
-                <Section3DBackground variant="grid" />
+                <Section3DBackground variant="waves" className="opacity-50" />
                 <div className="absolute inset-0 bg-white/30 dark:bg-black/30 backdrop-blur-sm" />
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="grid md:grid-cols-2 gap-12 items-center">

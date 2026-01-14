@@ -9,13 +9,15 @@ function FloatingIcon({
     delay,
     duration,
     initialX,
-    initialY
+    initialY,
+    size
 }: {
     icon: any,
     delay: number,
     duration: number,
     initialX: number,
-    initialY: number
+    initialY: number,
+    size: number
 }) {
     return (
         <motion.div
@@ -41,7 +43,7 @@ function FloatingIcon({
                 delay: delay
             }}
         >
-            <Icon size={Math.random() * 60 + 40} strokeWidth={1} />
+            <Icon size={size} strokeWidth={1} />
         </motion.div>
     )
 }
@@ -57,15 +59,16 @@ export function DynamicBackground() {
 
     // Fixed set of background elements to prevent hydration mismatch
     // while still looking "random"
-    const elements = [
-        { icon: Plus, x: "10%", y: "20%", delay: 0 },
-        { icon: Activity, x: "85%", y: "15%", delay: 2 },
-        { icon: Dna, x: "20%", y: "80%", delay: 4 },
-        { icon: Pill, x: "75%", y: "70%", delay: 1 },
-        { icon: Heart, x: "50%", y: "40%", delay: 3 },
-        { icon: Plus, x: "90%", y: "50%", delay: 5 },
-        { icon: Activity, x: "15%", y: "45%", delay: 0.5 },
-    ]
+    // Generate stable random values once on mount
+    const elements = useMemo(() => [
+        { icon: Plus, x: "10%", y: "20%", delay: 0, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+        { icon: Activity, x: "85%", y: "15%", delay: 2, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+        { icon: Dna, x: "20%", y: "80%", delay: 4, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+        { icon: Pill, x: "75%", y: "70%", delay: 1, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+        { icon: Heart, x: "50%", y: "40%", delay: 3, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+        { icon: Plus, x: "90%", y: "50%", delay: 5, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+        { icon: Activity, x: "15%", y: "45%", delay: 0.5, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
+    ], [])
 
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
@@ -78,7 +81,8 @@ export function DynamicBackground() {
                     <FloatingIcon
                         icon={el.icon}
                         delay={el.delay}
-                        duration={Math.random() * 10 + 15} // Slow movement (15-25s)
+                        duration={el.duration}
+                        size={el.size}
                         initialX={0}
                         initialY={0}
                     />

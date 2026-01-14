@@ -215,16 +215,24 @@ export default function ImageUpload({
 
             {/* Preview Area */}
             {previewUrl && (
-                <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-200 group">
-                    <img
+                <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-200 group bg-slate-50">
+                    <Image
                         src={previewUrl}
                         alt="Preview"
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                        onError={(e) => {
+                            // If image fails to load, hide it or show placeholder logic could be added here
+                            // For now, we rely on the alt text or broken image icon behavior of browser if this was img,
+                            // but Next Image simply won't render the image if src is invalid.
+                            console.error("Image load error:", previewUrl);
+                        }}
                     />
                     <button
                         type="button"
                         onClick={handleRemove}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                     >
                         <X className="w-4 h-4" />
                     </button>

@@ -63,17 +63,21 @@ function AnimatedBlob({ color }: { color: string }) {
 }
 
 function FloatingDiamonds({ color }: { color: string }) {
+    const positions = useMemo(() =>
+        [...Array(6)].map(() => [
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 6,
+            (Math.random() - 0.5) * 4
+        ] as [number, number, number]),
+        []);
+
     return (
         <group>
-            {[...Array(6)].map((_, i) => (
+            {positions.map((pos, i) => (
                 <Float key={i} speed={2} rotationIntensity={2} floatIntensity={2} floatingRange={[-1, 1]}>
                     <Octahedron
                         args={[0.8, 0]}
-                        position={[
-                            (Math.random() - 0.5) * 10,
-                            (Math.random() - 0.5) * 6,
-                            (Math.random() - 0.5) * 4
-                        ]}
+                        position={pos}
                     >
                         <meshPhysicalMaterial
                             color={color}

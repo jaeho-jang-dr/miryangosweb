@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, deleteDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase-public';
+import { db, auth } from '@/lib/firebase-public';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
 import { Loader2, Search, Trash2, Shield, User, Check, X, Edit2 } from 'lucide-react';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useRouter } from 'next/navigation';
@@ -29,11 +31,11 @@ export default function UsersPage() {
     const { isAdmin, loading: roleLoading } = useAdminRole();
     const router = useRouter();
 
-    // useEffect(() => {
-    //     if (!roleLoading && !isAdmin) {
-    //         router.push('/admin');
-    //     }
-    // }, [roleLoading, isAdmin, router]);
+    useEffect(() => {
+        if (!roleLoading && !isAdmin) {
+            router.push('/admin');
+        }
+    }, [roleLoading, isAdmin, router]);
 
     useEffect(() => {
         fetchUsers();
@@ -108,6 +110,71 @@ export default function UsersPage() {
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"><Shield className="w-3 h-3 mr-1" /> 운영자</span>;
             default:
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-400">일반</span>;
+        }
+    };
+
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+
+    useEffect(() => {
+
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            setCurrentUserEmail(user?.email || null);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const SUPER_ADMINS = ['drjang00@gmail.com', 'drjang000@gmail.com'];
+    const isSuperAdmin = currentUserEmail && SUPER_ADMINS.includes(currentUserEmail);
+
+    const [editForm, setEditForm] = useState({
+        displayName: '',
+        phoneNumber: '',
+        role: 'user',
+        email: ''
+    });
+
+    const handleEditUserClick = (user: UserData) => {
+        setEditingUser(user);
+        setEditForm({
+            displayName: user.displayName || '',
+            phoneNumber: user.phoneNumber || '',
+            role: user.role || 'user',
+            email: user.email || ''
+        });
+        setEditModalOpen(true);
+    };
+
+    const handleUpdateUser = async () => {
+        if (!editingUser) return;
+
+        try {
+            const updates: any = {
+                displayName: editForm.displayName,
+                phoneNumber: editForm.phoneNumber,
+                role: editForm.role
+            };
+
+            // Only update email if it changed and user is super admin
+            if (isSuperAdmin && editForm.email !== editingUser.email) {
+                updates.email = editForm.email;
+            }
+
+            await updateDoc(doc(db, 'users', editingUser.id), updates);
+
+            setUsers(prev => prev.map(u =>
+                u.id === editingUser.id
+                    ? { ...u, ...updates }
+                    : u
+            ));
+
+            setEditModalOpen(false);
+            setEditingUser(null);
+            alert('회원 정보가 수정되었습니다.');
+        } catch (error) {
+            console.error('Error updating user:', error);
+            alert('정보 수정 중 오류가 발생했습니다.');
         }
     };
 
@@ -239,13 +306,22 @@ export default function UsersPage() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button
-                                            onClick={() => handleDelete(user.id, user.email)}
-                                            className="text-slate-400 hover:text-red-600 transition-colors p-2"
-                                            title="삭제"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => handleEditUserClick(user)}
+                                                className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                title="정보 수정"
+                                            >
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(user.id, user.email)}
+                                                className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                title="삭제"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
@@ -253,6 +329,68 @@ export default function UsersPage() {
                     </tbody>
                 </table>
             </div>
+
+            <Modal
+                isOpen={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                title="회원 정보 수정"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            이메일 {isSuperAdmin ? '(관리자 수정 가능)' : '(변경 불가)'}
+                        </label>
+                        <input
+                            type="text"
+                            disabled={!isSuperAdmin}
+                            value={editForm.email}
+                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                            className={`w-full mt-1 px-3 py-2 border rounded-lg outline-none
+                                ${!isSuperAdmin
+                                    ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-500'
+                                    : 'bg-white dark:bg-slate-900 border-blue-300 focus:ring-2 focus:ring-blue-500'
+                                }`}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">이름</label>
+                        <input
+                            type="text"
+                            value={editForm.displayName}
+                            onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+                            className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="이름을 입력하세요"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">전화번호</label>
+                        <input
+                            type="text"
+                            value={editForm.phoneNumber}
+                            onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+                            className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="010-0000-0000"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">권한</label>
+                        <select
+                            value={editForm.role}
+                            onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                            className="w-full mt-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                            <option value="user">일반 회원</option>
+                            <option value="operator">운영자 (Tier 3)</option>
+                            <option value="manager">매니저 (Tier 2)</option>
+                            <option value="admin">관리자 (Tier 1)</option>
+                        </select>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <Button variant="outline" onClick={() => setEditModalOpen(false)}>취소</Button>
+                        <Button onClick={handleUpdateUser}>저장</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
