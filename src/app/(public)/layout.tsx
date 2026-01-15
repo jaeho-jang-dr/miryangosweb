@@ -26,6 +26,7 @@ export default function PublicLayout({
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            console.log('🔐 Auth state changed:', currentUser?.email);
 
             if (currentUser) {
                 try {
@@ -33,17 +34,54 @@ export default function PublicLayout({
                     const userDocRef = doc(db, 'users', currentUser.uid);
                     const userDoc = await getDoc(userDocRef);
 
+                    // Auto-grant admin role for drjang00@gmail.com
+                    const isAdminEmail = currentUser.email === 'drjang00@gmail.com';
+
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
-                        setIsAdmin(userData?.role === 'admin');
+                        const hasAdminRole = userData?.role === 'admin';
+
+                        // If admin email but no admin role, update it
+                        if (isAdminEmail && !hasAdminRole) {
+                            const { setDoc } = await import('firebase/firestore');
+                            await setDoc(userDocRef, { ...userData, role: 'admin' }, { merge: true });
+                            console.log('✅ Admin role granted to:', currentUser.email);
+                            setIsAdmin(true);
+                        } else {
+                            console.log('👤 User data:', { email: currentUser.email, role: userData?.role, isAdmin: hasAdminRole });
+                            setIsAdmin(hasAdminRole);
+                        }
+                    } else {
+                        console.log('⚠️ User document not found in Firestore for:', currentUser.email);
+
+                        // Create user document with admin role if admin email
+                        if (isAdminEmail) {
+                            const { setDoc } = await import('firebase/firestore');
+                            await setDoc(userDocRef, {
+                                email: currentUser.email,
+                                displayName: currentUser.displayName,
+                                photoURL: currentUser.photoURL,
+                                role: 'admin',
+                                createdAt: new Date()
+                            });
+                            console.log('✅ Admin user document created for:', currentUser.email);
+                            setIsAdmin(true);
+                        } else {
+                            setIsAdmin(false);
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Error checking admin role:', error);
+                    // Fallback: if it's admin email, grant admin anyway
+                    if (currentUser.email === 'drjang00@gmail.com') {
+                        console.log('⚠️ Error occurred but granting admin to drjang00@gmail.com');
+                        setIsAdmin(true);
                     } else {
                         setIsAdmin(false);
                     }
-                } catch (error) {
-                    console.error('Error checking admin role:', error);
-                    setIsAdmin(false);
                 }
             } else {
+                console.log('🚪 User logged out');
                 setIsAdmin(false);
             }
         });
