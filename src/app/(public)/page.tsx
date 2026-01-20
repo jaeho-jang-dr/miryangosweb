@@ -2,48 +2,12 @@
 
 import Link from 'next/link';
 import { ArrowRight, Clock, MapPin, Phone, ShieldCheck } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase-public';
+
 import Section3DBackground from '@/components/Section3DBackground';
+import { useLandingData } from '@/hooks/useLandingData';
 
 export default function LandingPage() {
-    const [notices, setNotices] = useState<any[]>([]);
-    const [clinicInfo, setClinicInfo] = useState({
-        name: '밀양정형외과',
-        phone: '055-356-5500',
-        address: '경상남도 밀양시 중앙로 451',
-        lunchTime: '13:00 - 14:00',
-        weekdayHours: '08:30 - 17:30',
-        saturdayHours: '08:30 - 12:30 (1, 3주 휴무)',
-        holidayInfo: '일요일, 공휴일 휴진'
-    });
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch Settings
-                const settingsRef = doc(db, 'settings', 'general');
-                const settingsSnap = await getDoc(settingsRef);
-                if (settingsSnap.exists()) {
-                    setClinicInfo(prev => ({ ...prev, ...settingsSnap.data() }));
-                }
-
-                // Fetch Notices
-                const q = query(
-                    collection(db, 'notices'),
-                    where('isVisible', '==', true),
-                    orderBy('createdAt', 'desc'),
-                    limit(3)
-                );
-                const querySnapshot = await getDocs(q);
-                setNotices(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            } catch (error) {
-                console.error("Error loading data", error);
-            }
-        };
-        fetchData();
-    }, []);
+    const { notices, clinicInfo } = useLandingData();
 
     return (
         <div className="flex flex-col">
