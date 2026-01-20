@@ -1,0 +1,811 @@
+
+> miryangosweb@1.1.0 test
+> jest src/app/clinical/__tests__/reception.test.tsx
+
+FAIL src/app/clinical/__tests__/reception.test.tsx (5.216 s)
+  ReceptionPage
+    Initial Rendering
+      ??should render all three tabs (35 ms)
+      ??should default to reception tab (6 ms)
+      ??should display search input in reception tab (5 ms)
+      ??should display real-time waiting list panel (5 ms)
+    Tab Navigation
+      ??should switch to payment tab when clicked (6 ms)
+      ??should switch to documents tab when clicked (7 ms)
+      ??should show correct content for each tab (10 ms)
+    Patient Search
+      ??should not search with less than 2 characters (93 ms)
+      ??should trigger search with 2+ characters (108 ms)
+      ??should display search results (124 ms)
+      ??should show "no results" message when search returns empty (185 ms)
+      ??should show new patient registration link when no results (109 ms)
+    Patient Registration
+      횞 should register patient when clicked (1126 ms)
+      ??should show confirmation dialog before registration (121 ms)
+      ??should clear search after successful registration (153 ms)
+      ??should not register if user cancels confirmation (124 ms)
+    Waiting List Display
+      ??should display waiting patients from Firebase (5 ms)
+      ??should show patient count in tab (5 ms)
+      ??should show status badge for each patient (5 ms)
+      ??should show call button for reception status patients (4 ms)
+      ??should show empty state when no patients waiting (4 ms)
+    Patient Call Functionality
+      횞 should update patient status to consulting when called (1016 ms)
+    Payment Tab
+      ??should display patients waiting for payment (6 ms)
+      ??should show invoice modal when payment card clicked (23 ms)
+      횞 should process payment when confirmed (1026 ms)
+    Documents Tab
+      ??should display completed visits (7 ms)
+      ??should show document issuance button (6 ms)
+      ??should open document selection modal (17 ms)
+      ??should show all document types (15 ms)
+    Status Helpers
+      ??should display correct Korean labels for statuses (20 ms)
+
+  ??ReceptionPage ??Patient Registration ??should register patient when clicked
+
+    Found multiple elements with the text: ?띻만??
+    Here are the matching elements:
+
+    Ignored nodes: comments, script, style
+    <h3
+      class="font-bold text-slate-900"
+    >
+      ?띻만??[0m
+    </h3>
+
+    Ignored nodes: comments, script, style
+    <h3
+      class="font-bold text-lg"
+    >
+      ?띻만??[0m
+    </h3>
+
+    (If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+    Ignored nodes: comments, script, style
+    <body>
+      <div>
+        <div
+          class="flex flex-col h-[calc(100vh-6rem)]"
+        >
+          <div
+            class="flex gap-4 mb-6 border-b border-slate-200 px-4"
+          >
+            <button
+              class="pb-3 px-2 text-lg font-bold transition-all text-slate-800 border-b-4 border-slate-800"
+            >
+              ?묒닔/?湲?(
+              1
+              )
+            </button>
+            <button
+              class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+            >
+              ?섎궔 ?湲?(
+              0
+              )
+            </button>
+            <button
+              class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+            >
+              ?쒖쬆紐??꾨즺 (
+              0
+              )
+            </button>
+            <button
+              class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+            >
+              吏꾨즺?덉빟 (
+              1
+              )
+            </button>
+          </div>
+          <div
+            class="flex-1 overflow-hidden px-4"
+          >
+            <div
+              class="flex flex-col lg:flex-row gap-6 h-full"
+            >
+              <div
+                class="flex-1 flex flex-col gap-6 min-w-0"
+              >
+                <div
+                  class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full"
+                >
+                  <div
+                    class="mb-8"
+                  >
+                    <h2
+                      class="text-xl font-bold text-slate-800 flex items-center gap-2 mb-2"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-user-plus w-6 h-6 text-slate-600"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                        />
+                        <circle
+                          cx="9"
+                          cy="7"
+                          r="4"
+                        />
+                        <line
+                          x1="19"
+                          x2="19"
+                          y1="8"
+                          y2="14"
+                        />
+                        <line
+                          x1="22"
+                          x2="16"
+                          y1="11"
+                          y2="11"
+                        />
+                      </svg>
+                       ?묒닔 ?깅줉
+                    </h2>
+                    <p
+                      class="text-slate-500 text-sm"
+                    >
+                      ?섏옄 ?대쫫??寃?됲븯???묒닔?섍굅???좉퇋 ?깅줉?섏꽭??
+                    </p>
+                  </div>
+                  <div
+                    class="relative mb-6"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      class="lucide lucide-search absolute left-3 top-4 h-5 w-5 text-slate-400"
+                      fill="none"
+                      height="24"
+                      stroke="currentColor"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="m21 21-4.34-4.34"
+                      />
+                      <circle
+                        cx="11"
+                        cy="11"
+                        r="8"
+                      />
+                    </svg>
+                    <input
+                      class="block w-full pl-10 pr-3 py-4 border border-slate-300 rounded-xl leading-5 bg-white sm:text-lg focus:ring-2 focus:ring-slate-500 transition-all"
+                      placeholder="?섏옄 ?대쫫 寃??(2湲???댁긽)"
+                      type="text"
+                      value="?띻만??
+                    />
+                  </div>
+                  <div
+                    class="flex-1 overflow-y-auto space-y-3"
+                  >
+                    <div
+                      class="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 cursor-pointer group"
+                    >
+                      <div
+                        class="flex items-center gap-4"
+                      >
+                        <div
+                          class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-blue-100 text-blue-600"
+                        >
+                          ??[0m
+                        </div>
+                        <div>
+                          <h3
+                            class="font-bold text-slate-900"
+                          >
+                            ?띻만??[0m
+                          </h3>
+                          <p
+                            class="text-xs text-slate-500"
+                          >
+                            1990-01-01
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        class="text-slate-600 font-bold text-sm opacity-0 group-hover:opacity-100"
+                      >
+                        ?묒닔?섍린
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="w-full lg:w-[480px] bg-slate-800 text-white rounded-2xl flex flex-col overflow-hidden"
+              >
+                <div
+                  class="p-6 border-b border-slate-700"
+                >
+                  <h2
+                    class="text-xl font-bold flex gap-2"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      class="lucide lucide-clock text-emerald-400"
+                      fill="none"
+                      height="24"
+                      stroke="currentColor"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M12 6v6l4 2"
+                      />
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                      />
+                    </svg>
+                     ?ㅼ떆媛??湲??꾪솴 
+                    <span
+                      class="ml-auto text-3xl"
+                    >
+                      1
+                    </span>
+                  </h2>
+                </div>
+                <div
+                  class="flex-1 overflow-y-auto p-4 space-y-3 bg-white text-slate-800"
+                >
+                  <div
+                    class="relative border rounded-xl p-4 shadow-sm flex items-center gap-4 transition-all bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200"
+                  >
+                    <div
+                      class="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl bg-emerald-500"
+                    />
+                    <div
+                      class="pl-2 flex-1"
+                    >
+                      <div
+                        class="flex justify-between items-center"
+                      >
+                        <div
+                          class="flex items-center gap-2"
+                        >
+                          <h3
+                            class="font-bold text-lg"
+                          >
+                            ?띻만??[0m
+                          </h3>
+                          <span
+                            class="inline-flex items-center gap-1 bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-bold"
+                          >
+                            <svg
+                              aria-hidden="true"
+                              class="lucide lucide-calendar-check w-3 h-3"
+                              fill="none"
+                              height="24"
+                              stroke="currentColor"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              viewBox="0 0 24 24"
+                              width="24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M8 2v4"
+                              />
+                              <path
+                                d="M16 2v4"
+                              />
+                              <rect
+                                height="18"
+                                rx="2"
+                                width="18"
+                                x="3"
+                                y="4"
+                              />
+                              <path
+                                d="M3 10h18"
+                              />
+                              <path
+                                d="m9 16 2 2 4-4"
+                              />
+                            </svg>
+                            ?덉빟 ?뺤젙
+                          </span>
+                        </div>
+                        <span
+                          class="text-xs px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-800 border-yellow-200"
+                        >
+                          ?묒닔??[0m
+                        </span>
+                      </div>
+                      <div
+                        class="text-xs text-slate-500 mt-1"
+                      >
+                        ?ㅼ쟾 07:06
+                      </div>
+                    </div>
+                    <button
+                      class="px-3 py-1.5 rounded-lg text-sm font-bold transition-colors bg-emerald-600 text-white hover:bg-emerald-700"
+                    >
+                      ?몄텧
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+
+      257 |       await userEvent.type(searchInput, '?띻만??);
+      258 |
+    > 259 |       await waitFor(() => {
+          |                    ^
+      260 |         expect(screen.getByText('?띻만??)).toBeInTheDocument();
+      261 |       });
+      262 |
+
+      at waitForWrapper (node_modules/@testing-library/dom/dist/wait-for.js:163:27)
+      at Object.<anonymous> (src/app/clinical/__tests__/reception.test.tsx:259:20)
+
+  ??ReceptionPage ??Patient Call Functionality ??should update patient status to consulting when called
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: Anything, ObjectContaining {"status": "consulting"}
+    Received: undefined, {"startedAt": {"seconds": 1768946795.378}, "status": "consulting"}
+
+    Number of calls: 1
+
+    Ignored nodes: comments, script, style
+    <html>
+      <head />
+      <body>
+        <div>
+          <div
+            class="flex flex-col h-[calc(100vh-6rem)]"
+          >
+            <div
+              class="flex gap-4 mb-6 border-b border-slate-200 px-4"
+            >
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-800 border-b-4 border-slate-800"
+              >
+                ?묒닔/?湲?(
+                1
+                )
+              </button>
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+              >
+                ?섎궔 ?湲?(
+                0
+                )
+              </button>
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+              >
+                ?쒖쬆紐??꾨즺 (
+                0
+                )
+              </button>
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+              >
+                吏꾨즺?덉빟 (
+                1
+                )
+              </button>
+            </div>
+            <div
+              class="flex-1 overflow-hidden px-4"
+            >
+              <div
+                class="flex flex-col lg:flex-row gap-6 h-full"
+              >
+                <div
+                  class="flex-1 flex flex-col gap-6 min-w-0"
+                >
+                  <div
+                    class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full"
+                  >
+                    <div
+                      class="mb-8"
+                    >
+                      <h2
+                        class="text-xl font-bold text-slate-800 flex items-center gap-2 mb-2"
+                      >
+                        <svg
+                          aria-hidden="true"
+                          class="lucide lucide-user-plus w-6 h-6 text-slate-600"
+                          fill="none"
+                          height="24"
+                          stroke="currentColor"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          viewBox="0 0 24 24"
+                          width="24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                          />
+                          <circle
+                            cx="9"
+                            cy="7"
+                            r="4"
+                          />
+                          <line
+                            x1="19"
+                            x2="19"
+                            y1="8"
+                            y2="14"
+                          />
+                          <line
+                            x1="22"
+                            x2="16"
+                            y1="11"
+                            y2="11"
+                          />
+                        </svg>
+                         ?묒닔 ?깅줉
+                      </h2>
+                      <p
+                        class="text-slate-500 text-sm"
+                      >
+                        ?섏옄 ?대쫫??寃?됲븯???묒닔?섍굅???좉퇋 ?깅줉?섏꽭??
+                      </p>
+                    </div>
+                    <div
+                      class="relative mb-6"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-search absolute left-3 top-4 h-5 w-5 text-slate-400"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="m21 21-4.34-4.34"
+                        />
+                        <circle
+                          cx="11"
+                          cy="11"
+                          r="8"
+                        />
+                      </svg>
+                      <input
+                        class="block w-full pl-10 pr-3 py-4 border border-slate-300 rounded-xl leading-5 bg-white sm:text-lg focus:ring-2 focus:ring-slate-500 transition-all"
+                        placeholder="?섏옄 ?대쫫 寃??(2湲???댁긽)"
+                        type="text"
+                        value=""
+                      />
+                    </div>
+                    <div
+                      class="flex-1 overflow-y-auto space-y-3"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="w-full lg:w-[480px] bg-slate-800 text-white rounded-2xl flex flex-col overflow-hidden"
+                >
+                  <div
+                    class="p-6 border-b border-slate-700"
+                  >
+                    <h2
+                      class="text-xl font-bold flex gap-2"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-clock text-emerald-400"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M12 6v6l4 2"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                        />
+                      </svg>
+                       ?ㅼ떆媛??湲??꾪솴 
+                      <span
+                        class="ml-auto text-3xl"
+                      >
+                        1
+                      </span>
+                    </h2>
+                  </div>
+                  <div
+                    class="flex-1 overflow-y-auto p-4 space-y-3 bg-white text-slate-800"
+                  >
+                    <div
+                      class="relative border rounded-xl p-4 shadow-sm flex items-center gap-4 transition-all bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200"
+                    >
+                      <div
+                        class="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl bg-emerald-500"
+                      />
+                      <div
+                        class="pl-2 flex-1"
+                      >
+                        <div
+                          class="flex justify-between items-center"
+                        >
+                          <div
+                            class="flex items-center gap-2"
+                          >
+                            <h3
+                              class="font-bold text-lg"
+                            >
+                              ?띻만??[0m
+                            </h3>
+                            <span
+                              class="inline-flex items-center gap-1 bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-bold"
+                            >
+                              <svg
+                                aria-hidden="true"
+                                class="lucide lucide-calendar-check w-3 h-3"
+                                fill="none"
+                                height="24"
+                                stroke="currentColor"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                                width="24"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  d="M8 2v4"
+                                />
+                                <path
+                                  d="M16 2v4"
+                                />
+                                <rect
+                                  height="18"
+                                  rx="2"
+                                  width="18"
+                                  x="3"
+                                  y="4"
+                                />
+                                <path
+                                  d="M3 10h18"
+                                />
+                                <path
+                                  d="m9 16 2 2 4-4"
+                                />
+                              </svg>
+                              ?덉빟 ?뺤젙
+                            </span>
+                          </div>
+                          <span
+                            class="text-xs px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-800 border-yellow-200"
+                          >
+                            ?묒닔??[0m
+                          </span>
+                        </div>
+                        <div
+                          class="text-xs text-slate-500 mt-1"
+                        >
+                          ?ㅼ쟾 07:06
+                        </div>
+                      </div>
+                      <button
+                        class="px-3 py-1.5 rounded-lg text-sm font-bold transition-colors bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        ?몄텧
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+
+      389 |
+      390 |       await waitFor(() => {
+    > 391 |         expect(updateDoc).toHaveBeenCalledWith(
+          |                           ^
+      392 |           expect.anything(),
+      393 |           expect.objectContaining({
+      394 |             status: 'consulting',
+
+      at toHaveBeenCalledWith (src/app/clinical/__tests__/reception.test.tsx:391:27)
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at Timeout.task [as _onTimeout] (node_modules/jsdom/lib/jsdom/browser/Window.js:520:19)
+
+  ??ReceptionPage ??Payment Tab ??should process payment when confirmed
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: Anything, ObjectContaining {"status": "paid"}
+    Received: undefined, {"paidAt": {"seconds": 1768946796.435}, "status": "paid"}
+
+    Number of calls: 1
+
+    Ignored nodes: comments, script, style
+    <html>
+      <head />
+      <body>
+        <div>
+          <div
+            class="flex flex-col h-[calc(100vh-6rem)]"
+          >
+            <div
+              class="flex gap-4 mb-6 border-b border-slate-200 px-4"
+            >
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+              >
+                ?묒닔/?湲?(
+                0
+                )
+              </button>
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-indigo-600 border-b-4 border-indigo-600"
+              >
+                ?섎궔 ?湲?(
+                1
+                )
+              </button>
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+              >
+                ?쒖쬆紐??꾨즺 (
+                0
+                )
+              </button>
+              <button
+                class="pb-3 px-2 text-lg font-bold transition-all text-slate-400 hover:text-slate-600"
+              >
+                吏꾨즺?덉빟 (
+                1
+                )
+              </button>
+            </div>
+            <div
+              class="flex-1 overflow-hidden px-4"
+            >
+              <div
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
+                <div
+                  class="bg-white p-6 rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 shadow-sm transition-all cursor-pointer flex flex-col gap-4"
+                >
+                  <div
+                    class="flex justify-between items-start"
+                  >
+                    <div>
+                      <h3
+                        class="text-xl font-bold text-slate-800"
+                      >
+                        ?띻만??[0m
+                      </h3>
+                      <p
+                        class="text-sm text-slate-500"
+                      >
+                        ?ㅼ쟾 07:06
+                         ?묒닔
+                      </p>
+                    </div>
+                    <div
+                      class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold"
+                    >
+                      ?섎궔?湲?[0m
+                    </div>
+                  </div>
+                  <div
+                    class="bg-slate-50 p-3 rounded-lg text-sm text-slate-600"
+                  >
+                    <div
+                      class="flex justify-between mb-1"
+                    >
+                      <span>
+                        吏꾩같猷?[0m
+                      </span>
+                      <span
+                        class="font-bold"
+                      >
+                        5,000??[0m
+                      </span>
+                    </div>
+                    <div
+                      class="flex justify-between mb-1"
+                    >
+                      <span>
+                        寃?щ즺
+                      </span>
+                      <span
+                        class="font-bold"
+                      >
+                        0
+                        ??[0m
+                      </span>
+                    </div>
+                    <div
+                      class="border-t border-slate-200 mt-2 pt-2 flex justify-between text-indigo-700 font-bold text-lg"
+                    >
+                      <span>
+                        珥?吏꾨즺鍮?[0m
+                      </span>
+                      <span>
+                        5,000
+                        ??[0m
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all"
+                  >
+                    寃곗젣/?섎궔 ?섍린
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+
+      458 |
+      459 |       await waitFor(() => {
+    > 460 |         expect(updateDoc).toHaveBeenCalledWith(
+          |                           ^
+      461 |           expect.anything(),
+      462 |           expect.objectContaining({
+      463 |             status: 'paid',
+
+      at toHaveBeenCalledWith (src/app/clinical/__tests__/reception.test.tsx:460:27)
+      at runWithExpensiveErrorDiagnosticsDisabled (node_modules/@testing-library/dom/dist/config.js:47:12)
+      at checkCallback (node_modules/@testing-library/dom/dist/wait-for.js:124:77)
+      at checkRealTimersCallback (node_modules/@testing-library/dom/dist/wait-for.js:118:16)
+      at Timeout.task [as _onTimeout] (node_modules/jsdom/lib/jsdom/browser/Window.js:520:19)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 27 passed, 30 total
+Snapshots:   0 total
+Time:        5.521 s, estimated 6 s
+Ran all test suites matching /src\\app\\clinical\\__tests__\\reception.test.tsx/i.

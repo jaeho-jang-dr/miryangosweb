@@ -13,13 +13,13 @@ interface Appointment {
     id: string;
     patientName: string;
     patientPhone: string;
-    appointmentDate: any;
+    appointmentDate: Timestamp;
     appointmentTime: string;
     department: string;
     doctor: string;
     notes: string;
     status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed';
-    createdAt: any;
+    createdAt: Timestamp;
 }
 
 const getStatusLabel = (status: string) => {
@@ -56,7 +56,7 @@ export default function ReceptionPage() {
 
     // Data Lists
     const [todayVisits, setTodayVisits] = useState<Visit[]>([]);
-    const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
+    const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Selected Visit for Payment/Documents
@@ -127,8 +127,10 @@ export default function ReceptionPage() {
         return () => unsubscribe();
     }, []);
 
-    // Real-time subscription for all appointments (for appointments tab)
+    // Real-time subscription for all appointments (Lazy loaded for appointments tab)
     useEffect(() => {
+        if (activeTab !== 'appointments') return;
+
         const startDate = startOfDayFns(selectedAppointmentDate);
         const endDate = endOfDay(selectedAppointmentDate);
 
@@ -149,7 +151,7 @@ export default function ReceptionPage() {
         });
 
         return () => unsubscribe();
-    }, [selectedAppointmentDate]);
+    }, [selectedAppointmentDate, activeTab]);
 
     // ... (Search & Register Logic - Same as before) ...
     const handleSearch = async (term: string) => {
@@ -364,21 +366,19 @@ export default function ReceptionPage() {
                                     return (
                                         <div
                                             key={visit.id}
-                                            className={`relative border rounded-xl p-4 shadow-sm flex items-center gap-4 transition-all ${
-                                                isAppointment
+                                            className={`relative border rounded-xl p-4 shadow-sm flex items-center gap-4 transition-all ${isAppointment
                                                     ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200'
                                                     : 'bg-white border-slate-200'
-                                            }`}
+                                                }`}
                                         >
-                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
-                                                isAppointment
+                                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${isAppointment
                                                     ? 'bg-emerald-500'
                                                     : visit.status === 'reception'
                                                         ? 'bg-yellow-400'
                                                         : visit.status === 'consulting'
                                                             ? 'bg-blue-500'
                                                             : 'bg-purple-500'
-                                            }`} />
+                                                }`} />
                                             <div className="pl-2 flex-1">
                                                 <div className="flex justify-between items-center">
                                                     <div className="flex items-center gap-2">
@@ -401,11 +401,10 @@ export default function ReceptionPage() {
                                             {visit.status === 'reception' && (
                                                 <button
                                                     onClick={() => handleCallPatient(visit.id)}
-                                                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                                                        isAppointment
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${isAppointment
                                                             ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                                             : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     호출
                                                 </button>
@@ -719,12 +718,11 @@ export default function ReceptionPage() {
                                                         <select
                                                             value={appointment.status}
                                                             onChange={(e) => updateAppointmentStatus(appointment.id, e.target.value as Appointment['status'])}
-                                                            className={`px-3 py-1 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-emerald-500 ${
-                                                                appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                                                appointment.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
-                                                                appointment.status === 'completed' ? 'bg-slate-100 text-slate-800' :
-                                                                'bg-red-100 text-red-800'
-                                                            }`}
+                                                            className={`px-3 py-1 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-emerald-500 ${appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                                                                    appointment.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
+                                                                        appointment.status === 'completed' ? 'bg-slate-100 text-slate-800' :
+                                                                            'bg-red-100 text-red-800'
+                                                                }`}
                                                         >
                                                             <option value="scheduled">예약됨</option>
                                                             <option value="confirmed">확정됨</option>

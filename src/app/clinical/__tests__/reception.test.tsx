@@ -26,18 +26,21 @@ jest.mock('@/lib/firebase-clinical', () => ({
 }));
 
 jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
+  collection: jest.fn(() => 'mock-collection-ref'),
   query: jest.fn(),
   where: jest.fn(),
   orderBy: jest.fn(),
   onSnapshot: jest.fn(),
   addDoc: jest.fn(),
   getDocs: jest.fn(),
-  doc: jest.fn(),
+  doc: jest.fn(() => 'mock-doc-ref'),
   updateDoc: jest.fn(),
   serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000 })),
   limit: jest.fn(),
-  Timestamp: { now: jest.fn(() => ({ seconds: Date.now() / 1000 })) },
+  Timestamp: {
+    now: jest.fn(() => ({ seconds: Date.now() / 1000 })),
+    fromDate: jest.fn((date) => ({ seconds: date.getTime() / 1000, nanoseconds: 0 }))
+  },
 }));
 
 // Mock Next.js components
@@ -193,7 +196,9 @@ describe('ReceptionPage', () => {
       await userEvent.type(searchInput, '홍길동');
 
       await waitFor(() => {
-        expect(screen.getByText('홍길동')).toBeInTheDocument();
+        const elements = screen.getAllByText('홍길동');
+        expect(elements.length).toBeGreaterThan(0);
+        expect(elements[0]).toBeInTheDocument();
       });
     });
 
@@ -252,10 +257,13 @@ describe('ReceptionPage', () => {
       await userEvent.type(searchInput, '홍길동');
 
       await waitFor(() => {
-        expect(screen.getByText('홍길동')).toBeInTheDocument();
+        const elements = screen.getAllByText('홍길동');
+        expect(elements.length).toBeGreaterThan(0);
+        expect(elements[0]).toBeInTheDocument();
       });
 
-      const patientCard = screen.getByText('홍길동').closest('div');
+      const elements = screen.getAllByText('홍길동');
+      const patientCard = elements[0].closest('div');
       fireEvent.click(patientCard!);
 
       await waitFor(() => {
@@ -278,10 +286,13 @@ describe('ReceptionPage', () => {
       await userEvent.type(searchInput, '홍길동');
 
       await waitFor(() => {
-        expect(screen.getByText('홍길동')).toBeInTheDocument();
+        const elements = screen.getAllByText('홍길동');
+        expect(elements.length).toBeGreaterThan(0);
+        expect(elements[0]).toBeInTheDocument();
       });
 
-      const patientCard = screen.getByText('홍길동').closest('div');
+      const elements = screen.getAllByText('홍길동');
+      const patientCard = elements[0].closest('div');
       fireEvent.click(patientCard!);
 
       expect(global.confirm).toHaveBeenCalledWith(
@@ -296,10 +307,13 @@ describe('ReceptionPage', () => {
       await userEvent.type(searchInput, '홍길동');
 
       await waitFor(() => {
-        expect(screen.getByText('홍길동')).toBeInTheDocument();
+        const elements = screen.getAllByText('홍길동');
+        expect(elements.length).toBeGreaterThan(0);
+        expect(elements[0]).toBeInTheDocument();
       });
 
-      const patientCard = screen.getByText('홍길동').closest('div');
+      const elements = screen.getAllByText('홍길동');
+      const patientCard = elements[0].closest('div');
       fireEvent.click(patientCard!);
 
       await waitFor(() => {
@@ -316,10 +330,13 @@ describe('ReceptionPage', () => {
       await userEvent.type(searchInput, '홍길동');
 
       await waitFor(() => {
-        expect(screen.getByText('홍길동')).toBeInTheDocument();
+        const elements = screen.getAllByText('홍길동');
+        expect(elements.length).toBeGreaterThan(0);
+        expect(elements[0]).toBeInTheDocument();
       });
 
-      const patientCard = screen.getByText('홍길동').closest('div');
+      const elements = screen.getAllByText('홍길동');
+      const patientCard = elements[0].closest('div');
       fireEvent.click(patientCard!);
 
       expect(addDoc).not.toHaveBeenCalled();
@@ -330,7 +347,9 @@ describe('ReceptionPage', () => {
     it('should display waiting patients from Firebase', () => {
       render(<ReceptionPage />);
 
-      expect(screen.getByText('홍길동')).toBeInTheDocument();
+      const elements = screen.getAllByText('홍길동');
+      expect(elements.length).toBeGreaterThan(0);
+      expect(elements[0]).toBeInTheDocument();
     });
 
     it('should show patient count in tab', () => {

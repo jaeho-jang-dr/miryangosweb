@@ -1,0 +1,97 @@
+
+> miryangosweb@1.1.0 test
+> jest src/lib/__tests__/kcd-search-v2.test.ts
+
+FAIL src/lib/__tests__/kcd-search-v2.test.ts
+  KCD Search V2
+    searchDiagnosisV2 - Basic Functionality
+      ??should return empty array for empty query (1 ms)
+      ??should return empty array for whitespace query (1 ms)
+      ??should handle null or undefined gracefully
+      ??should limit results to 20 items
+      ??should return results as array of KCDCode objects (1 ms)
+    searchDiagnosisV2 - Code Matching
+      ??should return exact code match as first result (1 ms)
+      ??should find codes by partial match
+      ??should be case-insensitive for code search (2 ms)
+    searchDiagnosisV2 - Korean Name Matching
+      ??should find diseases by Korean name
+      ??should handle Korean substring matching
+      횞 should be case-sensitive for Korean (natural behavior)
+    searchDiagnosisV2 - English Name Matching
+      횞 should find diseases by English name (1 ms)
+      ??should be case-insensitive for English search
+    searchDiagnosisV2 - Keyword/Symptom Matching
+      ??should find diseases by symptoms in Top 50 data
+      횞 should match keywords when provided (1 ms)
+    searchDiagnosisV2 - Index Building
+      ??should build index only once
+      ??should handle multiple concurrent searches
+    searchDiagnosisV2 - Data Integration
+      ??should include Orthopedics category for M codes
+      ??should merge Top 50 and Ortho data correctly (1 ms)
+    searchDiagnosisV2 - Edge Cases
+      ??should handle special characters in query (1 ms)
+      ??should handle very long queries
+      ??should handle queries with leading/trailing spaces
+      ??should return consistent results for same query
+    searchDiagnosisV2 - Performance
+      ??should complete search within reasonable time
+      ??should handle rapid successive searches
+
+  ??KCD Search V2 ??searchDiagnosisV2 - Korean Name Matching ??should be case-sensitive for Korean (natural behavior)
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+       95 |     it('should be case-sensitive for Korean (natural behavior)', () => {
+       96 |       const results = searchDiagnosisV2('愿?덉뿼');
+    >  97 |       expect(results.length).toBeGreaterThan(0);
+          |                              ^
+       98 |     });
+       99 |   });
+      100 |
+
+      at Object.toBeGreaterThan (src/lib/__tests__/kcd-search-v2.test.ts:97:30)
+
+  ??KCD Search V2 ??searchDiagnosisV2 - English Name Matching ??should find diseases by English name
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      102 |     it('should find diseases by English name', () => {
+      103 |       const results = searchDiagnosisV2('knee');
+    > 104 |       expect(results.length).toBeGreaterThan(0);
+          |                              ^
+      105 |
+      106 |       const hasMatch = results.some(r =>
+      107 |         r.en && r.en.toLowerCase().includes('knee')
+
+      at Object.toBeGreaterThan (src/lib/__tests__/kcd-search-v2.test.ts:104:30)
+
+  ??KCD Search V2 ??searchDiagnosisV2 - Keyword/Symptom Matching ??should match keywords when provided
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      128 |     it('should match keywords when provided', () => {
+      129 |       const results = searchDiagnosisV2('諛쒖뿴');
+    > 130 |       expect(results.length).toBeGreaterThan(0);
+          |                              ^
+      131 |
+      132 |       // Results should include items with matching keywords or names
+      133 |       const hasMatch = results.some(r =>
+
+      at Object.toBeGreaterThan (src/lib/__tests__/kcd-search-v2.test.ts:130:30)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 22 passed, 25 total
+Snapshots:   0 total
+Time:        0.301 s, estimated 1 s
+Ran all test suites matching /src\\lib\\__tests__\\kcd-search-v2.test.ts/i.

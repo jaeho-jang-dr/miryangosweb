@@ -1,0 +1,762 @@
+
+> miryangosweb@1.1.0 lint
+> eslint
+
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\postcss.config.js
+  1:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\public\js\components\dashboard\charts.js
+   78:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  160:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  168:45  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  346:66  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  356:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\public\js\components\dashboard\filters.js
+  346:27  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\public\js\components\dashboard\stats.js
+  56:55  warning  '_' is defined but never used   @typescript-eslint/no-unused-vars
+  84:27  warning  'id' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\public\js\components\logs-viewer.js
+  31:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\account-manager\index.js
+  8:24  warning  'loadDefaultAccount' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\auth\database.js
+   56:26  warning  'retryError' is defined but never used                          @typescript-eslint/no-unused-vars
+  166:1   warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\auth\oauth.js
+  390:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\auth\token-extractor.js
+   62:14  warning  'err' is defined but never used                                 @typescript-eslint/no-unused-vars
+  114:1   warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\cli\accounts.js
+  53:29  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\cloudcode\index.js
+  22:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\cloudcode\model-api.js
+  79:23  warning  'errorText' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\config.js
+  30:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\constants.js
+  226:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\errors.js
+  191:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\format\index.js
+  17:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\format\request-converter.js
+  34:93  warning  'tool_choice' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\modules\usage-stats.js
+  198:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\server.js
+   35:5   warning  'initError' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  181:31  warning  '_' is defined but never used                   @typescript-eslint/no-unused-vars
+  184:59  warning  '_' is defined but never used                   @typescript-eslint/no-unused-vars
+  747:22  warning  'refreshError' is defined but never used        @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\utils\claude-config.js
+   72:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  101:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\utils\native-module-helper.js
+  155:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\utils\retry.js
+  156:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\src\webui\index.js
+  34:10  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tailwind.config.js
+   2:1  warning  Assign object to a variable before exporting as module default  import/no-anonymous-default-export
+  32:5  error    A `require()` style import is forbidden                         @typescript-eslint/no-require-imports
+  33:5  error    A `require()` style import is forbidden                         @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\frontend\test-frontend-accounts.cjs
+  8:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\frontend\test-frontend-all.cjs
+  8:19  warning  'spawn' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  8:29  error    A `require()` style import is forbidden     @typescript-eslint/no-require-imports
+  9:14  error    A `require()` style import is forbidden     @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\frontend\test-frontend-dashboard.cjs
+  8:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\frontend\test-frontend-logs.cjs
+    8:14  error    A `require()` style import is forbidden      @typescript-eslint/no-require-imports
+  122:19  warning  'colors' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\frontend\test-frontend-settings.cjs
+  8:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\helpers\http-client.cjs
+   7:14   error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  53:34   warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+  85:104  warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\run-all.cjs
+   8:19  error    A `require()` style import is forbidden           @typescript-eslint/no-require-imports
+   9:14  error    A `require()` style import is forbidden           @typescript-eslint/no-require-imports
+  89:15  warning  'statusColor' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-caching-streaming.cjs
+  11:57  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  12:43  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-cross-model-thinking.cjs
+  12:56  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  13:39  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-empty-response-retry.cjs
+   8:27  error    A `require()` style import is forbidden        @typescript-eslint/no-require-imports
+   9:23  error    A `require()` style import is forbidden        @typescript-eslint/no-require-imports
+  28:15  warning  'streamer' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  29:15  warning  'handler' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-images.cjs
+   9:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  10:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  11:43  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  12:67  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-interleaved-thinking.cjs
+  15:40  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  16:43  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-multiturn-thinking-tools-streaming.cjs
+  12:71  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  13:43  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-multiturn-thinking-tools.cjs
+  17:54  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  18:67  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-schema-sanitizer.cjs
+  10:7   warning  'path' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  10:14  error    A `require()` style import is forbidden     @typescript-eslint/no-require-imports
+  42:14  warning  'assertIncludes' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\antigravity-claude-proxy\tests\test-thinking-signatures.cjs
+  14:56  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  15:67  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\coverage\block-navigation.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+D:\Projects\miryangosweb\coverage\lcov-report\block-navigation.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+D:\Projects\miryangosweb\drjay-cli\index.js
+  720:10  error  Parsing error: 'try' expected
+
+D:\Projects\miryangosweb\e2e\clinical-reception.spec.ts
+  175:59  warning  'viewport' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\jest.config.js
+  1:18  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\local_data\app\api\kcd\search\route.ts
+  81:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\scripts\convert_kcd.js
+  1:12  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  2:14  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\scripts\deploy-env.js
+   19:22  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   20:12  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   21:14  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   22:18  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   94:15  warning  'timestamp' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  310:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+  345:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+  415:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+  447:22  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\scripts\drjay-assistant.js
+    2:17  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+    3:32  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+    4:12  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+    5:14  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+    6:19  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+    7:12  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   20:18  warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+   32:34  warning  'reject' is defined but never used       @typescript-eslint/no-unused-vars
+   88:14  warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+  526:26  warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+  542:56  warning  'e' is defined but never used            @typescript-eslint/no-unused-vars
+  571:36  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  611:34  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  613:34  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\scripts\firebase-deploy.js
+   14:22  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   15:12  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   16:14  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   17:18  error    A `require()` style import is forbidden         @typescript-eslint/no-require-imports
+   50:15  warning  'timestamp' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  173:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+  208:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+  239:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+  260:18  warning  'error' is defined but never used               @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\actions\local-files.ts
+  36:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\agents\types\index.ts
+  66:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  88:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\agents\utils\index.ts
+    6:10  warning  'Agent' is defined but never used          @typescript-eslint/no-unused-vars
+    6:39  warning  'AgentResponse' is defined but never used  @typescript-eslint/no-unused-vars
+   33:30  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   67:29  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  199:38  error    A `require()` style import is forbidden    @typescript-eslint/no-require-imports
+  201:37  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\about\page.tsx
+  8:8  warning  'Image' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\(public)\archives\[id]\page.tsx
+   60:16  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   90:11  warning  'router' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  217:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\(public)\archives\page.tsx
+   5:47  warning  'where' is defined but never used         @typescript-eslint/no-unused-vars
+  17:16  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\diagnostics\page.tsx
+   60:53  error  Unexpected any. Specify a different type                                                                                                               @typescript-eslint/no-explicit-any
+   66:77  error  Unexpected any. Specify a different type                                                                                                               @typescript-eslint/no-explicit-any
+   70:53  error  Unexpected any. Specify a different type                                                                                                               @typescript-eslint/no-explicit-any
+  201:33  error  Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+D:\Projects\miryangosweb\src\app\(public)\inquiry\page.tsx
+    6:10  warning  'GoogleAuthProvider' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+    6:30  warning  'signInWithPopup' is defined but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+    7:19  warning  'CheckCircle' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+    7:78  warning  'MessageSquare' is defined but never used                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+   12:10  warning  'SocialLogin' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   17:12  warning  'isSuccess' is assigned a value but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   17:23  warning  'setIsSuccess' is assigned a value but never used                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   48:58  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   50:50  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   83:46  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   96:8   warning  React Hook useEffect has a missing dependency: 'formData.name'. Either include it or remove the dependency array                                                                                                                                                                         react-hooks/exhaustive-deps
+  214:20  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  220:27  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  376:43  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  414:8   warning  React Hook useEffect has a missing dependency: 'fetchMyReservations'. Either include it or remove the dependency array                                                                                                                                                                   react-hooks/exhaustive-deps
+  529:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\(public)\layout.tsx
+  80:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\login\callback\page.tsx
+  68:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\notices\[id]\page.tsx
+  16:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\notices\page.tsx
+  15:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\page.tsx
+  11:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\(public)\staff\page.tsx
+   5:8   warning  'Link' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   6:38  warning  'orderBy' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   8:8   warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  32:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\(public)\staff\profile\page.tsx
+  95:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\admin\articles\[id]\page.tsx
+  208:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\admin\articles\new\page.tsx
+   10:10  warning  'getAuth' is defined but never used                   @typescript-eslint/no-unused-vars
+  127:17  error    'imageUrls' is never reassigned. Use 'const' instead  prefer-const
+  189:25  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\articles\page.tsx
+   53:16  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  181:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\admin\articles\smart-upload\page.tsx
+    6:64  warning  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+    6:76  warning  'FileType' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   21:58  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  202:8   warning  React Hook useEffect has missing dependencies: 'handleKeyDown' and 'handlePaste'. Either include them or remove the dependency array                                                                                                                                                     react-hooks/exhaustive-deps
+  291:25  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  338:85  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  353:85  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  368:85  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  383:85  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  482:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  528:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  545:45  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  693:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  742:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\admin\basic\director-profile\page.tsx
+   7:10  warning  'ArrowLeft' is defined but never used        @typescript-eslint/no-unused-vars
+   8:8   warning  'Link' is defined but never used             @typescript-eslint/no-unused-vars
+  20:11  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\admin\basic\page.tsx
+  15:11  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  46:49  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  61:35  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  62:35  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  68:25  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\debug\page.tsx
+  31:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  70:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  97:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\inquiries\[id]\page.tsx
+   9:55  warning  'MessageSquare' is defined but never used                                                                        @typescript-eslint/no-unused-vars
+   9:77  warning  'X' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+  16:44  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+  22:8   warning  React Hook useEffect has a missing dependency: 'fetchInquiry'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  47:31  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\inquiries\page.tsx
+   8:44  warning  'CheckCircle' is defined but never used   @typescript-eslint/no-unused-vars
+   8:57  warning  'Circle' is defined but never used        @typescript-eslint/no-unused-vars
+   8:65  warning  'Clock' is defined but never used         @typescript-eslint/no-unused-vars
+  17:16  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\layout.tsx
+   9:38  warning  'Users' is defined but never used                 @typescript-eslint/no-unused-vars
+  26:28  warning  'roleLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  26:41  warning  'isAdmin' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  26:50  warning  'isManager' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\admin\login\page.tsx
+  31:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\notices\[id]\page.tsx
+   9:38  warning  'Trash2' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+  25:8   warning  React Hook useEffect has a missing dependency: 'fetchNotice'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Projects\miryangosweb\src\app\admin\notices\page.tsx
+  14:5   warning  'where' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+  24:16  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+  43:8   warning  React Hook useEffect has a missing dependency: 'loadPage'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  49:17  error    'constraint' is never reassigned. Use 'const' instead                                                        prefer-const
+
+D:\Projects\miryangosweb\src\app\admin\page.tsx
+   7:19  warning  'Stethoscope' is defined but never used        @typescript-eslint/no-unused-vars
+   7:32  warning  'CalendarCheck' is defined but never used      @typescript-eslint/no-unused-vars
+   7:47  warning  'Activity' is defined but never used           @typescript-eslint/no-unused-vars
+  17:60  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  25:23  warning  'staffRef' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\admin\reservations\page.tsx
+    8:119  warning  'GridIcon' is defined but never used                                                                                                                       @typescript-eslint/no-unused-vars
+   19:17   error    Unexpected any. Specify a different type                                                                                                                   @typescript-eslint/no-explicit-any
+   52:8    warning  React Hook useEffect has missing dependencies: 'fetchCalendarReservations' and 'loadListReservations'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  119:17   error    'constraints' is never reassigned. Use 'const' instead                                                                                                     prefer-const
+  119:30   error    Unexpected any. Specify a different type                                                                                                                   @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\admin\settings\page.tsx
+   3:20  warning  'useEffect' is defined but never used            @typescript-eslint/no-unused-vars
+   5:10  warning  'doc' is defined but never used                  @typescript-eslint/no-unused-vars
+   5:15  warning  'getDoc' is defined but never used               @typescript-eslint/no-unused-vars
+   5:23  warning  'setDoc' is defined but never used               @typescript-eslint/no-unused-vars
+   6:29  warning  'AlertTriangle' is defined but never used        @typescript-eslint/no-unused-vars
+   6:44  warning  'Trash2' is defined but never used               @typescript-eslint/no-unused-vars
+  11:12  warning  'loading' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  11:21  warning  'setLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  12:12  warning  'message' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  12:21  warning  'setMessage' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  15:13  warning  'isAdmin' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\admin\staff\[id]\page.tsx
+  8:36  warning  'Trash2' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\admin\staff\page.tsx
+  86:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\admin\staff\profile\page.tsx
+   7:10  warning  'ArrowLeft' is defined but never used        @typescript-eslint/no-unused-vars
+   8:8   warning  'Link' is defined but never used             @typescript-eslint/no-unused-vars
+  20:11  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\admin\users\page.tsx
+    4:31  warning  'query' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    4:38  warning  'orderBy' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   29:13  warning  'isAdmin' is assigned a value but never used                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+   29:31  warning  'roleLoading' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   30:11  warning  'router' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  181:53  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\app\api\analyze-file\route.ts
+   11:15  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+   12:16  warning  'getPdfParse' is defined but never used                     @typescript-eslint/no-unused-vars
+   14:26  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  176:25  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  194:19  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  202:28  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  225:19  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  234:29  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  254:19  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  276:19  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  298:19  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  306:74  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  308:9   error    'cleanedJson' is never reassigned. Use 'const' instead      prefer-const
+  375:27  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  376:13  error    'extractedImages' is never reassigned. Use 'const' instead  prefer-const
+  475:21  error    Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\auth\naver-callback\route.ts
+    9:7   warning  'NAVER_CALLBACK_URL' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   74:18  warning  'error' is defined but never used                        @typescript-eslint/no-unused-vars
+  110:21  error    Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\auth\social-login\route.ts
+  27:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  63:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\generate-disease-info\route.ts
+  63:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  87:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\medical-report\images\route.ts
+  12:15  warning  'context' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  43:22  warning  'e' is defined but never used                 @typescript-eslint/no-unused-vars
+  65:21  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\medical-report\text\route.ts
+  70:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\test-seed\route.ts
+  25:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  98:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\upload-file\route.ts
+  65:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\api\upload\route.ts
+  21:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  44:17  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\__tests__\reception.test.tsx
+   6:46  warning  'within' is defined but never used            @typescript-eslint/no-unused-vars
+  10:3   warning  'collection' is defined but never used        @typescript-eslint/no-unused-vars
+  11:3   warning  'query' is defined but never used             @typescript-eslint/no-unused-vars
+  12:3   warning  'where' is defined but never used             @typescript-eslint/no-unused-vars
+  13:3   warning  'orderBy' is defined but never used           @typescript-eslint/no-unused-vars
+  17:3   warning  'doc' is defined but never used               @typescript-eslint/no-unused-vars
+  19:3   warning  'serverTimestamp' is defined but never used   @typescript-eslint/no-unused-vars
+  21:10  warning  'db' is defined but never used                @typescript-eslint/no-unused-vars
+  45:10  error    Component definition is missing display name  react/display-name
+
+D:\Projects\miryangosweb\src\app\clinical\appointments\page.tsx
+   6:56  warning  'Edit2' is defined but never used         @typescript-eslint/no-unused-vars
+   6:63  warning  'Trash2' is defined but never used        @typescript-eslint/no-unused-vars
+   6:71  warning  'Check' is defined but never used         @typescript-eslint/no-unused-vars
+   6:78  warning  'X' is defined but never used             @typescript-eslint/no-unused-vars
+  14:22  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:16  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\consulting\[id]\page.tsx
+    3:31   warning  'useRef' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+    8:10   warning  'Loader2' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+    8:49   warning  'Play' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    8:55   warning  'Pause' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    8:62   warning  'ChevronDown' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   10:11   warning  'Transcript' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   15:80   warning  'PrescriptionItem' is defined but never used                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+   93:53   warning  'isSupported' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  116:8    warning  React Hook useEffect has a missing dependency: 'fetchVisit'. Either include it or remove the dependency array                                                                                                                                                                            react-hooks/exhaustive-deps
+  165:28   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  189:21   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  357:96   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  357:114  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  593:37   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  634:134  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  675:49   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  675:70   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  737:67   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  746:69   error    'text' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                          prefer-const
+  823:45   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  823:53   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+
+D:\Projects\miryangosweb\src\app\clinical\consulting\page.tsx
+  9:47  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\clinical\lab\page.tsx
+   7:38  warning  'Search' is defined but never used        @typescript-eslint/no-unused-vars
+   7:57  warning  'ArrowRight' is defined but never used    @typescript-eslint/no-unused-vars
+  47:28  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\layout.tsx
+  7:20  warning  'Users' is defined but never used          @typescript-eslint/no-unused-vars
+  7:27  warning  'FileText' is defined but never used       @typescript-eslint/no-unused-vars
+  7:63  warning  'ClipboardList' is defined but never used  @typescript-eslint/no-unused-vars
+  7:78  warning  'Stethoscope' is defined but never used    @typescript-eslint/no-unused-vars
+  7:91  warning  'Syringe' is defined but never used        @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\clinical\page.tsx
+    5:57  warning  'Timestamp' is defined but never used     @typescript-eslint/no-unused-vars
+    7:24  warning  'AlertCircle' is defined but never used   @typescript-eslint/no-unused-vars
+   54:36  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  207:59  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\patients\[id]\page.tsx
+   9:21  warning  'User' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+   9:62  warning  'Plus' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+  19:17  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  24:11  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  43:8   warning  React Hook useEffect has a missing dependency: 'fetchPatientData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Projects\miryangosweb\src\app\clinical\patients\new\page.tsx
+  5:10  warning  'collection' is defined but never used  @typescript-eslint/no-unused-vars
+  5:22  warning  'addDoc' is defined but never used      @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\clinical\patients\page.tsx
+   5:47  warning  'where' is defined but never used         @typescript-eslint/no-unused-vars
+   8:24  warning  'User' is defined but never used          @typescript-eslint/no-unused-vars
+   8:30  warning  'Phone' is defined but never used         @typescript-eslint/no-unused-vars
+   8:37  warning  'MapPin' is defined but never used        @typescript-eslint/no-unused-vars
+   8:45  warning  'Calendar' is defined but never used      @typescript-eslint/no-unused-vars
+  17:17  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\reception\page.tsx
+    6:51  warning  'ChevronRight' is defined but never used                         @typescript-eslint/no-unused-vars
+   16:22  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   22:16  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   59:64  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  179:18  warning  'e' is defined but never used                                    @typescript-eslint/no-unused-vars
+  203:18  warning  'e' is defined but never used                                    @typescript-eslint/no-unused-vars
+  347:80  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  347:93  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  807:75  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\records\new\page.tsx
+   8:8   warning  'Link' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+   9:52  warning  'Calendar' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+  38:8   warning  React Hook useEffect has a missing dependency: 'fetchPatient'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Projects\miryangosweb\src\app\clinical\records\page.tsx
+  3:20  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  4:45  warning  'orderBy' is defined but never used    @typescript-eslint/no-unused-vars
+  4:61  warning  'Timestamp' is defined but never used  @typescript-eslint/no-unused-vars
+  6:34  warning  'Calendar' is defined but never used   @typescript-eslint/no-unused-vars
+  6:44  warning  'Clock' is defined but never used      @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\clinical\setup\page.tsx
+   6:10  warning  'Button' is defined but never used        @typescript-eslint/no-unused-vars
+   7:19  warning  'CheckCircle' is defined but never used   @typescript-eslint/no-unused-vars
+  68:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  89:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\app\clinical\treatment\page.tsx
+   8:64  warning  'ChevronRight' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  45:8   warning  React Hook useEffect has a missing dependency: 'selectedVisit'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Projects\miryangosweb\src\app\disease-cartoon-generator\page.tsx
+  103:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  164:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  192:17  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  192:28  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+
+D:\Projects\miryangosweb\src\app\global-error.tsx
+  4:10  warning  'Button' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\app\medical-report\page.tsx
+   50:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   84:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   98:97  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+  178:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\components\Section3DBackground.tsx
+  16:5   warning  'ContactShadows' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+  73:30  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\Projects\miryangosweb\src\components\Section3DBackground.tsx:73:30
+  71 |                         args={[0.8, 0]}
+  72 |                         position={[
+> 73 |                             (Math.random() - 0.5) * 10,
+     |                              ^^^^^^^^^^^^^ Cannot call impure function
+  74 |                             (Math.random() - 0.5) * 6,
+  75 |                             (Math.random() - 0.5) * 4
+  76 |                         ]}  react-hooks/purity
+  74:30  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\Projects\miryangosweb\src\components\Section3DBackground.tsx:74:30
+  72 |                         position={[
+  73 |                             (Math.random() - 0.5) * 10,
+> 74 |                             (Math.random() - 0.5) * 6,
+     |                              ^^^^^^^^^^^^^ Cannot call impure function
+  75 |                             (Math.random() - 0.5) * 4
+  76 |                         ]}
+  77 |                     >                    react-hooks/purity
+  75:30  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\Projects\miryangosweb\src\components\Section3DBackground.tsx:75:30
+  73 |                             (Math.random() - 0.5) * 10,
+  74 |                             (Math.random() - 0.5) * 6,
+> 75 |                             (Math.random() - 0.5) * 4
+     |                              ^^^^^^^^^^^^^ Cannot call impure function
+  76 |                         ]}
+  77 |                     >
+  78 |                         <meshPhysicalMaterial          react-hooks/purity
+
+D:\Projects\miryangosweb\src\components\image-upload.tsx
+    6:22  warning  'ImagePlus' is defined but never used                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+    7:8   warning  'Image' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   25:12  warning  'progress' is assigned a value but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   73:25  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  180:25  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  219:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+D:\Projects\miryangosweb\src\components\social-login.tsx
+   16:16  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   17:16  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:38  warning  'authObj' is defined but never used       @typescript-eslint/no-unused-vars
+   79:47  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:54  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:45  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:47  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:33  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:34  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\components\ui\dynamic-background.tsx
+  14:11  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+  44:25  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\Projects\miryangosweb\src\components\ui\dynamic-background.tsx:44:25
+  42 |             }}
+  43 |         >
+> 44 |             <Icon size={Math.random() * 60 + 40} strokeWidth={1} />
+     |                         ^^^^^^^^^^^^^ Cannot call impure function
+  45 |         </motion.div>
+  46 |     )
+  47 | }                                                                                                                                                       react-hooks/purity
+  81:35  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\Projects\miryangosweb\src\components\ui\dynamic-background.tsx:81:35
+  79 |                         icon={el.icon}
+  80 |                         delay={el.delay}
+> 81 |                         duration={Math.random() * 10 + 15} // Slow movement (15-25s)
+     |                                   ^^^^^^^^^^^^^ Cannot call impure function
+  82 |                         initialX={0}
+  83 |                         initialY={0}
+  84 |                     />  react-hooks/purity
+
+D:\Projects\miryangosweb\src\components\ui\interactive-element.tsx
+  12:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\hooks\useVoiceDictation.ts
+  23:35  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  27:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\Projects\miryangosweb\src\hooks\useVoiceDictation.ts:27:13
+  25 |     useEffect(() => {
+  26 |         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+> 27 |             setIsSupported(true);
+     |             ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |             const SpeechRecognition = (window as any).webkitSpeechRecognition;
+  29 |             const recognition = new SpeechRecognition();
+  30 |             recognition.continuous = true;  react-hooks/set-state-in-effect
+  28:50  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  43:43  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+  65:44  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\lib\__tests__\firebase-clinical.test.ts
+    5:34  warning  'getApp' is defined but never used       @typescript-eslint/no-unused-vars
+   58:7   error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   74:7   error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   83:23  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   98:24  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  112:22  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  126:27  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  145:32  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  158:7   error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  175:20  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  186:23  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  199:23  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  211:20  warning  'db' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  211:27  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  225:32  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  250:37  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  262:23  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  263:23  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+D:\Projects\miryangosweb\src\lib\__tests__\kcd-search-v2.test.ts
+  5:29  warning  'KCDCode' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\lib\firebase-clinical.ts
+  2:34  warning  'getApp' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\lib\firebase-public.ts
+  1:34  warning  'getApp' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\lib\kcd-search-v2.ts
+  15:5   error  'indexedCodes' is never reassigned. Use 'const' instead  prefer-const
+  23:32  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  24:34  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  25:36  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  45:32  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  46:34  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  47:38  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+
+D:\Projects\miryangosweb\src\lib\language-context.tsx
+  3:54  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Projects\miryangosweb\src\types\clinical.ts
+  13:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+??434 problems (214 errors, 220 warnings)
+  7 errors and 2 warnings potentially fixable with the `--fix` option.
+

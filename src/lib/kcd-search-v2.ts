@@ -69,7 +69,7 @@ function buildIndex() {
 // Search Function
 export function searchDiagnosisV2(query: string): KCDCode[] {
     buildIndex();
-    if (!query) return [];
+    if (!query || !query.trim()) return [];
 
     const lowerQ = query.toLowerCase().trim();
 

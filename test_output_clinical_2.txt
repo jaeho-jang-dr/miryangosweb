@@ -1,0 +1,17 @@
+
+> miryangosweb@1.1.0 test
+> jest src/lib/__tests__/firebase-clinical.test.ts
+
+PASS src/lib/__tests__/firebase-clinical.test.ts
+  Firebase Clinical Configuration
+    ??should have Firebase mocked globally (2 ms)
+    ??should initialize without errors (2 ms)
+    ??should export required services
+    ??should use mocked Firebase functions
+    ??should handle Firebase operations safely
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        0.584 s, estimated 1 s
+Ran all test suites matching /src\\lib\\__tests__\\firebase-clinical.test.ts/i.

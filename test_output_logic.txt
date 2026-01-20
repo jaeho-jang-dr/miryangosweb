@@ -1,0 +1,332 @@
+
+> miryangosweb@1.1.0 test
+> jest src/lib/__tests__/kcd-search-v2.test.ts
+
+FAIL src/lib/__tests__/kcd-search-v2.test.ts
+  KCD Search V2
+    searchDiagnosisV2 - Basic Functionality
+      ??should return empty array for empty query (1 ms)
+      횞 should return empty array for whitespace query (3 ms)
+      ??should handle null or undefined gracefully (1 ms)
+      ??should limit results to 20 items
+      ??should return results as array of KCDCode objects (1 ms)
+    searchDiagnosisV2 - Code Matching
+      ??should return exact code match as first result
+      ??should find codes by partial match (3 ms)
+      ??should be case-insensitive for code search (1 ms)
+    searchDiagnosisV2 - Korean Name Matching
+      ??should find diseases by Korean name
+      ??should handle Korean substring matching
+      횞 should be case-sensitive for Korean (natural behavior) (1 ms)
+    searchDiagnosisV2 - English Name Matching
+      횞 should find diseases by English name
+      ??should be case-insensitive for English search (1 ms)
+    searchDiagnosisV2 - Keyword/Symptom Matching
+      ??should find diseases by symptoms in Top 50 data
+      횞 should match keywords when provided
+    searchDiagnosisV2 - Index Building
+      ??should build index only once
+      ??should handle multiple concurrent searches (1 ms)
+    searchDiagnosisV2 - Data Integration
+      ??should include Orthopedics category for M codes
+      ??should merge Top 50 and Ortho data correctly (1 ms)
+    searchDiagnosisV2 - Edge Cases
+      ??should handle special characters in query
+      ??should handle very long queries
+      ??should handle queries with leading/trailing spaces
+      ??should return consistent results for same query
+    searchDiagnosisV2 - Performance
+      ??should complete search within reasonable time (1 ms)
+      ??should handle rapid successive searches
+
+  ??KCD Search V2 ??searchDiagnosisV2 - Basic Functionality ??should return empty array for whitespace query
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -   1
+    + Received  + 216
+
+    - Array []
+    + Array [
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J00",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "肄붽컧湲?,
+    +       "肄㏓Ъ",
+    +       "?ъ콈湲?,
+    +     ],
+    +     "ko": "湲됱꽦 鍮꾩씤?먯뿼(媛먭린)",
+    +   },
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J02",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "紐⑷컧湲?,
+    +       "紐⑹씠 移쇱뭡??,
+    +       "移??쇳궗 ???꾪뵒",
+    +     ],
+    +     "ko": "湲됱꽦 ?몃몢??,
+    +   },
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J03",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?몃룄??遺??,
+    +       "怨좎뿴",
+    +       "紐??듭쬆",
+    +     ],
+    +     "ko": "湲됱꽦 ?몃룄??,
+    +   },
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J20",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "湲곗묠",
+    +       "媛??,
+    +       "?녹냼由?,
+    +     ],
+    +     "ko": "湲됱꽦 湲곌?吏??,
+    +   },
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J30",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "留묒? 肄㏓Ъ",
+    +       "肄?留됲옒",
+    +       "?ъ콈湲??곕컻",
+    +     ],
+    +     "ko": "?덇??대룞??諛??뚮젅瑜닿린 鍮꾩뿼",
+    +   },
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J10",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?ы븳 紐몄궡",
+    +       "?ㅽ븳",
+    +       "怨좎뿴",
+    +     ],
+    +     "ko": "?명뵆猷⑥뿏???낃컧)",
+    +   },
+    +   Object {
+    +     "category": "?명씉湲?(媛먭린/?낃컧)",
+    +     "code": "J40",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?붽린移?,
+    +       "?ㅻ옒媛??湲곗묠",
+    +     ],
+    +     "ko": "湲곌?吏???곸꽭遺덈챸)",
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "K21",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?좊Ъ ?щ씪??,
+    +       "媛???곕┝",
+    +       "?????븳 ?듭쬆",
+    +     ],
+    +     "ko": "?꾩떇????쪟吏덊솚(GERD)",
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "K29",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "???곕┝",
+    +       "紐낆튂 ?꾪뵒",
+    +       "?뚰솕 ????,
+    +     ],
+    +     "ko": "?꾩뿼 諛???씠吏?μ뿼",
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "K30",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?붾?猷⑺븿",
+    +       "泥댄븳 ?먮굦",
+    +       "媛??李?,
+    +     ],
+    +     "ko": "湲곕뒫???뚰솕遺덈웾",
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "A09",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?ㅼ궗",
+    +       "援ы넗",
+    +       "諛?伊먯뼱吏쒕뒗 ?듭쬆",
+    +     ],
+    +     "ko": "媛먯뿼??湲곗썝??湲고? ?꾩옣???μ뿼)",
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "K58",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "諛곌? ?댁궡 ?꾪뵒",
+    +       "湲댁옣?섎㈃ ?붿옣??,
+    +       "媛???쎈쭔",
+    +     ],
+    +     "ko": "怨쇰???μ쬆?꾧뎔",
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "K59.0",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "蹂 紐?遊?,
+    +       "諛곌? 臾듭쭅??,
+    +     ],
+    +     "ko": "蹂鍮?,
+    +   },
+    +   Object {
+    +     "category": "?뚰솕湲?(?꾩옣/???",
+    +     "code": "K64",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "??Ц ??,
+    +       "??Ц ??대굹??,
+    +     ],
+    +     "ko": "移섑빑 諛?移섏쭏",
+    +   },
+    +   Object {
+    +     "category": "?쒗솚湲????(留뚯꽦吏덊솚)",
+    +     "code": "I10",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?룸ぉ 六먭렐",
+    +       "?덉븬 ???????,
+    +       "癒몃━媛 ?듯븿",
+    +     ],
+    +     "ko": "蹂명깭??怨좏삁??,
+    +   },
+    +   Object {
+    +     "category": "?쒗솚湲????(留뚯꽦吏덊솚)",
+    +     "code": "E11",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "?밸눊 ??,
+    +       "??留덈쫫",
+    +       "?뚮? ?먯＜ 遊?,
+    +     ],
+    +     "ko": "2???밸눊蹂?,
+    +   },
+    +   Object {
+    +     "category": "?쒗솚湲????(留뚯꽦吏덊솚)",
+    +     "code": "E78",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "怨좎??덉쬆 寃??,
+    +       "肄쒕젅?ㅽ뀒濡???,
+    +     ],
+    +     "ko": "吏吏덈떒諛깆쭏 ??ъ옣??怨좎??덉쬆)",
+    +   },
+    +   Object {
+    +     "category": "?쒗솚湲????(留뚯꽦吏덊솚)",
+    +     "code": "R51",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "癒몃━ ?꾪뵒",
+    +       "吏?덇굅由?,
+    +     ],
+    +     "ko": "?먰넻(?곸꽭遺덈챸)",
+    +   },
+    +   Object {
+    +     "category": "?쒗솚湲????(留뚯꽦吏덊솚)",
+    +     "code": "H81",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "鍮숇튃 ?덈떎",
+    +       "?댁쭏?댁쭏?섎떎",
+    +     ],
+    +     "ko": "?꾩젙湲곕뒫???μ븷(?댁??쇱쬆)",
+    +   },
+    +   Object {
+    +     "category": "?쇰?/鍮꾨눊/湲고?",
+    +     "code": "L23",
+    +     "en": "",
+    +     "keywords": Array [
+    +       "媛꾩??ъ?",
+    +       "?ㅻ룎?좊룎 ?щ씪??,
+    +       "???,
+    +     ],
+    +     "ko": "?뚮젅瑜닿린???묒큺?쇰???,
+    +   },
+    + ]
+
+      14 |     it('should return empty array for whitespace query', () => {
+      15 |       const results = searchDiagnosisV2('   ');
+    > 16 |       expect(results).toEqual([]);
+         |                       ^
+      17 |     });
+      18 |
+      19 |     it('should handle null or undefined gracefully', () => {
+
+      at Object.toEqual (src/lib/__tests__/kcd-search-v2.test.ts:16:23)
+
+  ??KCD Search V2 ??searchDiagnosisV2 - Korean Name Matching ??should be case-sensitive for Korean (natural behavior)
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+       95 |     it('should be case-sensitive for Korean (natural behavior)', () => {
+       96 |       const results = searchDiagnosisV2('愿?덉뿼');
+    >  97 |       expect(results.length).toBeGreaterThan(0);
+          |                              ^
+       98 |     });
+       99 |   });
+      100 |
+
+      at Object.toBeGreaterThan (src/lib/__tests__/kcd-search-v2.test.ts:97:30)
+
+  ??KCD Search V2 ??searchDiagnosisV2 - English Name Matching ??should find diseases by English name
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      102 |     it('should find diseases by English name', () => {
+      103 |       const results = searchDiagnosisV2('knee');
+    > 104 |       expect(results.length).toBeGreaterThan(0);
+          |                              ^
+      105 |
+      106 |       const hasMatch = results.some(r =>
+      107 |         r.en && r.en.toLowerCase().includes('knee')
+
+      at Object.toBeGreaterThan (src/lib/__tests__/kcd-search-v2.test.ts:104:30)
+
+  ??KCD Search V2 ??searchDiagnosisV2 - Keyword/Symptom Matching ??should match keywords when provided
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      128 |     it('should match keywords when provided', () => {
+      129 |       const results = searchDiagnosisV2('諛쒖뿴');
+    > 130 |       expect(results.length).toBeGreaterThan(0);
+          |                              ^
+      131 |
+      132 |       // Results should include items with matching keywords or names
+      133 |       const hasMatch = results.some(r =>
+
+      at Object.toBeGreaterThan (src/lib/__tests__/kcd-search-v2.test.ts:130:30)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 21 passed, 25 total
+Snapshots:   0 total
+Time:        0.315 s, estimated 1 s
+Ran all test suites matching /src\\lib\\__tests__\\kcd-search-v2.test.ts/i.
