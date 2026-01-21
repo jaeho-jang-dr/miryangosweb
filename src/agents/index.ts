@@ -4,25 +4,36 @@
  */
 
 import { Agent, AgentRole, SquadType, SquadConfig } from './types';
+import { Conductor } from './conductor';
 import { planningSquad } from './planning';
 import { frontendSquad } from './frontend';
 import { backendSquad } from './backend';
 import { testSquad } from './test';
 import { debugSquad } from './debug';
 import { opsSquad } from './ops';
+import { optimizationSquad } from './optimization';
+import { commands, orchestrator, workflows } from './orchestrator';
 
 // 모든 에이전트 배열
 export const allAgents: Agent[] = [
+  Conductor,
   ...planningSquad,
   ...frontendSquad,
   ...backendSquad,
   ...testSquad,
   ...debugSquad,
-  ...opsSquad
+  ...opsSquad,
+  ...optimizationSquad
 ];
 
 // Squad 설정
 export const squadConfigs: SquadConfig[] = [
+  {
+    type: 'orchestrator',
+    name: '오케스트레이터',
+    description: '프로젝트 전체 지휘 및 컨텍스트 관리',
+    agents: ['Conductor']
+  },
   {
     type: 'planning',
     name: '기획 및 아키텍처 팀',
@@ -60,6 +71,12 @@ export const squadConfigs: SquadConfig[] = [
     name: '배포 및 문서화 팀',
     description: 'CI/CD 파이프라인, Docker, 문서화',
     agents: ['DevOps_Pipeline', 'Docs_Writer']
+  },
+  {
+    type: 'optimization',
+    name: '코드 최적화 TF 팀',
+    description: '구조 개선, 성능 최적화, 코드 정리, 보안 강화',
+    agents: ['Opt_Architect', 'Opt_Performance', 'Opt_Cleaner', 'Opt_Security']
   }
 ];
 
@@ -94,6 +111,7 @@ export function getAgentStats() {
 
 // 전체 Agent 목록 (Role 순)
 export const agentRoles: AgentRole[] = [
+  'Conductor',
   // Planning Squad (3)
   'PM_Requirements',
   'UI_UX_Designer',
@@ -117,8 +135,15 @@ export const agentRoles: AgentRole[] = [
   'Debug_Dependency',
   // Ops Squad (2)
   'DevOps_Pipeline',
-  'Docs_Writer'
+  'Docs_Writer',
+  // Optimization Squad (4)
+  'Opt_Architect',
+  'Opt_Performance',
+  'Opt_Cleaner',
+  'Opt_Security'
 ];
+
+export { Conductor };
 
 // Export all squads
 export {
@@ -127,8 +152,10 @@ export {
   backendSquad,
   testSquad,
   debugSquad,
-  opsSquad
+  opsSquad,
+  optimizationSquad
 };
 
 // Export types
 export type * from './types';
+export { commands, orchestrator, workflows };

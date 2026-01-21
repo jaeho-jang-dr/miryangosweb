@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { motion } from "framer-motion"
 import { Plus, Activity, Dna, Pill, Heart } from "lucide-react"
 
@@ -72,7 +72,7 @@ export function DynamicBackground() {
 
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-            {elements.map((el, i) => (
+            {elements.map((el: any, i: number) => (
                 <div
                     key={i}
                     className="absolute"

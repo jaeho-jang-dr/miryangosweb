@@ -24,6 +24,7 @@ export function useVoiceDictation({ onFinalResult }: UseVoiceDictationProps = {}
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             setIsSupported(true);
             const SpeechRecognition = (window as any).webkitSpeechRecognition;
             const recognition = new SpeechRecognition();

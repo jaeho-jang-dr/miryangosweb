@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export interface ClinicInfo {
     name: string;
     phone: string;
@@ -13,6 +15,6 @@ export interface Notice {
     title: string;
     content?: string;
     body?: string;
-    createdAt?: any; // Timestamp
+    createdAt?: Timestamp; // Timestamp
     isVisible: boolean;
 }

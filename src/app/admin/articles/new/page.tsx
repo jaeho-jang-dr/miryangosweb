@@ -124,7 +124,7 @@ export default function NewArticlePage() {
 
             let attachmentUrl = null;
             let attachmentName = null;
-            let imageUrls: string[] = [];
+            const imageUrls: string[] = [];
 
             // Helper function for API route upload
             const uploadToServer = async (file: File, path: string) => {

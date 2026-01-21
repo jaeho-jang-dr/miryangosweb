@@ -116,7 +116,7 @@ export default function GlobalReservationsPage() {
             }
 
             // Pagination Logic
-            let constraints: any[] = [
+            const constraints: any[] = [
                 orderBy('reservationDate', 'desc'),
                 limit(ITEMS_PER_PAGE)
             ];

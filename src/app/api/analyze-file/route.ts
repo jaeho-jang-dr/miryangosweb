@@ -305,7 +305,7 @@ async function executeAIModel(
 // 🔍 JSON 추출 및 검증
 function extractAndValidateJSON(responseText: string, fileName: string): any {
     // JSON 추출
-    let cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const jsonStart = cleanedJson.indexOf('{');
     const jsonEnd = cleanedJson.lastIndexOf('}');
 
@@ -373,7 +373,7 @@ export async function POST(request: Request) {
 
         let prompt = "";
         let contentParts: any[] = [];
-        let extractedImages: string[] = [];
+        const extractedImages: string[] = [];
 
         const isZip = file.type.includes('zip') || file.name.endsWith('.zip');
 

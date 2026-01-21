@@ -46,7 +46,7 @@ export default function NoticesPage() {
         setLoading(true);
         try {
             // Determine the anchor document
-            let constraint = [];
+            const constraint = [];
 
             // Search Mode
             if (searchTerm) {

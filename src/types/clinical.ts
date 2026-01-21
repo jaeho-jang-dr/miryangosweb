@@ -1,4 +1,6 @@
 
+import { Timestamp } from 'firebase/firestore';
+
 export type ClinicalStatus = 'reception' | 'consulting' | 'testing' | 'treatment' | 'completed' | 'paid';
 
 export interface Patient {
@@ -10,15 +12,15 @@ export interface Patient {
     phone: string;
     address?: string;
     memo?: string; // Critical alert like "Penicillin Allergy"
-    lastVisit?: any; // Firestore Timestamp
-    createdAt: any;
+    lastVisit?: Timestamp; // Firestore Timestamp
+    createdAt: Timestamp;
 }
 
 export interface Visit {
     id: string;
     patientId: string;
     patientName: string; // Denormalized for easy display
-    date: any; // Timestamp
+    date: Timestamp; // Timestamp
     status: ClinicalStatus;
     doctorName?: string; // 담당의 이름 / Attending physician
     testResult?: string; // Lab/Imaging Result
@@ -41,8 +43,11 @@ export interface Visit {
 
     images?: string[];
 
-    createdAt: any;
-    updatedAt: any;
+    // Structured Orders (New)
+    orders?: MedicalOrder[];
+
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
 }
 
 export interface MedicalOrder {
@@ -52,5 +57,5 @@ export interface MedicalOrder {
     name: string;
     status: 'ordered' | 'completed' | 'cancelled';
     performerId?: string; // Who did it
-    createdAt: any;
+    createdAt: Timestamp;
 }

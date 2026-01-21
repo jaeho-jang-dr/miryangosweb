@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
-import { Visit } from '@/types/clinical';
-import { Loader2, Mic, ArrowLeft, Save, Square, Play, Pause, ChevronDown, CheckCircle, Search, X, Stethoscope, ClipboardList, Activity, Pill } from 'lucide-react';
+import { Visit, MedicalOrder } from '@/types/clinical';
+import { Loader2, Mic, ArrowLeft, Save, Square, Play, Pause, ChevronDown, CheckCircle, Search, X, Stethoscope, ClipboardList, Activity, Pill, Trash2 } from 'lucide-react';
 
 interface Transcript {
     text: string;
@@ -26,6 +26,7 @@ export default function ConsultingDetailPage() {
     const visitId = params.id as string;
 
     const [visit, setVisit] = useState<Visit | null>(null);
+    const [medicalOrders, setMedicalOrders] = useState<MedicalOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeField, setActiveField] = useState<'cc' | 'test' | 'diagnosis' | 'plan' | null>('plan');
@@ -129,6 +130,7 @@ export default function ConsultingDetailPage() {
                     diagnosis: data.diagnosis || '',
                     plan: data.treatmentNote || ''
                 });
+                setMedicalOrders(data.orders || []);
                 setMedicalImages(data.images || []);
 
                 if (data.status === 'reception') {
@@ -146,6 +148,29 @@ export default function ConsultingDetailPage() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const addOrder = (type: MedicalOrder['type'], name: string) => {
+        const newOrder: MedicalOrder = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            visitId,
+            type,
+            name,
+            status: 'ordered',
+            createdAt: serverTimestamp() as any
+        };
+        setMedicalOrders(prev => [...prev, newOrder]);
+
+        // Optional: Also append to text for legacy view / chart note
+        if (type === 'test') {
+            setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + name }));
+        } else if (type === 'medication' || type === 'injection' || type === 'procedure' || type === 'treatment') { // Added 'treatment' mapping if needed, though type is restricted
+            setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + name }));
+        }
+    };
+
+    const removeOrder = (orderId: string) => {
+        setMedicalOrders(prev => prev.filter(o => o.id !== orderId));
     };
 
     const handleSave = async (complete: boolean = false) => {
@@ -170,6 +195,7 @@ export default function ConsultingDetailPage() {
                 testStatus: formData.testResult.trim() ? 'completed' : (visit?.testStatus || 'ordered'),
                 diagnosis: formData.diagnosis,
                 treatmentNote: formData.plan,
+                orders: medicalOrders,
                 images: medicalImages,
                 updatedAt: serverTimestamp()
             };
@@ -392,6 +418,20 @@ export default function ConsultingDetailPage() {
                             className="w-full min-h-[60px] text-lg resize-none outline-none placeholder:text-slate-300"
                         />
 
+                        {/* Structured Orders Display */}
+                        {medicalOrders.some(o => o.type === 'test') && (
+                            <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-lg">
+                                {medicalOrders.filter(o => o.type === 'test').map(order => (
+                                    <div key={order.id} className="flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded text-sm shadow-sm">
+                                        <span>{order.name}</span>
+                                        <button onClick={(e) => { e.stopPropagation(); removeOrder(order.id); }} className="text-indigo-400 hover:text-indigo-600">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Result Entry / Display */}
                         <div className="mt-4 pt-3 border-t border-slate-100">
                             <label className="text-xs font-bold text-slate-500 mb-1 flex items-center gap-1">
@@ -574,6 +614,21 @@ export default function ConsultingDetailPage() {
                             placeholder="처방 내용을 말씀하세요..."
                             className="w-full h-full min-h-[150px] text-lg resize-none outline-none placeholder:text-slate-300 bg-transparent"
                         />
+
+                        {/* Structured Orders Display (Plan) */}
+                        {medicalOrders.some(o => o.type !== 'test') && (
+                            <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-lg">
+                                {medicalOrders.filter(o => o.type !== 'test').map(order => (
+                                    <div key={order.id} className="flex items-center gap-1 bg-white border border-blue-200 text-blue-700 px-2 py-1 rounded text-sm shadow-sm">
+                                        <span className="text-xs font-bold uppercase mr-1 text-blue-400">{order.type.substr(0, 3)}</span>
+                                        <span>{order.name}</span>
+                                        <button onClick={(e) => { e.stopPropagation(); removeOrder(order.id); }} className="text-blue-400 hover:text-blue-600">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         {activeField === 'plan' && isListening && (
                             <div className="flex items-center gap-2 text-red-500 text-sm animate-pulse mt-2">
                                 <Mic className="w-3 h-3" /> 듣고 있습니다...
@@ -586,7 +641,7 @@ export default function ConsultingDetailPage() {
                         <label className="block text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
                             Medical Images (검사 결과지 / 사진)
                         </label>
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
                             {medicalImages.map((url, idx) => (
                                 <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 group">
@@ -743,8 +798,8 @@ export default function ConsultingDetailPage() {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const opts = activeRadiologyOptions[item.id] || [];
-                                                                let text = item.text + (opts.length > 0 ? ` + ${opts.join(', ')}` : '');
-                                                                setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + text }));
+                                                                const text = item.text + (opts.length > 0 ? ` + ${opts.join(', ')}` : '');
+                                                                addOrder('test', text);
                                                             }}
                                                             className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100"
                                                         >
@@ -788,7 +843,7 @@ export default function ConsultingDetailPage() {
                                                                     const opts = activeRadiologyOptions[item.id] || [];
                                                                     let text = item.text + (opts.length > 0 ? ` + ${opts.join(', ')}` : '');
                                                                     text += ` (${side})`;
-                                                                    setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + text }));
+                                                                    addOrder('test', text);
                                                                 }}
                                                                 className="flex-1 py-1 text-xs border border-indigo-100 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 hover:font-bold transition-colors"
                                                             >
@@ -803,7 +858,7 @@ export default function ConsultingDetailPage() {
                                         LAB_LIST.map(item => (
                                             <button
                                                 key={item.id}
-                                                onClick={() => setFormData(prev => ({ ...prev, test: (prev.test ? prev.test + '\n' : '') + item.text }))}
+                                                onClick={() => addOrder('test', item.text)}
                                                 className="w-full text-left p-3 bg-white border border-slate-200 rounded-xl hover:border-rose-300 hover:shadow-sm transition-all text-sm font-medium text-slate-700 hover:text-rose-700 hover:bg-rose-50 flex justify-between items-center"
                                             >
                                                 <span>{item.text}</span>
@@ -860,7 +915,10 @@ export default function ConsultingDetailPage() {
                                         >
                                             {/* Main Title Button */}
                                             <button
-                                                onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + item.text }))}
+                                                onClick={() => {
+                                                    const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                    addOrder(type as any, item.text);
+                                                }}
                                                 className="text-left w-full font-bold text-slate-700 text-sm group-hover:text-blue-700 mb-2 truncate"
                                             >
                                                 {item.text}
@@ -872,7 +930,10 @@ export default function ConsultingDetailPage() {
                                                     {['Lt', 'Rt', 'Both'].map(side => (
                                                         <button
                                                             key={side}
-                                                            onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (${side})` }))}
+                                                            onClick={() => {
+                                                                const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                                addOrder(type as any, `${item.text} (${side})`);
+                                                            }}
                                                             className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
                                                         >
                                                             {side}
@@ -884,13 +945,19 @@ export default function ConsultingDetailPage() {
                                             {item.subType === 'dosage_1_2' && (
                                                 <div className="flex gap-1">
                                                     <button
-                                                        onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (0.5 amp)` }))}
+                                                        onClick={() => {
+                                                            const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                            addOrder(type as any, `${item.text} (0.5 amp)`);
+                                                        }}
                                                         className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
                                                     >
                                                         0.5A
                                                     </button>
                                                     <button
-                                                        onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (1.0 amp)` }))}
+                                                        onClick={() => {
+                                                            const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                            addOrder(type as any, `${item.text} (1.0 amp)`);
+                                                        }}
                                                         className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
                                                     >
                                                         1.0A
@@ -903,7 +970,10 @@ export default function ConsultingDetailPage() {
                                                     {[1, 2, 3].map(cnt => (
                                                         <button
                                                             key={cnt}
-                                                            onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (${cnt}ea)` }))}
+                                                            onClick={() => {
+                                                                const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                                addOrder(type as any, `${item.text} (${cnt}ea)`);
+                                                            }}
                                                             className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
                                                         >
                                                             {cnt}개
@@ -917,7 +987,10 @@ export default function ConsultingDetailPage() {
                                                     {item.options.map(opt => (
                                                         <button
                                                             key={opt}
-                                                            onClick={() => setFormData(prev => ({ ...prev, plan: (prev.plan ? prev.plan + '\n' : '') + `${item.text} (${opt})` }))}
+                                                            onClick={() => {
+                                                                const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                                addOrder(type as any, `${item.text} (${opt})`);
+                                                            }}
                                                             className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors min-w-[30px]"
                                                         >
                                                             {opt}

@@ -37,6 +37,7 @@ const customJestConfig = {
     '/node_modules/',
     '/.next/',
     '/antigravity-claude-proxy/',
+    '<rootDir>/e2e/',
   ],
   transformIgnorePatterns: [
     'node_modules/(?!(three|@react-three|@google/generative-ai)/)',

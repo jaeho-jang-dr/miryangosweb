@@ -12,7 +12,7 @@ export interface KCDCode {
 }
 
 // Prepare index
-let indexedCodes: KCDCode[] = [];
+const indexedCodes: KCDCode[] = [];
 let isIndexed = false;
 
 function buildIndex() {
