@@ -1,0 +1,37 @@
+[
+  {
+    "id": "drug_001",
+    "name": "Tylenol 500mg",
+    "ingredient": "Acetaminophen",
+    "category": "Analgesic",
+    "unit": "Tab"
+  },
+  {
+    "id": "drug_002",
+    "name": "Advil 200mg",
+    "ingredient": "Ibuprofen",
+    "category": "NSAID",
+    "unit": "Tab"
+  },
+  {
+    "id": "drug_003",
+    "name": "Augmentin 625mg",
+    "ingredient": "Amoxicillin/Clavulanate",
+    "category": "Antibiotic",
+    "unit": "Tab"
+  },
+  {
+    "id": "drug_004",
+    "name": "Mucosolvan",
+    "ingredient": "Ambroxol",
+    "category": "Respiratory",
+    "unit": "Tab"
+  },
+  {
+    "id": "drug_005",
+    "name": "Stillen 60mg",
+    "ingredient": "Artemisia",
+    "category": "GI",
+    "unit": "Tab"
+  }
+]

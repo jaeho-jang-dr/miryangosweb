@@ -18,3 +18,13 @@ export interface Notice {
     createdAt?: Timestamp; // Timestamp
     isVisible: boolean;
 }
+
+export interface Article {
+    id: string;
+    title: string;
+    content: string; // Markdown
+    images: string[]; // Pollinations URLs
+    type: 'disease' | 'general';
+    isVisible: boolean;
+    createdAt?: any;
+}

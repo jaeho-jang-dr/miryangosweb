@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { ArrowRight, Clock, MapPin, Phone, ShieldCheck } from 'lucide-react';
 
 import Section3DBackground from '@/components/Section3DBackground';
+import CartoonShowcase from '@/components/sections/CartoonShowcase';
 import { useLandingData } from '@/hooks/useLandingData';
 
 export default function LandingPage() {
-    const { notices, clinicInfo } = useLandingData();
+    const { notices, cartoons, clinicInfo } = useLandingData();
 
     return (
         <div className="flex flex-col">
@@ -123,6 +124,9 @@ export default function LandingPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Cartoon Showcase Section (New) */}
+            <CartoonShowcase cartoons={cartoons} />
 
             {/* Location Section */}
             <section className="py-20 bg-slate-50 dark:bg-slate-900 relative overflow-hidden">

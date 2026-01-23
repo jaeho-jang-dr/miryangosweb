@@ -17,6 +17,8 @@ import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressio
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import ImageUpload from '@/components/image-upload';
 
+import PrescriptionModule from '@/components/clinical/PrescriptionModule';
+
 // Bundle Definitions
 
 
@@ -886,12 +888,22 @@ export default function ConsultingDetailPage() {
                             </div>
                         )}
 
-                        {/* 4. PLAN -> BUNDLES (Default) */}
-                        {/* 4. PLAN -> FAST PRESCRIPTION (REDESIGNED) */}
+                        {/* 4. PLAN -> STRUCTURED PRESCRIPTION */}
                         {(!activeField || activeField === 'plan') && (
-                            <div className="flex flex-col h-full gap-2">
-                                {/* Category Tabs (Grid) */}
-                                <div className="grid grid-cols-4 gap-1 mb-2">
+                            <div className="flex flex-col h-full gap-4">
+                                <PrescriptionModule 
+                                    onAddOrder={(orderText) => {
+                                        // Use addOrder if available (Plan type logic inferred from remote pattern)
+                                        // Remote used different types for plan items (injection, medication, procedure)
+                                        // For now, we'll map everything from this module to 'medication' as default, 
+                                        // or try to detect. Since PrescriptionModule is mostly meds:
+                                        addOrder('medication', orderText);
+                                    }}
+                                />
+                                
+                                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar border-t border-slate-200 pt-4">
+                                    <p className="text-xs font-bold text-slate-400 mb-2 uppercase">빠른 처방 (Quick Presets)</p>
+                                    <div className="grid grid-cols-4 gap-1 mb-2">
                                     {PRESCRIPTION_CATEGORIES.map(cat => (
                                         <button
                                             key={cat.id}
@@ -904,12 +916,11 @@ export default function ConsultingDetailPage() {
                                             {cat.label}
                                         </button>
                                     ))}
-                                </div>
-
-                                {/* List Content */}
-                                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                    </div>
+                                    
+                                    {/* Existing Quick Preset List */}
                                     {PRESCRIPTION_LIST.filter(item => item.category === activePrescriptionCategory).map(item => (
-                                        <div
+                                         <div
                                             key={item.id}
                                             className="bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-300 transition-all shadow-sm group"
                                         >
@@ -923,8 +934,7 @@ export default function ConsultingDetailPage() {
                                             >
                                                 {item.text}
                                             </button>
-
-                                            {/* Sub-Actions */}
+                                            {/* (Existing Sub-Buttons Logic...) */}
                                             {item.subType === 'sided' && (
                                                 <div className="flex gap-1">
                                                     {['Lt', 'Rt', 'Both'].map(side => (
@@ -941,6 +951,156 @@ export default function ConsultingDetailPage() {
                                                     ))}
                                                 </div>
                                             )}
+                                            
+                                            {/* ... (Keep other subType logic if needed, but for now just showing main structure) */}
+                                         </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                                                </div>
+
+                                                {/* Sub Options (Multi-select) */}
+                                                {item.subOptions && (
+                                                    <div className="flex flex-wrap gap-1 mt-2 mb-2">
+                                                        {item.subOptions.map((opt: string) => (
+                                                            <button
+                                                                key={opt}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const current = activeRadiologyOptions[item.id] || [];
+                                                                    const newOpts = current.includes(opt)
+                                                                        ? current.filter(o => o !== opt)
+                                                                        : [...current, opt];
+                                                                    setActiveRadiologyOptions(prev => ({ ...prev, [item.id]: newOpts }));
+                                                                }}
+                                                                className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${(activeRadiologyOptions[item.id] || []).includes(opt)
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                {opt}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {item.type === 'sided' && (
+                                                    <div className="flex gap-2 mt-2">
+                                                        {['Lt', 'Rt', 'Both'].map(side => (
+                                                            <button
+                                                                key={side}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const opts = activeRadiologyOptions[item.id] || [];
+                                                                    let text = item.text + (opts.length > 0 ? ` + ${opts.join(', ')}` : '');
+                                                                    text += ` (${side})`;
+                                                                    addOrder('test', text);
+                                                                }}
+                                                                className="flex-1 py-1 text-xs border border-indigo-100 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 hover:font-bold transition-colors"
+                                                            >
+                                                                {side}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        LAB_LIST.map(item => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => addOrder('test', item.text)}
+                                                className="w-full text-left p-3 bg-white border border-slate-200 rounded-xl hover:border-rose-300 hover:shadow-sm transition-all text-sm font-medium text-slate-700 hover:text-rose-700 hover:bg-rose-50 flex justify-between items-center"
+                                            >
+                                                <span>{item.text}</span>
+                                                <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{item.category}</span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. ASSESSMENT -> KCD SEARCH (Existing + Shortcuts) */}
+                        {activeField === 'diagnosis' && (
+                            <div className="space-y-4">
+                                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700">
+                                    <p className="font-bold mb-1">💡 팁</p>
+                                    입력란 상단의 &apos;상병코드 검색&apos; 버튼을 눌러 정확한 ICD-10 코드를 입력하세요.
+                                </div>
+                                <div className="border-t border-slate-200 pt-4">
+                                    <p className="text-xs font-bold text-slate-400 mb-2 uppercase">자주 쓰는 진단</p>
+                                    <button onClick={() => setIsKcdSearchOpen(true)} className="w-full py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2">
+                                        <Search className="w-4 h-4" /> 검색창 열기
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4. PLAN -> STRUCTURED PRESCRIPTION */}
+                        {(!activeField || activeField === 'plan') && (
+                            <div className="flex flex-col h-full gap-4">
+                                <PrescriptionModule 
+                                    onAddOrder={(orderText) => {
+                                        setFormData(prev => ({ 
+                                            ...prev, 
+                                            plan: (prev.plan ? prev.plan + '\n' : '') + orderText 
+                                        }));
+                                    }}
+                                />
+                                
+                                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar border-t border-slate-200 pt-4">
+                                    <p className="text-xs font-bold text-slate-400 mb-2 uppercase">빠른 처방 (Quick Presets)</p>
+                                    <div className="grid grid-cols-4 gap-1 mb-2">
+                                    {PRESCRIPTION_CATEGORIES.map(cat => (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setActivePrescriptionCategory(cat.id)}
+                                            className={`px-1 py-2 text-[11px] font-bold rounded-lg transition-all break-keep leading-tight ${activePrescriptionCategory === cat.id
+                                                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-100'
+                                                : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'
+                                                }`}
+                                        >
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                    </div>
+                                    
+                                    {/* Existing Quick Preset List */}
+                                    {PRESCRIPTION_LIST.filter(item => item.category === activePrescriptionCategory).map(item => (
+                                         <div
+                                            key={item.id}
+                                            className="bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-300 transition-all shadow-sm group"
+                                        >
+                                            {/* Main Title Button */}
+                                            <button
+                                                onClick={() => {
+                                                    const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                    addOrder(type as any, item.text);
+                                                }}
+                                                className="text-left w-full font-bold text-slate-700 text-sm group-hover:text-blue-700 mb-2 truncate"
+                                            >
+                                                {item.text}
+                                            </button>
+                                            {/* (Existing Sub-Buttons Logic...) */}
+                                            {item.subType === 'sided' && (
+                                                <div className="flex gap-1">
+                                                    {['Lt', 'Rt', 'Both'].map(side => (
+                                                        <button
+                                                            key={side}
+                                                            onClick={() => {
+                                                                const type = ['nerve_joint', 'im', 'iv_nut'].includes(item.category) ? 'injection' : ['po', 'brace'].includes(item.category) ? 'medication' : 'procedure';
+                                                                addOrder(type as any, `${item.text} (${side})`);
+                                                            }}
+                                                            className="flex-1 py-1 text-xs bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded border border-slate-100 transition-colors"
+                                                        >
+                                                            {side}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+<<<<<<< HEAD
 
                                             {item.subType === 'dosage_1_2' && (
                                                 <div className="flex gap-1">
@@ -999,6 +1159,11 @@ export default function ConsultingDetailPage() {
                                                 </div>
                                             )}
                                         </div>
+=======
+                                            
+                                            {/* ... (Keep other subType logic if needed, but for now just showing main structure) */}
+                                         </div>
+>>>>>>> 34e67ea (feat: Enhance Clinical EMR and Public Site)
                                     ))}
                                 </div>
                             </div>

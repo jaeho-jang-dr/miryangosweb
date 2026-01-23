@@ -81,6 +81,7 @@
     "eslint-config-next": "16.1.1",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "oh-my-opencode": "github:code-yeongyu/oh-my-opencode#v3.0.0-beta.13",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

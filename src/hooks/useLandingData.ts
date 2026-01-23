@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-public';
-import { ClinicInfo, Notice } from '@/types/public-schemas';
+import { ClinicInfo, Notice, Article } from '@/types/public-schemas';
 
 const DEFAULT_CLINIC_INFO: ClinicInfo = {
     name: '밀양정형외과',
@@ -15,6 +15,7 @@ const DEFAULT_CLINIC_INFO: ClinicInfo = {
 
 export function useLandingData() {
     const [notices, setNotices] = useState<Notice[]>([]);
+    const [cartoons, setCartoons] = useState<Article[]>([]);
     const [clinicInfo, setClinicInfo] = useState<ClinicInfo>(DEFAULT_CLINIC_INFO);
     const [loading, setLoading] = useState(true);
 
@@ -29,14 +30,26 @@ export function useLandingData() {
                 }
 
                 // Fetch Notices
-                const q = query(
+                const qNotices = query(
                     collection(db, 'notices'),
                     where('isVisible', '==', true),
                     orderBy('createdAt', 'desc'),
                     limit(3)
                 );
-                const querySnapshot = await getDocs(q);
-                setNotices(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice)));
+                const noticesSnap = await getDocs(qNotices);
+                setNotices(noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice)));
+
+                // Fetch Disease Cartoons
+                const qCartoons = query(
+                    collection(db, 'articles'),
+                    where('type', '==', 'disease'),
+                    where('isVisible', '==', true),
+                    orderBy('createdAt', 'desc'),
+                    limit(4)
+                );
+                const cartoonsSnap = await getDocs(qCartoons);
+                setCartoons(cartoonsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article)));
+
             } catch (error) {
                 console.error("Error loading data", error);
             } finally {
@@ -46,5 +59,5 @@ export function useLandingData() {
         fetchData();
     }, []);
 
-    return { notices, clinicInfo, loading };
+    return { notices, cartoons, clinicInfo, loading };
 }
