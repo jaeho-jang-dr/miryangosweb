@@ -13,6 +13,12 @@ import { debugSquad } from './debug';
 import { opsSquad } from './ops';
 import { optimizationSquad } from './optimization';
 
+import { cli, commands } from './cli';
+import { orchestrator, workflows } from './orchestrator';
+
+// Export CLI & Orchestrator
+export { cli, commands, orchestrator, workflows };
+
 // 모든 에이전트 배열
 export const allAgents: Agent[] = [
   Conductor,

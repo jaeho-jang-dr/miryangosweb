@@ -15,6 +15,24 @@
             ]
         },
         {
+            "collectionGroup": "articles",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "isVisible",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
             "collectionGroup": "inquiries",
             "queryScope": "COLLECTION",
             "fields": [
@@ -67,11 +85,11 @@
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "appointmentDate",
+                    "fieldPath": "status",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "status",
+                    "fieldPath": "appointmentDate",
                     "order": "ASCENDING"
                 }
             ]

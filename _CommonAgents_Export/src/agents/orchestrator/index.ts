@@ -198,7 +198,7 @@ export class AgentOrchestrator {
       id: this.generateTaskId(),
       name: `${squadConfig.name} Workflow`,
       description: squadConfig.description,
-      steps: workflow.map((role: AgentRole) => ({
+      steps: (workflow as AgentRole[]).map((role: AgentRole) => ({
         agentRole: role,
         input: (prevOutput?: string) => prevOutput || input
       }))

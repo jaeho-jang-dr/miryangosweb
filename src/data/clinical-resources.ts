@@ -1,4 +1,153 @@
+// --- 1. TESTS (RADIOLOGY, LAB, ULTRASOUND) ---
+export const TEST_GROUPS = [
+    {
+        id: 'radiology',
+        label: '방사선 검사',
+        items: [
+            { id: 'r_c', text: 'C-Spine AP/Lat', type: 'simple' },
+            { id: 'r_l', text: 'L-Spine AP/Lat', type: 'simple' },
+            { id: 'r_sh', text: 'Shoulder AP/Lat', type: 'sided' },
+            { id: 'r_kn', text: 'Knee AP/Lat', type: 'sided' },
+            { id: 'r_an', text: 'Ankle AP/Lat', type: 'sided' },
+        ]
+    },
+    {
+        id: 'ultrasound',
+        label: '초음파 검사',
+        items: [
+            { id: 'u_msk', text: '근골격계 초음파', type: 'sided' },
+            { id: 'u_abd', text: '상복부 초음파', type: 'simple' },
+        ]
+    },
+    {
+        id: 'lab',
+        label: '혈액/진단검사',
+        items: [
+            { id: 'l1', text: 'CBC + CRP + Uric Acid' },
+            { id: 'l2', text: 'Rheumatoid Factor Set' },
+            { id: 'l3', text: 'UA (Urinalysis)' },
+        ]
+    }
+];
+
+// --- 2. SPECIAL PROCEDURES (INJECTIONS) ---
+export const PROCEDURE_GROUPS = [
+    {
+        id: 'joint_inj',
+        label: '관절강내 주사',
+        items: [
+            { id: 'ji1', text: '관절강내 주사 (히알루론산)', subType: 'sided' },
+            { id: 'ji2', text: '관절강내 주사 (콘쥬란)', subType: 'sided' },
+        ]
+    },
+    {
+        id: 'tendon_inj',
+        label: '건초강내 주사',
+        items: [
+            { id: 'ti1', text: '건초강내 주사 (Triam)', subType: 'sided' },
+            { id: 'ti2', text: '프롤로 주사 (Prolotherapy)', subType: 'sided' },
+        ]
+    },
+    {
+        id: 'nerve_inj',
+        label: '신경강내 주사',
+        items: [
+            { id: 'ni1', text: '경막외 차단술 (Caudal)', subType: 'simple' },
+            { id: 'ni2', text: '선택적 신경 차단술 (Root Block)', subType: 'sided' },
+        ]
+    },
+    {
+        id: 'tpi',
+        label: 'TPI (통증유발점)',
+        items: [
+            { id: 'tpi1', text: 'TPI (근막동통유발점 주사)', subType: 'dosage_1_2_3' },
+        ]
+    }
+];
+
+// --- 3. MEDICATION & IM (MUSCLE INJ) ---
+export const MEDICATION_GROUPS = [
+    {
+        id: 'muscle_inj',
+        label: '근육 주사 (IM)',
+        items: [
+            { id: 'mi1', text: 'Diclofenac 1A', subType: 'dosage_1_2' },
+            { id: 'mi2', text: 'Tramadol 1A', subType: 'dosage_1_2' },
+            { id: 'mi3', text: 'Gentamicin 1A', subType: 'dosage_1_2' },
+        ]
+    },
+    {
+        id: 'po_meds',
+        label: '경구약 (PO)',
+        items: [
+            { id: 'po1', text: '정형1 (근골격계 기본)' },
+            { id: 'po2', text: '정형2 (강력 소염진통)' },
+            { id: 'po3', text: '위장보호제 세트' },
+        ]
+    }
+];
+
+// --- 4. PHYSICAL THERAPY ---
+export const PT_GROUPS = [
+    {
+        id: 'pt_standard',
+        label: '기본 물리치료',
+        items: [
+            { id: 'pt1', text: '표층열치료 (Hot Pack)' },
+            { id: 'pt2', text: '경피신경자극 (TENS)' },
+            { id: 'pt3', text: '간섭파전류 (ICT)' },
+            { id: 'pt4', text: '심층열치료 (Ultrasound)' },
+        ]
+    },
+    {
+        id: 'pt_special',
+        label: '특수/재활치료',
+        items: [
+            { id: 'pt10', text: '체외충격파 (ESWT)' },
+            { id: 'pt11', text: '도수치료 (Manual)' },
+            { id: 'pt12', text: '경추견인 (C-Traction)' },
+            { id: 'pt13', text: '요추견인 (L-Traction)' },
+        ]
+    },
+    {
+        id: 'pt_sets',
+        label: '물리치료세트',
+        items: [
+            { id: 'set_tens', text: 'Hot Pack + Ultrasound + TENS' },
+            { id: 'set_ict', text: 'Hot Pack + Ultrasound + ICT' },
+            { id: 'set_c_trac', text: 'Hot Pack + Ultrasound + TENS + Cervical Traction' },
+            { id: 'set_p_trac', text: 'Hot Pack + Ultrasound + TENS + Pelvic Traction' },
+            { id: 'set_rom', text: 'Hot Pack + Ultrasound + TENS + ROM exercise' },
+        ]
+    }
+];
+
+// --- 5. SURGICAL (TRAUMA) ---
+export const SURGICAL_GROUPS = [
+    {
+        id: 'trauma_basic',
+        label: '일반 처치',
+        items: [
+            { id: 's1', text: '단순 처치 (Dressing)' },
+            { id: 's2', text: '염증성 처치' },
+            { id: 's3', text: '화상 처치' },
+        ]
+    },
+    {
+        id: 'trauma_complex',
+        label: '외과적 수술/봉합',
+        items: [
+            { id: 's10', text: '단순 봉합 (Suture)' },
+            { id: 's11', text: '창상절제 및 봉합' },
+            { id: 's12', text: '변연절제술 (Debridement)' },
+            { id: 's13', text: '이물제거술' },
+            { id: 's14', text: '소종양적출술' },
+        ]
+    }
+];
+
 export const SYMPTOMS = [
+
     { id: 's1', category: 'IM', text: '두통 (Headache)' },
     { id: 's2', category: 'IM', text: '오한/발열 (Chills/Fever)' },
     { id: 's3', category: 'IM', text: '기침/가래 (Cough/Sputum)' },
@@ -145,3 +294,54 @@ export const PRESCRIPTION_LIST: PrescriptionItem[] = [
     { id: 'br8', category: 'brace', text: 'Knee Band', subType: 'sided' },
     { id: 'br9', category: 'brace', text: 'Knee Support', subType: 'sided' },
 ];
+
+export const PHYSICAL_THERAPY_LIST = [
+    { id: 'pt1', text: '표층열치료 (Hot Pack)', keywords: ['핫팩', '찜질', '열치료'] },
+    { id: 'pt2', text: '심층열치료 (Ultrasound)', keywords: ['초음파', '심층열'] },
+    { id: 'pt3', text: '경피신경자극치료 (TENS)', keywords: ['텐스', '전기치료'] },
+    { id: 'pt4', text: '간섭파전류치료 (ICT)', keywords: ['아이씨티', '간섭파'] },
+    { id: 'pt5', text: '심층열치료 (MicroWave)', keywords: ['마이크로웨이브', '극초단파'] },
+    { id: 'pt6', text: '단파투열치료 (ShortWave)', keywords: ['단파'] },
+    { id: 'pt7', text: '파라핀욕 (Paraffin Bath)', keywords: ['파라핀'] },
+    { id: 'pt8', text: '이온삼투요법 (Iontophoresis)', keywords: ['이온'] },
+    { id: 'pt9', text: '체외충격파 (ESWT)', keywords: ['체외충격파', '충격파'] },
+    { id: 'pt10', text: '도수치료 (Manual Therapy)', keywords: ['도수치료', '도수'] },
+    { id: 'pt11', text: '신장분사치료 (Cooling Spray)', keywords: ['신장분사', '스프레이', '크라이오'] },
+    { id: 'pt12', text: '경추견인 (Cervical Traction)', keywords: ['목견인', '경추견인'] },
+    { id: 'pt13', text: '요추견인 (Pelvic Traction)', keywords: ['허리견인', '요추견인', '골반견인'] },
+    { id: 'pt14', text: '관절가동범위훈련 (ROM exercise)', keywords: ['알오엠', '운동치료', '가동범위'] },
+];
+
+export const PHYSICAL_THERAPY_BUNDLES = [
+    {
+        id: 'bundle_pt_basic_tens',
+        name: '기본 물리치료 (TENS)',
+        items: ['Hot Pack', 'Ultrasound', 'TENS'],
+        keywords: ['기본물리치료', '핫팩초음파텐스']
+    },
+    {
+        id: 'bundle_pt_basic_ict',
+        name: '기본 물리치료 (ICT)',
+        items: ['Hot Pack', 'Ultrasound', 'ICT'],
+        keywords: ['아이씨티세트', '핫팩초음파아이씨티']
+    },
+    {
+        id: 'bundle_pt_c_traction',
+        name: '목 견인 치료 세트',
+        items: ['Hot Pack', 'Ultrasound', 'TENS', 'Cervical Traction'],
+        keywords: ['목견인', '경추견인']
+    },
+    {
+        id: 'bundle_pt_p_traction',
+        name: '허리 견인 치료 세트',
+        items: ['Hot Pack', 'Ultrasound', 'TENS', 'Pelvic Traction'],
+        keywords: ['허리견인', '요추견인', '골반견인']
+    },
+    {
+        id: 'bundle_pt_rom',
+        name: '어깨/관절 재활 세트',
+        items: ['Hot Pack', 'Ultrasound', 'TENS', 'ROM exercise'],
+        keywords: ['알오엠', '운동치료', '재활치료', '어깨운동']
+    },
+];
+

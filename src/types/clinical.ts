@@ -50,6 +50,25 @@ export interface Visit {
     updatedAt: Timestamp;
 }
 
+export interface MedicalDocument {
+    id: string;
+    visitId: string;
+    patientId: string;
+    type: 'diagnosis' | 'opinion' | 'confirmation' | 'receipt' | 'receipt_detail' | 'chart_copy';
+    content: {
+        diagnosis_name?: string;
+        diagnosis_code?: string;
+        opinion_text?: string;
+        visit_purpose?: string;
+        amount_total?: number;
+        amount_paid?: number;
+        [key: string]: any;
+    };
+    issuedAt: Timestamp;
+    issuedBy: string;
+}
+
+
 export interface MedicalOrder {
     id: string;
     visitId: string;

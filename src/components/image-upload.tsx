@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { auth } from "@/lib/firebase-public";
 import { getLocalFiles } from "@/actions/local-files";
-import { Loader2, X, ImagePlus } from "lucide-react";
+import { Loader2, X, ImagePlus, AlertCircle } from "lucide-react";
 import Image from 'next/image';
 
 interface ImageUploadProps {
@@ -24,6 +24,7 @@ export default function ImageUpload({
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [previewUrl, setPreviewUrl] = useState<string | undefined>(currentImageUrl);
+    const [loadError, setLoadError] = useState(false);
     const [activeTab, setActiveTab] = useState<'pc' | 'server'>('pc');
     const [localFiles, setLocalFiles] = useState<string[]>([]);
 
@@ -66,6 +67,7 @@ export default function ImageUpload({
             if (!data.success) throw new Error(data.error);
 
             setProgress(100);
+            setLoadError(false);
             setPreviewUrl(data.url);
             onImageUploaded(data.url);
             setUploading(false);
@@ -174,6 +176,7 @@ export default function ImageUpload({
             if (!data.success) throw new Error(data.error);
 
             setPreviewUrl(data.url);
+            setLoadError(false);
             onImageUploaded(data.url);
             setUploading(false);
             alert("업로드 성공!");
@@ -186,6 +189,7 @@ export default function ImageUpload({
 
     const handleRemove = () => {
         setPreviewUrl(undefined);
+        setLoadError(false);
         if (onImageRemoved) onImageRemoved();
     };
 
@@ -214,7 +218,7 @@ export default function ImageUpload({
             </div>
 
             {/* Preview Area */}
-            {previewUrl && (
+            {previewUrl && !loadError ? (
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-200 group bg-slate-50">
                     <Image
                         src={previewUrl}
@@ -222,12 +226,7 @@ export default function ImageUpload({
                         fill
                         className="object-cover"
                         unoptimized
-                        onError={(e) => {
-                            // If image fails to load, hide it or show placeholder logic could be added here
-                            // For now, we rely on the alt text or broken image icon behavior of browser if this was img,
-                            // but Next Image simply won't render the image if src is invalid.
-                            console.error("Image load error:", previewUrl);
-                        }}
+                        onError={() => setLoadError(true)}
                     />
                     <button
                         type="button"
@@ -237,7 +236,19 @@ export default function ImageUpload({
                         <X className="w-4 h-4" />
                     </button>
                 </div>
-            )}
+            ) : previewUrl && loadError ? (
+                <div className="relative w-32 h-32 rounded-lg border border-red-200 bg-red-50 flex flex-col items-center justify-center text-red-500 gap-1 p-2 text-center">
+                    <AlertCircle className="w-6 h-6" />
+                    <span className="text-[10px] leading-tight">이미지 로드 실패</span>
+                    <button
+                        type="button"
+                        onClick={handleRemove}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 transition-colors"
+                    >
+                        <X className="w-3 h-3" />
+                    </button>
+                </div>
+            ) : null}
 
             {/* Upload Area */}
             {!previewUrl && (

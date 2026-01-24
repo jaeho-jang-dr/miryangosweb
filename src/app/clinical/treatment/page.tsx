@@ -17,18 +17,29 @@ export default function TreatmentPage() {
         const today = subDays(startOfDay(new Date()), 7);
 
         // Subscribe to visits with status 'treatment'
+        // Note: Querying by multiple fields (date + status) requires a composite index.
+        // To avoid manual index creation, we query by status only and filter/sort client-side.
         const q = query(
             collection(db, 'visits'),
-            where('date', '>=', today),
-            where('status', '==', 'treatment'),
-            orderBy('date', 'asc')
+            where('status', '==', 'treatment')
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const visits = snapshot.docs.map(doc => ({
+            let visits = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Visit[];
+
+            // Client-side Filter: Only show visits from the last 7 days
+            const minDate = today.getTime() / 1000;
+            visits = visits.filter(v => v.date && v.date.seconds >= minDate);
+
+            // Client-side Sort: Ascending by date
+            visits.sort((a, b) => {
+                const dateA = a.date?.seconds || 0;
+                const dateB = b.date?.seconds || 0;
+                return dateA - dateB;
+            });
 
             setWaitingList(visits);
             setLoading(false);

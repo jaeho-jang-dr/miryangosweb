@@ -13,22 +13,30 @@ export default function LaboratoryPage() {
     const [resultText, setResultText] = useState('');
 
     useEffect(() => {
+        // Note: Querying by status list + sorting requires composite index.
+        // Simplified to status query only.
         const q = query(
             collection(db, 'visits'),
-            where('status', 'in', ['consulting', 'testing', 'treatment']),
-            orderBy('createdAt', 'desc')
+            where('status', 'in', ['consulting', 'testing', 'treatment'])
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
+            let data = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Visit[];
 
-            // Filter for patients with test orders
-            const patientsWithTests = data.filter(v => v.testOrder && v.testOrder.trim().length > 0);
+            // 1. Client-side Filter: Patients with Test Orders
+            data = data.filter(v => v.testOrder && v.testOrder.trim().length > 0);
 
-            setVisits(patientsWithTests);
+            // 2. Client-side Sort: Descending by createdAt (newest first)
+            data.sort((a, b) => {
+                const dateA = a.createdAt?.seconds || a.date?.seconds || 0;
+                const dateB = b.createdAt?.seconds || b.date?.seconds || 0;
+                return dateB - dateA;
+            });
+
+            setVisits(data);
             setLoading(false);
         });
 
@@ -106,8 +114,8 @@ export default function LaboratoryPage() {
                                 <button
                                     onClick={() => openResultModal(visit)}
                                     className={`p-2 rounded-full transition-colors ${visit.testStatus === 'completed'
-                                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
-                                            : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                                        ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                                         }`}
                                     title="결과 입력"
                                 >
