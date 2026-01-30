@@ -1,29 +1,37 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export function initAdmin() {
   if (getApps().length === 0) {
-    // For Firebase Admin SDK, you need a service account key
-    // In production, use environment variables
-    // For now, we'll try to use the default credentials
-
     try {
-      // Try to use service account from environment variable
+      let credential;
+
+      // Try 1: Use service account from environment variable
       if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-        initializeApp({
-          credential: cert(serviceAccount),
-        });
+        credential = cert(serviceAccount);
+      }
+      // Try 2: Use service account from file
+      else {
+        const serviceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
+        if (fs.existsSync(serviceAccountPath)) {
+          const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+          credential = cert(serviceAccount);
+        }
+      }
+
+      if (credential) {
+        initializeApp({ credential });
+        console.log('Firebase Admin initialized with service account');
       } else {
         // Fallback: use application default credentials (works in Firebase/GCP environments)
         initializeApp();
+        console.log('Firebase Admin initialized with default credentials');
       }
     } catch (error) {
       console.error('Failed to initialize Firebase Admin:', error);
-      // Initialize without credentials for local development
-      // Note: This will only work with Firebase Emulator
-      initializeApp({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      });
+      throw new Error('Firebase Admin initialization failed. Please check your service account configuration.');
     }
   }
 }

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         uid: uid,
         email: email,
         displayName: displayName,
-        photoURL: photoURL,
+        photoURL: photoURL || undefined,
         emailVerified: true, // Social logins are considered verified
       });
     }

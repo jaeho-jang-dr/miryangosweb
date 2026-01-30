@@ -18,39 +18,62 @@ NAVER_CLIENT_SECRET=발급받은_네이버_Client_Secret
 3. API 설정 탭에서 `Client Secret` 확인
 4. 위의 값을 `.env.local`에 추가
 
-### 2. Firebase Admin SDK 설정 (선택사항)
+### 2. Firebase Admin SDK 설정 (**필수**)
 
-더 나은 보안을 위해 Firebase Admin SDK Service Account Key를 설정할 수 있습니다:
+소셜 로그인이 작동하려면 Firebase Admin SDK가 올바르게 설정되어 있어야 합니다.
 
-1. [Firebase Console](https://console.firebase.google.com/) 접속
-2. 프로젝트 설정 > 서비스 계정
-3. "새 비공개 키 생성" 클릭
-4. 다운로드된 JSON 파일 내용을 한 줄로 복사
-5. `.env.local`에 추가:
+**방법 1: JSON 파일 사용 (권장)**
+
+1. [Firebase Console](https://console.firebase.google.com/project/miryangosweb/settings/serviceaccounts/adminsdk) 접속
+2. "새 비공개 키 생성" 버튼 클릭
+3. 다운로드한 JSON 파일을 프로젝트 루트에 `firebase-service-account.json` 이름으로 저장
+
+**방법 2: 환경 변수 사용**
+
+1. 위와 동일하게 JSON 파일 다운로드
+2. JSON 파일 내용 전체를 복사 (줄바꿈 제거)
+3. `.env.local`에 추가:
 
 ```bash
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...전체 JSON 내용..."}
 ```
 
+> **중요**: firebase-service-account.json 파일은 절대 Git에 커밋하지 마세요! (.gitignore에 이미 추가됨)
+
 ### 3. Callback URL 설정 확인
 
 **카카오톡**:
 - [Kakao Developers](https://developers.kakao.com/console/app) > 내 애플리케이션 > 앱 설정 > 플랫폼
-- Web 플랫폼의 "Redirect URI" 설정:
-  - 개발: `http://localhost:3000`
+- Web 플랫폼의 "사이트 도메인" 설정:
+  - 개발: `http://localhost:3001`
+  - 프로덕션: `https://yourdomain.com`
+- "Redirect URI" 설정:
+  - 개발: `http://localhost:3001`
   - 프로덕션: `https://yourdomain.com`
 
 **네이버**:
 - [Naver Developers](https://developers.naver.com/apps/#/list) > 내 애플리케이션 > API 설정
+- "서비스 URL" 설정:
+  - 개발: `http://localhost:3001`
+  - 프로덕션: `https://yourdomain.com`
 - "Callback URL" 설정:
-  - 개발: `http://localhost:3000/login/callback`
+  - 개발: `http://localhost:3001/login/callback`
   - 프로덕션: `https://yourdomain.com/login/callback`
 
 ## ✅ 설정 완료 후
 
 1. 서버 재시작: `npm run dev`
-2. 로그인 페이지 접속: `http://localhost:3000/login`
+2. 로그인 페이지 접속: `http://localhost:3001/login`
 3. 각 소셜 로그인 버튼 테스트
+
+## 📋 체크리스트
+
+- [ ] `.env.local`에 `NAVER_CLIENT_SECRET` 추가
+- [ ] `firebase-service-account.json` 파일을 프로젝트 루트에 저장 (또는 환경 변수로 설정)
+- [ ] 네이버 개발자 센터에서 Callback URL 확인: `http://localhost:3001/login/callback`
+- [ ] 카카오 개발자 센터에서 사이트 도메인 확인: `http://localhost:3001`
+- [ ] 서버 재시작
+- [ ] 각 소셜 로그인 테스트
 
 ## 🔍 문제 해결
 

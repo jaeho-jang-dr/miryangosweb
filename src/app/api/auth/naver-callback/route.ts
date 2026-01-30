@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
                 uid: uid,
                 email: email,
                 displayName: name,
-                photoURL: profileImage,
+                photoURL: profileImage || undefined,
                 emailVerified: true,
             });
         }
