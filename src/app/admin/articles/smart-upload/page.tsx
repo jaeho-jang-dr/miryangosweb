@@ -95,18 +95,43 @@ export default function SmartUploadPage() {
                 body: formData
             });
 
-            if (!res.ok) throw new Error(await res.text());
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`서버 오류 (${res.status}): ${errorText}`);
+            }
 
             const data = await res.json();
+
+            // 에러 응답 체크
+            if (data.error) {
+                console.error("AI 분석 오류:", data.errorDetails);
+                const continueAnyway = confirm(
+                    `⚠️ ${data.errorMessage}\n\n` +
+                    `상세: ${data.errorDetails}\n\n` +
+                    `그래도 계속 진행하시겠습니까? (수동으로 수정 가능)`
+                );
+
+                if (!continueAnyway) {
+                    setStatus('idle');
+                    setFile(null);
+                    return;
+                }
+                // 계속 진행하면 기본값으로 review 상태로 이동
+            }
+
             setAnalysisResult(data);
             // If we got images back (from ZIP), set preview to the first one
             if (data.images && data.images.length > 0) {
                 setPreviewUrl(data.images[0]); // Base64 url
             }
             setStatus('review');
-        } catch (error) {
-            console.error(error);
-            alert("파일 분석 실패. 다른 파일을 시도해보세요.");
+        } catch (error: any) {
+            console.error("파일 처리 오류:", error);
+            alert(
+                `❌ 파일 분석 실패\n\n` +
+                `${error.message}\n\n` +
+                `다른 파일을 시도하거나, 다른 AI 모델을 선택해보세요.`
+            );
             setStatus('idle');
             setFile(null);
         }
@@ -354,8 +379,8 @@ export default function SmartUploadPage() {
                                 className="w-4 h-4 text-emerald-600"
                             />
                             <div className="flex-1">
-                                <div className="text-sm font-bold text-slate-800">Gemini 3 Pro</div>
-                                <div className="text-xs text-slate-500">Google (최신)</div>
+                                <div className="text-sm font-bold text-slate-800">Gemini 1.5 Pro</div>
+                                <div className="text-xs text-slate-500">Google</div>
                             </div>
                         </label>
 
@@ -418,9 +443,17 @@ export default function SmartUploadPage() {
                         {isDragging ? '파일을 여기에 놓으세요!' : '파일을 여기에 놓거나 클릭하세요'}
                     </h3>
                     <p className="text-slate-500 text-lg mb-4 max-w-md mx-auto leading-relaxed">
-                        <strong className="text-emerald-600">ZIP(웹툰)</strong>, 이미지, PDF 등<br />
-                        모든 자료 등록 가능 (스토리지 우회 모드)
+                        <strong className="text-emerald-600">ZIP(웹툰)</strong>, 이미지, PDF<br />
+                        Word, Excel, 텍스트 등 모든 자료 등록 가능
                     </p>
+                    <div className="flex flex-wrap justify-center gap-2 text-xs text-slate-400 max-w-lg mx-auto">
+                        <span className="bg-slate-100 px-2 py-1 rounded">📦 ZIP</span>
+                        <span className="bg-slate-100 px-2 py-1 rounded">🖼️ PNG/JPG</span>
+                        <span className="bg-slate-100 px-2 py-1 rounded">📄 PDF</span>
+                        <span className="bg-slate-100 px-2 py-1 rounded">📝 DOCX</span>
+                        <span className="bg-slate-100 px-2 py-1 rounded">📊 XLSX</span>
+                        <span className="bg-slate-100 px-2 py-1 rounded">📃 TXT</span>
+                    </div>
                     <div className="flex items-center justify-center gap-4 text-sm text-slate-400 mt-6">
                         <div className="flex items-center gap-2">
                             <Clipboard className="w-4 h-4" />
@@ -431,7 +464,7 @@ export default function SmartUploadPage() {
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.webp,.pptx,.zip"
+                        accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.webp,.zip,.docx,.xlsx,.xls,.doc"
                         onChange={handleFileSelect}
                     />
                 </div>
@@ -439,9 +472,35 @@ export default function SmartUploadPage() {
 
             {/* Step 2: Analyzing */}
             {status === 'analyzing' && (
-                <div className="text-center py-24 bg-white rounded-3xl border border-slate-100 shadow-xl animate-pulse">
-                    <Loader2 className="w-16 h-16 text-emerald-600 animate-spin mx-auto mb-6" />
-                    <h2 className="text-2xl font-bold text-slate-900">분석 중...</h2>
+                <div className="text-center py-24 bg-gradient-to-br from-white to-emerald-50 rounded-3xl border-2 border-emerald-200 shadow-2xl">
+                    <div className="relative">
+                        <Loader2 className="w-20 h-20 text-emerald-600 animate-spin mx-auto mb-6" />
+                        <Sparkles className="w-8 h-8 text-yellow-500 absolute top-0 left-1/2 -translate-x-1/2 animate-pulse" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-slate-900 mb-3">AI가 파일을 분석하고 있습니다</h2>
+                    <p className="text-slate-600 mb-6">
+                        {selectedModel === 'claude' && '🤖 Claude Opus 4.5 - 정밀 OCR 분석 중 (예상: 20-40초)'}
+                        {selectedModel === 'gemini' && '🤖 Gemini 1.5 Pro - 고성능 분석 중 (예상: 15-30초)'}
+                        {selectedModel === 'gemini2' && '🤖 Gemini 2.0 Flash - 고속 분석 중 (예상: 10-20초)'}
+                        {selectedModel === 'gptoss' && '🤖 ChatGPT 4o - 자연어 생성 중 (예상: 20-40초)'}
+                    </p>
+                    <div className="max-w-md mx-auto bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+                        <div className="space-y-3 text-left text-sm text-slate-700">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                <span>이미지에서 텍스트 추출 중</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                                <span>제목과 카테고리 자동 분류 중</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '0.6s' }}></div>
+                                <span>태그 및 요약 생성 중</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-6">잠시만 기다려주세요. 파일 크기에 따라 시간이 다를 수 있습니다.</p>
                 </div>
             )}
 

@@ -57,84 +57,96 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
         }
     };
 
+    // 개선된 카카오 로그인 핸들러
     const handleKakaoLogin = async () => {
         if (isLoading) return;
+
         if (!kakaoLoaded || !window.Kakao) {
-            alert("카카오 로그인 모듈이 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.");
+            alert("카카오 로그인을 준비 중입니다. 잠시 후 다시 시도해주세요.");
             return;
         }
 
         if (!process.env.NEXT_PUBLIC_KAKAO_JS_KEY) {
-            alert(`카카오 JavaScript 키가 설정되지 않았습니다.`);
+            alert("카카오 API 키가 설정되지 않았습니다.");
             return;
         }
 
+        // Kakao SDK 초기화
         if (!window.Kakao.isInitialized()) {
             window.Kakao.init(process.env.NEXT_PUBLIC_KAKAO_JS_KEY);
         }
 
         setIsLoading(true);
 
-        window.Kakao.Auth.login({
-            success: async function (authObj: any) {
-                try {
-                    // Get User Info
-                    window.Kakao.API.request({
-                        url: '/v2/user/me',
-                        success: async function(res: any) {
-                            try {
-                                const kakaoAccount = res.kakao_account;
-                                const nickname = kakaoAccount?.profile?.nickname || '카카오 사용자';
-                                const email = kakaoAccount?.email || `kakao_${res.id}@kakao.local`;
-                                const photoURL = kakaoAccount?.profile?.profile_image_url || '';
+        try {
+            // 카카오 로그인 실행
+            window.Kakao.Auth.login({
+                success: async (authObj: any) => {
+                    try {
+                        // 사용자 정보 가져오기
+                        window.Kakao.API.request({
+                            url: '/v2/user/me',
+                            success: async (res: any) => {
+                                const { id, kakao_account } = res;
+                                const profile = kakao_account?.profile || {};
 
-                                // Register with Firebase via backend
+                                // Firebase 백엔드로 전송
                                 const response = await fetch('/api/auth/social-login', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
                                         provider: 'kakao',
-                                        uid: `kakao_${res.id}`,
-                                        email: email,
-                                        displayName: nickname,
-                                        photoURL: photoURL,
+                                        uid: `kakao_${id}`,
+                                        email: kakao_account?.email || `kakao_${id}@kakao.local`,
+                                        displayName: profile?.nickname || '카카오 사용자',
+                                        photoURL: profile?.profile_image_url || '',
                                     }),
                                 });
 
                                 const data = await response.json();
 
                                 if (data.success && data.customToken) {
-                                    // Sign in to Firebase with custom token
                                     await signInWithCustomToken(auth, data.customToken);
                                     onLoginSuccess?.();
                                 } else {
-                                    throw new Error(data.error || 'Failed to create Firebase session');
+                                    throw new Error(data.error || '로그인 처리 실패');
                                 }
-                            } catch (error: any) {
-                                console.error("Kakao Firebase Integration Error:", error);
-                                alert(`카카오 로그인 처리 중 오류: ${error.message}`);
-                            } finally {
+                                setIsLoading(false);
+                            },
+                            fail: (error: any) => {
+                                console.error('사용자 정보 가져오기 실패:', error);
+                                alert("카카오 사용자 정보를 가져올 수 없습니다.");
                                 setIsLoading(false);
                             }
-                        },
-                        fail: function(error: any) {
-                            console.error('Kakao User Info Error:', error);
-                            alert("카카오 사용자 정보를 가져오는데 실패했습니다.");
-                            setIsLoading(false);
-                        }
-                    });
-                } catch (error: any) {
-                    console.error("Kakao Login Error:", error);
-                    alert(`카카오 로그인 오류: ${error.message}`);
+                        });
+                    } catch (error: any) {
+                        console.error("카카오 로그인 처리 오류:", error);
+                        alert(`오류: ${error.message}`);
+                        setIsLoading(false);
+                    }
+                },
+                fail: (err: any) => {
+                    console.error("카카오 로그인 실패:", err);
+                    console.error("에러 상세:", JSON.stringify(err, null, 2));
+
+                    // 에러 메시지 구성
+                    let errorMsg = "카카오 로그인에 실패했습니다.";
+                    if (err?.error) {
+                        errorMsg += `\n\n오류: ${err.error}`;
+                    }
+                    if (err?.error_description) {
+                        errorMsg += `\n상세: ${err.error_description}`;
+                    }
+
+                    alert(errorMsg + "\n\n카카오 개발자 콘솔에서 설정을 확인해주세요.");
                     setIsLoading(false);
-                }
-            },
-            fail: function (err: any) {
-                console.error("Kakao Login Error:", err);
-                alert("카카오 로그인에 실패했습니다.");
-                setIsLoading(false);
-            },
-        });
+                },
+            });
+        } catch (error: any) {
+            console.error("카카오 로그인 오류:", error);
+            alert(`카카오 로그인 오류: ${error.message}`);
+            setIsLoading(false);
+        }
     };
 
     const handleNaverLogin = () => {
@@ -219,7 +231,7 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
 
     return (
         <>
-            {/* Load Kakao SDK */}
+            {/* Kakao SDK 로드 */}
             <Script
                 src="https://developers.kakao.com/sdk/js/kakao.min.js"
                 strategy="lazyOnload"
@@ -231,7 +243,7 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
                 }}
             />
 
-            {/* Load Naver SDK */}
+            {/* Naver SDK 로드 */}
             <Script
                 src="https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js"
                 strategy="lazyOnload"
@@ -239,6 +251,7 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
             />
 
             <div className={`flex flex-col gap-3 w-full max-w-xs mx-auto ${className}`}>
+                {/* 구글 로그인 */}
                 <button
                     onClick={handleGoogleLogin}
                     disabled={isLoading}
@@ -248,6 +261,7 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
                     구글 계정으로 시작하기
                 </button>
 
+                {/* 카카오 로그인 - 개선됨 */}
                 <button
                     onClick={handleKakaoLogin}
                     disabled={isLoading || !kakaoLoaded}
@@ -257,6 +271,7 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
                     카카오톡으로 시작하기
                 </button>
 
+                {/* 네이버 로그인 */}
                 <button
                     onClick={handleNaverLogin}
                     disabled={isLoading || !naverLoaded}

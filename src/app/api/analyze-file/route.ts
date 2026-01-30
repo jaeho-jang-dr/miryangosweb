@@ -3,18 +3,35 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import JSZip from 'jszip';
+import * as XLSX from 'xlsx';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Lazy load pdf-parse to avoid build errors
-let pdfParse: any = null;
-async function getPdfParse() {
-    if (!pdfParse) {
-        const pdfModule: any = await import('pdf-parse');
-        pdfParse = pdfModule.default || pdfModule;
+async function parsePdf(buffer: Buffer) {
+    try {
+        // pdf-parse의 default export는 함수입니다
+        const pdfParseModule: any = await import('pdf-parse');
+        const pdfParse = pdfParseModule.default || pdfParseModule;
+
+        if (typeof pdfParse !== 'function') {
+            throw new Error('pdf-parse module is not a function');
+        }
+
+        return await pdfParse(buffer);
+    } catch (error: any) {
+        throw new Error(`PDF parsing failed: ${error.message}`);
     }
-    return pdfParse;
+}
+
+// Lazy load mammoth for DOCX support
+let mammoth: any = null;
+async function getMammoth() {
+    if (!mammoth) {
+        mammoth = await import('mammoth');
+    }
+    return mammoth;
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -196,6 +213,10 @@ async function executeAIModel(
     fileType: string
 ): Promise<string> {
     if (selectedModel === 'claude') {
+        // API 키 체크
+        if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === '') {
+            throw new Error('Claude API 키가 설정되지 않았습니다. .env.local에 ANTHROPIC_API_KEY를 추가해주세요.');
+        }
         // Claude Opus 4.5 - 정확한 OCR 강점
         return await retryWithBackoff(async () => {
             const imageBase64 = contentParts.length > 0 ? buffer.toString('base64') : null;
@@ -228,18 +249,34 @@ async function executeAIModel(
         });
     }
     else if (selectedModel === 'gptoss') {
-        // ChatGPT - 자연스러운 한글 생성
+        // API 키 체크
+        if (!process.env.GPTOSS_API_KEY || process.env.GPTOSS_API_KEY === '') {
+            throw new Error('ChatGPT API 키가 설정되지 않았습니다. .env.local에 GPTOSS_API_KEY를 추가해주세요.');
+        }
+
+        // ChatGPT - 자연스러운 한글 생성 (이미지 처리 안정화)
         return await retryWithBackoff(async () => {
-            const imageBase64 = contentParts.length > 0 ? buffer.toString('base64') : null;
+            // 이미지 파일 여부 체크
+            const isImage = fileType.startsWith('image/') && buffer.length > 0;
+            const imageBase64 = isImage ? buffer.toString('base64') : null;
+
             const messages: any[] = [{
                 role: "user",
                 content: imageBase64
                     ? [
                         { type: "text", text: prompt },
-                        { type: "image_url", image_url: { url: `data:${fileType};base64,${imageBase64}` } }
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:${fileType};base64,${imageBase64}`,
+                                detail: "high" // 고해상도 분석
+                            }
+                        }
                     ]
                     : prompt
             }];
+
+            console.log(`[ChatGPT] 이미지 포함: ${isImage ? 'Yes' : 'No'}, 크기: ${buffer.length} bytes`);
 
             const completion = await Promise.race([
                 openai.chat.completions.create({
@@ -249,15 +286,24 @@ async function executeAIModel(
                     temperature: 0.2,
                 }),
                 new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("ChatGPT Timeout (45s)")), 45000)
+                    setTimeout(() => reject(new Error("ChatGPT Timeout (60s)")), 60000)
                 )
             ]) as any;
+
+            if (!completion.choices || !completion.choices[0] || !completion.choices[0].message) {
+                throw new Error("ChatGPT 응답이 비어있습니다");
+            }
 
             return completion.choices[0].message.content;
         });
     }
     else if (selectedModel === 'gemini2') {
-        // Gemini 2.0 Flash - 빠른 속도
+        // API 키 체크
+        if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === '') {
+            throw new Error('Gemini API 키가 설정되지 않았습니다. .env.local에 GEMINI_API_KEY를 추가해주세요.');
+        }
+
+        // Gemini 2.0 Flash - 빠른 속도 (실험적)
         return await retryWithBackoff(async () => {
             const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
             const result = await Promise.race([
@@ -279,9 +325,14 @@ async function executeAIModel(
         });
     }
     else {
-        // Gemini 3 Pro - 최신 최고 성능 모델
+        // API 키 체크
+        if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === '') {
+            throw new Error('Gemini API 키가 설정되지 않았습니다. .env.local에 GEMINI_API_KEY를 추가해주세요.');
+        }
+
+        // Gemini 1.5 Pro - 최신 최고 성능 모델
         return await retryWithBackoff(async () => {
-            const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
             const result = await Promise.race([
                 model.generateContent({
                     contents: [{ role: "user", parts: [{ text: prompt }, ...contentParts] }],
@@ -413,25 +464,61 @@ export async function POST(request: Request) {
             contentParts = [bufferToPart(buffer, file.type)];
         }
         // --- STRATEGY 2: PDF ---
-        else if (file.type === 'application/pdf') {
-            if (pdfParse) {
-                try {
-                    const data = await pdfParse(buffer);
-                    const text = data.text.substring(0, 15000);
-                    prompt = `PDF 문서 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
-                    contentParts = [];
-                } catch (e) {
-                    console.error("PDF 파싱 실패:", e);
-                    prompt = `PDF 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
-                    contentParts = [];
-                }
-            } else {
-                console.warn("PDF 파싱 불가 - 파일명 분석");
+        else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+            console.log("📄 PDF 파일 감지. 텍스트 추출 중...");
+            try {
+                const data = await parsePdf(buffer);
+                const text = data.text.substring(0, 15000);
+                prompt = `PDF 문서 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+                console.log(`✅ PDF 파싱 완료: ${text.length}자`);
+            } catch (e: any) {
+                console.error("PDF 파싱 실패:", e.message);
                 prompt = `PDF 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
                 contentParts = [];
             }
         }
-        // --- STRATEGY 3: TEXT ---
+        // --- STRATEGY 3: DOCX (Word) ---
+        else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
+            console.log("📝 DOCX 파일 감지. 텍스트 추출 중...");
+            try {
+                const mammothModule = await getMammoth();
+                const result = await mammothModule.extractRawText({ buffer });
+                const text = result.value.substring(0, 15000);
+                prompt = `Word 문서 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+                console.log(`✅ DOCX 파싱 완료: ${text.length}자`);
+            } catch (e) {
+                console.error("DOCX 파싱 실패:", e);
+                prompt = `Word 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+            }
+        }
+        // --- STRATEGY 4: XLSX (Excel) ---
+        else if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.name.endsWith('.xlsx')) {
+            console.log("📊 XLSX 파일 감지. 데이터 추출 중...");
+            try {
+                const workbook = XLSX.read(buffer, { type: 'buffer' });
+                let allText = '';
+
+                // 모든 시트 읽기
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const sheetData = XLSX.utils.sheet_to_csv(worksheet);
+                    allText += `[${sheetName}]\n${sheetData}\n\n`;
+                });
+
+                const text = allText.substring(0, 15000);
+                prompt = `Excel 문서 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+                console.log(`✅ XLSX 파싱 완료: ${text.length}자`);
+            } catch (e) {
+                console.error("XLSX 파싱 실패:", e);
+                prompt = `Excel 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+            }
+        }
+        // --- STRATEGY 5: TEXT ---
         else {
             const textStart = buffer.toString('utf-8').substring(0, 5000);
             prompt = `텍스트 파일 분석\n\n파일명: ${file.name}\n내용:\n${textStart}\n\n` + MEDICAL_ANALYSIS_PROMPT;
@@ -457,7 +544,7 @@ export async function POST(request: Request) {
         // 모델 정보 추가
         const modelNames: Record<string, string> = {
             'claude': 'Claude Opus 4.5',
-            'gemini': 'Gemini 3 Pro',
+            'gemini': 'Gemini 1.5 Pro',
             'gemini2': 'Gemini 2.0 Flash',
             'gptoss': 'ChatGPT 4o'
         };
@@ -474,13 +561,33 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error(`[SmartUpload] ❌ Error for ${fileNameForLog}:`, error);
+
+        // 에러 타입별 분류
+        let errorType = 'unknown';
+        let userMessage = error.message;
+
+        if (error.message.includes('Timeout')) {
+            errorType = 'timeout';
+            userMessage = 'AI 분석 시간이 초과되었습니다. 파일 크기를 줄이거나 다른 모델을 시도해주세요.';
+        } else if (error.message.includes('JSON')) {
+            errorType = 'parse_error';
+            userMessage = 'AI 응답을 해석하는데 실패했습니다. 다시 시도해주세요.';
+        } else if (error.message.includes('API')) {
+            errorType = 'api_error';
+            userMessage = 'AI 서비스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        }
+
         return NextResponse.json({
+            error: true,
+            errorType,
+            errorMessage: userMessage,
+            errorDetails: error.message,
             title: fileNameForLog.replace(/\.[^/.]+$/, ""),
             tags: ["자동생성", "검토필요"],
-            summary: `자동 분석에 실패했습니다. 수동으로 입력해주세요. (${error.message})`,
+            summary: `분석 실패: ${userMessage}`,
             category: "disease",
-            content: "## 내용\n\n직접 입력해주세요.",
+            content: "## 내용\n\n분석에 실패했습니다. 다시 시도하거나 직접 입력해주세요.",
             images: []
-        });
+        }, { status: 200 }); // 200으로 반환하여 프론트엔드에서 처리 가능하도록
     }
 }

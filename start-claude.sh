@@ -48,4 +48,4 @@ echo "Starting Claude..."
 echo ""
 
 # Start Claude CLI
-claude
+claude "$@"
