@@ -94,6 +94,8 @@ export default function MasterDataPage() {
             else if (typeStr.includes('물리')) category = 'physical_therapy';
             else if (typeStr.includes('검사')) category = 'test_lab';
             else if (typeStr.includes('영상')) category = 'radiology';
+            else if (typeStr.includes('재료')) category = 'material';
+            else if (typeStr.includes('진찰')) category = 'consultation';
 
             // Map Insurance Type
             let insuranceType: InsuranceType = 'care';

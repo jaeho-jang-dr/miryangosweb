@@ -47,6 +47,8 @@ const getStatusColor = (status: string) => {
     }
 };
 
+type DocumentType = 'prescription' | 'receipt' | 'detailed_receipt' | 'certificate' | 'diagnosis' | 'referral' | 'chart_copy' | 'opinion';
+
 export default function ReceptionPage() {
     const [activeTab, setActiveTab] = useState<'reception' | 'payment' | 'documents' | 'appointments'>('reception');
 
@@ -63,7 +65,7 @@ export default function ReceptionPage() {
     // Selected Visit for Payment/Documents
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [modalMode, setModalMode] = useState<'none' | 'invoice' | 'documents' | 'preview'>('none');
-    const [previewType, setPreviewType] = useState<'prescription' | 'receipt' | 'detailed_receipt' | 'certificate' | 'diagnosis' | 'referral' | 'chart_copy' | 'opinion' | null>(null);
+    const [previewType, setPreviewType] = useState<DocumentType | null>(null);
 
     // Appointments Tab State
     const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
@@ -71,7 +73,7 @@ export default function ReceptionPage() {
     const [selectedAppointmentDate, setSelectedAppointmentDate] = useState(new Date());
     const [filterStatus, setFilterStatus] = useState<string>('all');
     // Documents State
-    const [selectedDocuments, setSelectedDocuments] = useState<{ type: string; label: string; price: number }[]>([]);
+    const [selectedDocuments, setSelectedDocuments] = useState<{ type: DocumentType; label: string; price: number }[]>([]);
     const [showPreview, setShowPreview] = useState(false); // To toggle preview modal from calculation modal
 
     const [appointmentFormData, setAppointmentFormData] = useState({
@@ -522,15 +524,15 @@ export default function ReceptionPage() {
                                     { id: 'diagnosis', label: '일반 진단서', price: 20000, desc: '병명, 치료기간이 명시된 주진단서' },
                                     { id: 'opinion', label: '진료 소견서', price: 15000, desc: '의사의 의학적 소견이 포함된 서류' },
                                     { id: 'referral', label: '진료 의뢰서', price: 0, desc: '상급 병원 진료를 위한 요양급여의뢰서' },
-                                    { id: 'confirmation', label: '통원 확인서', price: 3000, desc: '학교/직장 제출용 내원 사실 확인' },
+                                    { id: 'certificate', label: '통원 확인서', price: 3000, desc: '학교/직장 제출용 내원 사실 확인' },
                                     { id: 'chart_copy', label: '의무기록 사본', price: 3000, desc: '초진차트 및 검사결과지 사본' },
                                     { id: 'receipt', label: '진료비 영수증', price: 0, desc: '연말정산용 진료비 납입 확인서' },
-                                    { id: 'detail', label: '세부내역서', price: 0, desc: '산정 진료비에 대한 상세 내역' },
+                                    { id: 'detailed_receipt', label: '세부내역서', price: 0, desc: '산정 진료비에 대한 상세 내역' },
                                 ].map((item) => (
                                     <button
                                         key={item.id}
                                         onClick={() => {
-                                            const newDoc = { type: item.id, label: item.label, price: item.price };
+                                            const newDoc = { type: item.id as DocumentType, label: item.label, price: item.price };
                                             setSelectedDocuments(prev => [...prev, newDoc]);
                                             // Optional: Auto open preview to fill content?
                                             // setPreviewType(item.id); setShowPreview(true);

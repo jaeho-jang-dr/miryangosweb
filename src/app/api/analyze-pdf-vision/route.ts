@@ -69,9 +69,9 @@ async function ocrPdfPagesWithVision(buffer: Buffer): Promise<string> {
         const path = require('path');
 
         // GraphicsMagick + Ghostscript PATH 추가
-        const gmBinPath = 'C:\\Users\\antigravity\\scoop\\apps\\graphicsmagick\\current';
-        const gsBinPath = 'C:\\Users\\antigravity\\scoop\\apps\\ghostscript\\current\\bin';
-        const gsLibPath = 'C:\\Users\\antigravity\\scoop\\apps\\ghostscript\\current\\lib';
+        const gmBinPath = 'D:\\antigravity\\GraphicsMagick-1.3.46-Q16';
+        const gsBinPath = 'D:\\antigravity\\gs10.06.0\\bin';
+        const gsLibPath = 'D:\\antigravity\\gs10.06.0\\lib';
 
         if (!process.env.PATH?.includes(gmBinPath)) {
             process.env.PATH = `${gmBinPath};${gsBinPath};${gsLibPath};${process.env.PATH}`;
