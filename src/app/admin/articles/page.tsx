@@ -6,7 +6,7 @@ import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/fi
 import { db } from '@/lib/firebase-public';
 import Link from 'next/link';
 // ... imports
-import { Plus, Edit, Trash2, Loader2, FileText, Search, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Loader2, FileText, Search, Sparkles, Image as ImageIcon, FileType } from 'lucide-react';
 
 // 원본 이미지를 새 탭에서 보여주는 함수
 const openImageInNewTab = (imageUrl: string) => {
@@ -118,6 +118,13 @@ export default function ArticlesPage() {
                 <h1 className="text-2xl font-bold text-slate-900">자료실 관리</h1>
                 <div className="flex gap-2">
                     <Link
+                        href="/admin/articles/smart-material"
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                        <FileType className="w-4 h-4" />
+                        PDF/PPTX 등록
+                    </Link>
+                    <Link
                         href="/admin/articles/smart-upload"
                         className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
                     >
@@ -126,7 +133,7 @@ export default function ArticlesPage() {
                     </Link>
                     <Link
                         href="/admin/articles/new"
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                        className="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow-sm"
                     >
                         <Plus className="w-4 h-4" />
                         새 자료 등록
