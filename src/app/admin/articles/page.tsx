@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase-public';
 import Link from 'next/link';
 // ... imports
 import { Plus, Edit, Trash2, Loader2, FileText, Search, Sparkles, Image as ImageIcon, FileType } from 'lucide-react';
+import { BODY_PARTS, matchBodyPart } from '@/lib/body-parts';
 
 // 원본 이미지를 새 탭에서 보여주는 함수
 const openImageInNewTab = (imageUrl: string) => {
@@ -60,6 +61,8 @@ export default function ArticlesPage() {
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedBodyPart, setSelectedBodyPart] = useState<string>('all');
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
     useEffect(() => {
         fetchArticles();
@@ -93,10 +96,20 @@ export default function ArticlesPage() {
         }
     };
 
-    const filteredArticles = articles.filter(article =>
-        article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        article.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredArticles = articles.filter(article => {
+        const matchesSearch = searchTerm === '' ||
+            article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            article.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesBodyPart = selectedBodyPart === 'all'
+            ? true
+            : matchBodyPart(article.tags || [], article.title) === selectedBodyPart;
+        const matchesCategory = selectedCategory === 'all'
+            ? true
+            : selectedCategory === 'disease'
+                ? (article.type === 'disease' || article.type === 'guide')
+                : article.type === selectedCategory;
+        return matchesSearch && matchesBodyPart && matchesCategory;
+    });
 
     const getTypeBadge = (type: string) => {
         switch (type) {
@@ -141,15 +154,40 @@ export default function ArticlesPage() {
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex items-center gap-2">
-                <Search className="w-5 h-5 text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="제목 또는 태그 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex-1 outline-none text-sm"
-                />
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex items-center gap-3">
+                <select
+                    value={selectedBodyPart}
+                    onChange={(e) => setSelectedBodyPart(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="all">전체 부위</option>
+                    {BODY_PARTS.map(part => (
+                        <option key={part.id} value={part.id}>{part.label}</option>
+                    ))}
+                    <option value="etc">기타</option>
+                </select>
+                <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="all">전체 분류</option>
+                    <option value="disease">의학/질환 정보</option>
+                    <option value="news">건강 뉴스</option>
+                    <option value="gallery">갤러리</option>
+                    <option value="webtoon">웹툰</option>
+                    <option value="app">AI/앱</option>
+                </select>
+                <div className="flex items-center gap-2 flex-1">
+                    <Search className="w-5 h-5 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="제목 또는 태그 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="flex-1 outline-none text-sm"
+                    />
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase-public';
 import Link from 'next/link';
 import { Loader2, Search, Tag, Calendar, FileText } from 'lucide-react';
 import clsx from 'clsx';
+import { BODY_PARTS, matchBodyPart } from '@/lib/body-parts';
 
 interface Article {
     id: string;
@@ -50,6 +51,7 @@ export default function ArchivesPage() {
     const [selectedType, setSelectedType] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [selectedBodyPart, setSelectedBodyPart] = useState<string>('all');
 
     useEffect(() => {
         const fetchArticles = async () => {
@@ -95,8 +97,11 @@ export default function ArchivesPage() {
         const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             cleanTags(article.tags).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesTag = selectedTag ? cleanTags(article.tags).includes(selectedTag) : true;
+        const matchesBodyPart = selectedBodyPart === 'all'
+            ? true
+            : matchBodyPart(article.tags || [], article.title) === selectedBodyPart;
 
-        return matchesType && matchesSearch && matchesTag;
+        return matchesType && matchesSearch && matchesTag && matchesBodyPart;
     });
 
     // ... (imports remain)
@@ -177,7 +182,21 @@ export default function ArchivesPage() {
                         </div>
 
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                            {/* ... tags ... */}
+                            <h3 className="font-bold text-lg mb-4">부위별</h3>
+                            <select
+                                value={selectedBodyPart}
+                                onChange={(e) => setSelectedBodyPart(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                                <option value="all">전체 부위</option>
+                                {BODY_PARTS.map(part => (
+                                    <option key={part.id} value={part.id}>{part.label}</option>
+                                ))}
+                                <option value="etc">기타</option>
+                            </select>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                             <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                                 <Tag className="w-4 h-4" /> 태그
                             </h3>
