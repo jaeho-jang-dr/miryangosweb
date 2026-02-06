@@ -54,11 +54,16 @@ export const BODY_PARTS: BodyPart[] = [
 export function matchBodyPart(tags: string[], title: string): string {
   const searchText = [...tags, title].join(' ').toLowerCase();
 
+  let bestId = 'etc';
+  let bestCount = 0;
+
   for (const part of BODY_PARTS) {
-    if (part.keywords.some(kw => searchText.includes(kw))) {
-      return part.id;
+    const count = part.keywords.filter(kw => searchText.includes(kw)).length;
+    if (count > bestCount) {
+      bestCount = count;
+      bestId = part.id;
     }
   }
 
-  return 'etc';
+  return bestId;
 }
