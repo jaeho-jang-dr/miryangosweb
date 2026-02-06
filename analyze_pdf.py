@@ -253,12 +253,15 @@ def parse_extracted_text(text: str, file_name: str) -> dict:
     content = f"## 내용\n\n{cleaned[:15000]}"
 
     # 태그: 부위 대표 태그 + 의학 키워드 매칭
+    # 매칭 횟수가 가장 많은 부위를 선택 (첫 매칭이 아닌 최다 매칭)
     lower_text = text.lower()
     body_part_tag = None
+    best_count = 0
     for part_name, keywords in BODY_PARTS.items():
-        if any(kw in lower_text for kw in keywords):
+        count = sum(1 for kw in keywords if kw in lower_text)
+        if count > best_count:
+            best_count = count
             body_part_tag = part_name
-            break
 
     detail_tags = [kw for kw in MEDICAL_KEYWORDS if kw in lower_text]
     # 부위 대표 태그를 첫 번째에 삽입, 나머지는 상세 태그
