@@ -156,20 +156,9 @@ export default function ArticlesPage() {
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex items-center gap-3">
                 <select
-                    value={selectedBodyPart}
-                    onChange={(e) => setSelectedBodyPart(e.target.value)}
-                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    <option value="all">전체 부위</option>
-                    {BODY_PARTS.map(part => (
-                        <option key={part.id} value={part.id}>{part.label}</option>
-                    ))}
-                    <option value="etc">기타</option>
-                </select>
-                <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="all">전체 분류</option>
                     <option value="disease">의학/질환 정보</option>
@@ -177,6 +166,17 @@ export default function ArticlesPage() {
                     <option value="gallery">갤러리</option>
                     <option value="webtoon">웹툰</option>
                     <option value="app">AI/앱</option>
+                </select>
+                <select
+                    value={selectedBodyPart}
+                    onChange={(e) => setSelectedBodyPart(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="all">부위별</option>
+                    {BODY_PARTS.map(part => (
+                        <option key={part.id} value={part.id}>{part.label}</option>
+                    ))}
+                    <option value="etc">기타</option>
                 </select>
                 <div className="flex items-center gap-2 flex-1">
                     <Search className="w-5 h-5 text-slate-400" />
