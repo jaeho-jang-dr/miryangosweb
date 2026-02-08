@@ -27,6 +27,7 @@ import asyncio
 import base64
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -217,12 +218,30 @@ class PDFAnalyzer:
             lines.append(f"{i}. {title}")
         return "\n".join(lines)
 
+    @staticmethod
+    def clean_slide_text(text: str) -> str:
+        """슬라이드 텍스트에서 NotebookLM 언급, OCR 아티팩트 등 제거"""
+        # NotebookLM / Notebook LM 언급 제거 (대소문자 무시, 앞뒤 공백/마침표 포함)
+        text = re.sub(r'[,.]?\s*A?\s*Notebook\s*LM\.?', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'[,.]?\s*노트북\s*LM\.?', '', text, flags=re.IGNORECASE)
+        # 반복 ·E 패턴 제거 (OCR 아티팩트: ·E·E·E·E...)
+        text = re.sub(r'(?:[·.]\s*E\s*){3,}', '', text)
+        # ·가 3개 이상 반복되는 패턴 제거
+        text = re.sub(r'(?:·\s*){3,}', '', text)
+        # 0이 6개 이상 연속 → 빈 문자열 (OCR 실패한 숫자)
+        text = re.sub(r'0{6,}', '', text)
+        # 연속 공백 정리
+        text = re.sub(r' {2,}', ' ', text)
+        # 빈 줄이 3개 이상이면 2개로
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text.strip()
+
     def build_content(self) -> str:
         """자료실 등록용 전체 텍스트 컨텐츠 생성 (슬라이드 간 간격 포함)"""
         texts = self.extract_all_text()
         parts = []
         for i, text in enumerate(texts, 1):
-            clean = text.strip()
+            clean = self.clean_slide_text(text)
             if clean:
                 parts.append(f"[슬라이드 {i}]\n{clean}")
         # 슬라이드 끼리 간격을 넉넉하게
@@ -628,6 +647,10 @@ async def main():
         "--max-workers", type=int, default=3,
         help="최대 동시 실행 수 (기본: 3, --batch 모드 전용)"
     )
+    parser.add_argument(
+        "--worker-id", "-w", type=int, default=None,
+        help="워커 ID (병렬 실행시 독립 브라우저 프로필 사용, 예: 0, 1, 2)"
+    )
 
     args = parser.parse_args()
 
@@ -652,6 +675,16 @@ async def main():
     # 단일 실행 모드
     queries = args.queries.split(",") if args.queries else None
 
+    # worker_id 설정 (병렬 실행시 독립 브라우저 프로필)
+    config_override = None
+    if args.worker_id is not None:
+        from noterang.config import NoterangConfig, set_config
+        config = NoterangConfig.load()
+        config.worker_id = args.worker_id
+        config.ensure_dirs()
+        set_config(config)
+        config_override = config
+
     pipeline = NoterangPipeline(
         title=args.title,
         pdf_path=args.pdf,
@@ -661,6 +694,7 @@ async def main():
         article_type=args.type,
         design=args.design,
         slide_count=args.slides,
+        config_override=config_override,
     )
 
     result = await pipeline.run()
