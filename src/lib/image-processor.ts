@@ -136,7 +136,8 @@ export async function getImageInfo(inputPath: string): Promise<{
           width: data.size.width,
           height: data.size.height,
           format: data.format,
-          size: data.filesize || 0,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          size: (data as any).filesize || 0,
         });
       }
     });
@@ -212,7 +213,7 @@ export async function processImage(
     let img = imageMagick(inputPath);
 
     if (options.width || options.height) {
-      img = img.resize(options.width, options.height);
+      img = img.resize(options.width || 0, options.height || 0);
     }
 
     if (options.quality) {

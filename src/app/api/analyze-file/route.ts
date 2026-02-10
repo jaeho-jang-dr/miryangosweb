@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
 // ============================================================
 
 /** Claude API - Content Part 타입 */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ClaudeContentPart =
     | { type: 'text'; text: string }
     | {
@@ -57,13 +58,14 @@ interface GeminiContentPart {
 /** 분석 결과 JSON 구조 */
 interface AnalysisResult {
     title: string;
-    category: 'disease' | 'treatment' | 'diagnosis' | 'prevention' | 'anatomy' | 'etc';
+    category: 'disease' | 'treatment' | 'diagnosis' | 'prevention' | 'anatomy' | 'etc' | 'webtoon' | 'guide' | 'news' | 'gallery' | 'app';
     tags: string[];
     summary: string;
     content: string;
     fileName?: string;
     fileType?: string;
     analyzedBy?: string;
+    images?: string[];
 }
 
 // ============================================================
@@ -78,8 +80,9 @@ async function parsePdf(buffer: Buffer) {
         });
         const result = await parser.getText();
         return { text: result.text || '', numpages: result.pages?.length || 0 };
-    } catch (error: any) {
-        throw new Error(`PDF parsing failed: ${error.message}`);
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`PDF parsing failed: ${msg}`);
     }
 }
 
@@ -248,9 +251,9 @@ async function retryWithBackoff<T>(
     for (let i = 0; i < maxRetries; i++) {
         try {
             return await fn();
-        } catch (error: any) {
-            lastError = error;
-            console.warn(`[Retry ${i + 1}/${maxRetries}] ${error.message}`);
+        } catch (error: unknown) {
+            lastError = error instanceof Error ? error : new Error('Unknown error');
+            console.warn(`[Retry ${i + 1}/${maxRetries}] ${lastError.message}`);
 
             if (i < maxRetries - 1) {
                 const delay = initialDelay * Math.pow(2, i);
@@ -275,10 +278,11 @@ async function executeAIModel(
         if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === '') {
             throw new Error('Claude API 키가 설정되지 않았습니다. .env.local에 ANTHROPIC_API_KEY를 추가해주세요.');
         }
-        // Claude Opus 4.5 - 정확한 OCR 강점
+        // Claude Opus 4 - 정확한 OCR 강점
         return await retryWithBackoff(async () => {
             const imageBase64 = contentParts.length > 0 ? bufferToBase64(buffer) : null;
-            const content: ClaudeContentPart[] = [{ type: "text", text: prompt }];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const content: any[] = [{ type: "text", text: prompt }];
 
             if (imageBase64) {
                 content.push({
@@ -301,6 +305,7 @@ async function executeAIModel(
                 new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("Claude Timeout (45s)")), 45000)
                 )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ]) as any;
 
             return message.content[0].text;
@@ -318,8 +323,9 @@ async function executeAIModel(
             const isImage = fileType.startsWith('image/') && buffer.length > 0;
             const imageBase64 = isImage ? bufferToBase64(buffer) : null;
 
-            const messages: ChatGPTMessage[] = [{
-                role: "user",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const messages: any[] = [{
+                role: "user" as const,
                 content: imageBase64
                     ? [
                         { type: "text", text: prompt },
@@ -346,6 +352,7 @@ async function executeAIModel(
                 new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("ChatGPT Timeout (60s)")), 60000)
                 )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ]) as any;
 
             if (!completion.choices || !completion.choices[0] || !completion.choices[0].message) {
@@ -377,6 +384,7 @@ async function executeAIModel(
                 new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("Gemini 2.0 Timeout (45s)")), 45000)
                 )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ]) as any;
 
             return result.response.text();
@@ -404,6 +412,7 @@ async function executeAIModel(
                 new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("Gemini 3 Pro Timeout (60s)")), 60000)
                 )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ]) as any;
 
             return result.response.text();
@@ -428,12 +437,14 @@ function extractAndValidateJSON(responseText: string, fileName: string): Analysi
     }
 
     // JSON 파싱 (에러 처리 포함)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let data: any;
     try {
         const jsonString = cleanedJson.substring(jsonStart, jsonEnd + 1);
         data = JSON.parse(jsonString);
-    } catch (parseError: any) {
-        throw new Error(`JSON 파싱 실패: ${parseError.message}`);
+    } catch (parseError: unknown) {
+        const msg = parseError instanceof Error ? parseError.message : 'Unknown error';
+        throw new Error(`JSON 파싱 실패: ${msg}`);
     }
 
     // 데이터 타입 검증
@@ -474,6 +485,7 @@ function extractAndValidateJSON(responseText: string, fileName: string): Analysi
     // 태그 정제 (타입 안전성 확보)
     if (Array.isArray(data.tags)) {
         data.tags = data.tags
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .filter((tag: any) => typeof tag === 'string') // 문자열만 유지
             .map((tag: string) => tag.trim())
             .filter((tag: string) => tag.length > 0 && tag.length <= 20) // 빈 태그 및 너무 긴 태그 제거
@@ -585,8 +597,9 @@ export async function POST(request: Request) {
                 const data = await parsePdf(buffer);
                 pdfText = data.text.trim();
                 console.log(`✅ PDF 파싱 완료: ${pdfText.length}자`);
-            } catch (e: any) {
-                console.error("PDF 파싱 실패:", e.message);
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : 'Unknown error';
+                console.error("PDF 파싱 실패:", msg);
             }
 
             if (pdfText.length >= 100) {
@@ -699,20 +712,21 @@ export async function POST(request: Request) {
 
         return NextResponse.json(data);
 
-    } catch (error: any) {
-        console.error(`[SmartUpload] ❌ Error for ${fileNameForLog}:`, error);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        console.error(`[SmartUpload] ❌ Error for ${fileNameForLog}:`, err);
 
         // 에러 타입별 분류
         let errorType = 'unknown';
-        let userMessage = error.message;
+        let userMessage = err.message;
 
-        if (error.message.includes('Timeout')) {
+        if (err.message.includes('Timeout')) {
             errorType = 'timeout';
             userMessage = 'AI 분석 시간이 초과되었습니다. 파일 크기를 줄이거나 다른 모델을 시도해주세요.';
-        } else if (error.message.includes('JSON')) {
+        } else if (err.message.includes('JSON')) {
             errorType = 'parse_error';
             userMessage = 'AI 응답을 해석하는데 실패했습니다. 다시 시도해주세요.';
-        } else if (error.message.includes('API')) {
+        } else if (err.message.includes('API')) {
             errorType = 'api_error';
             userMessage = 'AI 서비스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
         }
@@ -721,7 +735,7 @@ export async function POST(request: Request) {
             error: true,
             errorType,
             errorMessage: userMessage,
-            errorDetails: error.message,
+            errorDetails: err.message,
             title: fileNameForLog.replace(/\.[^/.]+$/, ""),
             tags: ["자동생성", "검토필요"],
             summary: `분석 실패: ${userMessage}`,

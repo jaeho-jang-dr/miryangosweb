@@ -64,7 +64,8 @@ JSON 형식으로 출력하세요. 없으면 빈 문자열("")로 둡니다.
 `;
 
   try {
-    const data = await generateMedicalAnalysis(prompt);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await generateMedicalAnalysis(prompt) as any;
     
     // Convert to structured SoapNote type
     // This assumes SoapNote structure is compatible or we use partial matching

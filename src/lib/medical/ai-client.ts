@@ -8,7 +8,8 @@ const genAI = new GoogleGenerativeAI(apiKey);
 // Use a fast and capable model
 const MODEL_NAME = 'gemini-2.0-flash'; // Updated to stable version
 
-export async function generateMedicalAnalysis(prompt: string, jsonFormat: boolean = true): Promise<unknown> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function generateMedicalAnalysis(prompt: string, jsonFormat: boolean = true): Promise<any> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not set');
   }

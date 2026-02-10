@@ -66,8 +66,9 @@ async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageC
 
         console.log(`[PDF-Parse] ${pageCount}페이지에서 실제 텍스트 ${actualText.length}자 추출`);
         return { text: actualText, pageCount };
-    } catch (e: any) {
-        console.log('[PDF-Parse] 실패:', e.message);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        console.log('[PDF-Parse] 실패:', msg);
         return { text: '', pageCount: 0 };
     }
 }
@@ -90,10 +91,7 @@ async function ocrPdfPagesWithVision(buffer: Buffer): Promise<string> {
         if (!gmBinPath || !gsBinPath || !gsLibPath) {
             console.error('[GM] GraphicsMagick/Ghostscript 경로 환경 변수가 설정되지 않았습니다.');
             console.error('[GM] 필수 환경 변수: GRAPHICSMAGICK_PATH, GHOSTSCRIPT_BIN_PATH, GHOSTSCRIPT_LIB_PATH');
-            return NextResponse.json({
-                error: true,
-                errorMessage: 'GraphicsMagick/Ghostscript 설정이 필요합니다.',
-            }, { status: 500 });
+            throw new Error('GraphicsMagick/Ghostscript 설정이 필요합니다.');
         }
 
         if (!process.env.PATH?.includes(gmBinPath)) {
@@ -132,7 +130,7 @@ async function ocrPdfPagesWithVision(buffer: Buffer): Promise<string> {
                     gmSubclass(`${pdfPath}[${pageNum}]`)
                         .density(150, 150)
                         .quality(90)
-                        .write(outputPath, (err) => {
+                        .write(outputPath, (err: Error | null) => {
                             if (err) reject(err);
                             else resolve(outputPath);
                         });
@@ -153,11 +151,13 @@ async function ocrPdfPagesWithVision(buffer: Buffer): Promise<string> {
                 // 임시 파일 삭제
                 try {
                     fs.unlinkSync(outputPath);
-                } catch (unlinkErr: any) {
-                    console.log(`[GM] 임시 파일 삭제 실패: ${unlinkErr.message}`);
+                } catch (unlinkErr: unknown) {
+                    const msg = unlinkErr instanceof Error ? unlinkErr.message : 'Unknown error';
+                    console.log(`[GM] 임시 파일 삭제 실패: ${msg}`);
                 }
-            } catch (pageError: any) {
-                console.log(`[GM] 페이지 ${pageNum + 1} 처리 실패:`, pageError.message);
+            } catch (pageError: unknown) {
+                const msg = pageError instanceof Error ? pageError.message : 'Unknown error';
+                console.log(`[GM] 페이지 ${pageNum + 1} 처리 실패:`, msg);
                 // 페이지가 없으면 중단
                 break;
             }
@@ -166,16 +166,18 @@ async function ocrPdfPagesWithVision(buffer: Buffer): Promise<string> {
         // 임시 PDF 파일 삭제
         try {
             fs.unlinkSync(pdfPath);
-        } catch (e: any) {
-            console.log('[GM] 임시 PDF 삭제 실패:', e.message);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Unknown error';
+            console.log('[GM] 임시 PDF 삭제 실패:', msg);
         }
 
         return fullText.trim();
-    } catch (e: any) {
-        console.error('[GM] 오류:', e.message);
+    } catch (e: unknown) {
+        const errMsg = e instanceof Error ? e.message : 'Unknown error';
+        console.error('[GM] 오류:', errMsg);
 
         // GraphicsMagick/ImageMagick 없는 경우 안내
-        if (e.message.includes('gm') || e.message.includes('GraphicsMagick') || e.message.includes('convert')) {
+        if (errMsg.includes('gm') || errMsg.includes('GraphicsMagick') || errMsg.includes('convert')) {
             console.log('[GM] GraphicsMagick이 설치되지 않았거나 PATH에 없습니다.');
         }
 
@@ -335,17 +337,18 @@ export async function POST(request: Request) {
             analyzedBy: method,
         });
 
-    } catch (error: any) {
-        console.error(`[PDF-Vision] 오류:`, error.message);
+    } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        console.error(`[PDF-Vision] 오류:`, err.message);
 
         return NextResponse.json({
             error: true,
-            errorMessage: error.message,
+            errorMessage: err.message,
             title: fileNameForLog.replace(/\.[^/.]+$/, ''),
             category: 'disease',
             tags: ['검토필요'],
             summary: '분석 실패',
-            content: '## 내용\n\n분석에 실패했습니다.\n\n오류: ' + error.message,
+            content: '## 내용\n\n분석에 실패했습니다.\n\n오류: ' + err.message,
         }, { status: 200 });
     }
 }

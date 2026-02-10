@@ -72,25 +72,38 @@ export async function POST(request: Request) {
             demo: false
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
         console.error('[STT] 음성 인식 에러:', error);
         return NextResponse.json(
             {
                 error: '음성 인식 중 오류가 발생했습니다.',
-                message: error.message
+                message
             },
             { status: 500 }
         );
     }
 }
 
-/**
- * Google Speech-to-Text API 호출
- */
+interface STTConfig {
+    encoding?: string;
+    sampleRateHertz?: number;
+    languageCode?: string;
+    enableAutomaticPunctuation?: boolean;
+    enableMedicalVocabulary?: boolean;
+}
+
+interface TranscriptSegment {
+    text: string;
+    confidence: number;
+    isFinal: boolean;
+    timestamp: string;
+}
+
 async function transcribeWithGoogle(
     audioBuffer: Buffer,
-    config: any
-): Promise<any[]> {
+    config: STTConfig
+): Promise<TranscriptSegment[]> {
     const apiKey = process.env.GOOGLE_SPEECH_API_KEY;
 
     // Google Speech-to-Text API 요청

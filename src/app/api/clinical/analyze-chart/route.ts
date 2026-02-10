@@ -4,53 +4,93 @@ import { extractInitialVisitInfo } from '@/lib/medical/info-extractor';
 import { extractSoapNote } from '@/lib/medical/soap-extractor';
 import { recommendXray as suggestXray } from '@/lib/medical/xray-recommender';
 import { suggestDiagnosis } from '@/lib/medical/diagnosis-suggester';
-import { identifySpeakers } from '@/lib/medical/speaker-diarization';
+import { identifySpeakers, DiarizedSegment } from '@/lib/medical/speaker-diarization';
+import type { InitialVisitChart } from '@/lib/medical/templates/initial-visit-template';
+import type { SoapNote } from '@/lib/medical/templates/soap-note-template';
+
+interface XrayRecommendation {
+  views: string[];
+  reason: string;
+}
+
+interface DiagnosisSuggestion {
+  icd10Code: string;
+  name: string;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { transcript, visitType: requestedType } = body;
 
-    if (!transcript) {
-      return NextResponse.json({ error: 'Transcript is required' }, { status: 400 });
+    if (!transcript || typeof transcript !== 'string' || transcript.trim().length === 0) {
+      return NextResponse.json({ error: 'Transcript is required and must be a non-empty string' }, { status: 400 });
     }
 
-    // 1. Detect Visit Type (Phase 2)
-    let visitType = requestedType;
-    if (!visitType || visitType === 'auto') {
-      visitType = await detectVisitType(transcript);
+    // 1. Detect Visit Type
+    let visitType: 'initial' | 'followup' = requestedType === 'followup' ? 'followup' : 'initial';
+    if (!requestedType || requestedType === 'auto') {
+      try {
+        visitType = await detectVisitType(transcript);
+      } catch (e) {
+        console.warn('[AnalyzeChart] Visit type detection failed, defaulting to initial:', e);
+        visitType = 'initial';
+      }
     }
 
-    // 2. Extract Information (Phase 2)
-    let chartData: any = {};
-    if (visitType === 'initial') {
-      chartData = await extractInitialVisitInfo(transcript);
-    } else {
-      chartData = await extractSoapNote(transcript);
+    // 2. Extract Information
+    let chartData: InitialVisitChart | SoapNote | Record<string, unknown> = {};
+    try {
+      if (visitType === 'initial') {
+        chartData = await extractInitialVisitInfo(transcript);
+      } else {
+        chartData = await extractSoapNote(transcript);
+      }
+    } catch (e) {
+      console.error('[AnalyzeChart] Chart extraction failed:', e);
+      // Return partial result with error info
+      return NextResponse.json({
+        visitType,
+        chartData: {},
+        suggestions: { xray: [], diagnosis: [] },
+        diarizedSegments: [],
+        warnings: ['차트 데이터 추출에 실패했습니다. 수동으로 입력해주세요.']
+      });
     }
 
-    // 3. Generate Suggestions (Phase 3)
-    let xrayRecommendations: any[] = [];
-    let diagnosisSuggestions: any[] = [];
+    // 3. Generate Suggestions (non-critical, graceful degradation)
+    let xrayRecommendations: XrayRecommendation[] = [];
+    let diagnosisSuggestions: DiagnosisSuggestion[] = [];
 
-    // For initial visit, check X-ray and Diagnosis
-    if (visitType === 'initial') {
-      // Extract symptoms & location for X-ray logic
-      const symptoms = chartData.chiefComplaint?.complaint || '';
-      // painLocation is string[]
-      const location = chartData.history?.painLocation?.join(', ') || symptoms; 
-      
+    if (visitType === 'initial' && 'chiefComplaint' in chartData) {
+      const initialChart = chartData as unknown as InitialVisitChart;
+      const symptoms = initialChart.chiefComplaint?.complaint || '';
+      const location = initialChart.history?.painLocation?.join(', ') || symptoms;
+
+      // X-ray suggestions (non-critical)
       if (symptoms || location) {
-         xrayRecommendations = await suggestXray(symptoms, location);
+        try {
+          xrayRecommendations = await suggestXray(symptoms, location);
+        } catch (e) {
+          console.warn('[AnalyzeChart] X-ray suggestion failed:', e);
+        }
       }
 
-      // Suggest diagnosis based on extracted chart data
-      diagnosisSuggestions = await suggestDiagnosis(chartData);
+      // Diagnosis suggestions (non-critical)
+      try {
+        diagnosisSuggestions = await suggestDiagnosis(chartData);
+      } catch (e) {
+        console.warn('[AnalyzeChart] Diagnosis suggestion failed:', e);
+      }
     }
 
-
-    // 4. Speaker Diarization (Phase 4)
-    const diarizedSegments = await identifySpeakers(transcript);
+    // 4. Speaker Diarization (non-critical)
+    let diarizedSegments: DiarizedSegment[] = [];
+    try {
+      diarizedSegments = await identifySpeakers(transcript);
+    } catch (e) {
+      console.warn('[AnalyzeChart] Speaker diarization failed:', e);
+    }
 
     return NextResponse.json({
       visitType,
@@ -59,11 +99,12 @@ export async function POST(req: NextRequest) {
         xray: xrayRecommendations,
         diagnosis: diagnosisSuggestions
       },
-      diarizedSegments // Add to response
+      diarizedSegments
     });
 
-  } catch (error: any) {
-    console.error('Error analyzing chart:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[AnalyzeChart] Critical error:', error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

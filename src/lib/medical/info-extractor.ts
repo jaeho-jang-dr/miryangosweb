@@ -73,8 +73,8 @@ JSON 형식으로 출력하세요. 필드가 없으면 빈 문자열("")로 두�
 `;
 
   try {
-    const data = await generateMedicalAnalysis(prompt);
-    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await generateMedicalAnalysis(prompt) as any;
     // Map AI response to partial InitialVisitChart structure
     // Note: The structure here is simplified for extraction. 
     // You might need more robust mapping for production.
