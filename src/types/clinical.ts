@@ -46,6 +46,9 @@ export interface Visit {
     // Structured Orders (New)
     orders?: MedicalOrder[];
 
+    // Workflow tracking
+    statusChangedAt?: Timestamp; // When status last changed (for timeout logic)
+
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

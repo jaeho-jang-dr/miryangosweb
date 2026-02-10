@@ -7,6 +7,8 @@ import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
 import { Activity, Users, FileText, Settings, LogOut, Search, ClipboardList, Stethoscope, Syringe, Menu, X, Hospital } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { useWorkflowEngine } from '@/hooks/useWorkflowEngine';
+import WorkflowToastContainer from '@/components/clinical/WorkflowToast';
 
 // Using AdminAuth for now as the 'Staff' authentication source.
 export default function ClinicalLayout({
@@ -26,6 +28,9 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+
+    // 워크플로우 엔진: 전체 clinical 영역에서 환자 자동 전환 감시
+    const { toasts, removeToast } = useWorkflowEngine();
 
     React.useEffect(() => {
         const handleScroll = () => {
@@ -63,9 +68,9 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                     <div className="hidden md:flex items-center gap-1">
                         <NavItem href="/clinical" label="대시보드" active={pathname === '/clinical'} />
                         <NavItem href="/clinical/reception" label="접수/수납" active={pathname.startsWith('/clinical/reception')} />
-                        <NavItem href="/clinical/consulting" label="진료실" active={pathname.startsWith('/clinical/consulting')} />
-                        <NavItem href="/clinical/treatment" label="치료실" active={pathname.startsWith('/clinical/treatment')} />
+                        <NavItem href="/clinical/consulting" label="진료실" active={pathname.startsWith('/clinical/consulting') || pathname.startsWith('/clinical/voice-chart')} />
                         <NavItem href="/clinical/lab" label="검사실" active={pathname.startsWith('/clinical/lab')} />
+                        <NavItem href="/clinical/treatment" label="치료실" active={pathname.startsWith('/clinical/treatment')} />
                         <NavItem href="/clinical/records" label="기록조회" active={pathname.startsWith('/clinical/records')} />
                         <div className="flex items-center gap-1 ml-2">
                             <Link href="/" target="_blank" className="relative px-2 py-2 text-rose-500 hover:scale-110 transition-transform" title="홈페이지 바로가기">
@@ -136,9 +141,9 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                         <div className="flex flex-col gap-2">
                             <MobileNavItem href="/clinical" label="대시보드" onClick={() => setIsMobileMenuOpen(false)} active={pathname === '/clinical'} />
                             <MobileNavItem href="/clinical/reception" label="접수/수납" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/reception')} />
-                            <MobileNavItem href="/clinical/consulting" label="진료실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/consulting')} />
-                            <MobileNavItem href="/clinical/treatment" label="치료실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/treatment')} />
+                            <MobileNavItem href="/clinical/consulting" label="진료실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/consulting') || pathname.startsWith('/clinical/voice-chart')} />
                             <MobileNavItem href="/clinical/lab" label="검사실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/lab')} />
+                            <MobileNavItem href="/clinical/treatment" label="치료실" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/treatment')} />
                             <MobileNavItem href="/clinical/records" label="기록조회" onClick={() => setIsMobileMenuOpen(false)} active={pathname.startsWith('/clinical/records')} />
                         </div>
                     </motion.div>
@@ -166,6 +171,9 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                     </motion.div>
                 </AnimatePresence>
             </main>
+
+            {/* 워크플로우 자동 전환 알림 */}
+            <WorkflowToastContainer toasts={toasts} onRemove={removeToast} />
         </div>
     );
 }

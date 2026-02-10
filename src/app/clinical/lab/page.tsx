@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { Visit } from '@/types/clinical';
-import { FlaskConical, CheckCircle2, Search, TestTube2, ArrowRight, FileText, X } from 'lucide-react';
+import { FlaskConical, CheckCircle2, Search, TestTube2, ArrowRight, FileText, X, Mic, Square } from 'lucide-react';
+import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 
 export default function LaboratoryPage() {
     const [visits, setVisits] = useState<Visit[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [resultText, setResultText] = useState('');
+
+    // Voice dictation for result entry
+    const onVoiceResult = useCallback((text: string) => {
+        setResultText(prev => (prev ? prev + ' ' : '') + text);
+    }, []);
+    const { isListening, interimTranscript, toggle: toggleVoice, isSupported: voiceSupported } = useVoiceDictation({
+        onFinalResult: onVoiceResult,
+    });
 
     useEffect(() => {
         // Note: Querying by status list + sorting requires composite index.
@@ -58,17 +67,17 @@ export default function LaboratoryPage() {
                 updatedAt: serverTimestamp()
             };
 
-            // If completing, maybe nudge status? For now keep workflow simple.
-            // If status was 'consulting', changing to 'testing' might be good if not already?
-            // User requested: "Complete" -> Notify doctor (which is usually just data update + status change)
+            // 검사 완료 시 자동으로 진료실로 전환 (워크플로우 엔진)
+            if (complete) {
+                updates.status = 'consulting';
+                updates.statusChangedAt = serverTimestamp();
+            }
 
             await updateDoc(doc(db, 'visits', selectedVisit.id), updates);
 
             if (complete) {
-                alert('검사 결과가 저장되었습니다.');
+                alert(`검사 결과 저장 완료 → ${selectedVisit.patientName}님이 진료실로 이동합니다.`);
                 setSelectedVisit(null);
-            } else {
-                // Just save draft
             }
         } catch (e) {
             console.error(e);
@@ -164,14 +173,49 @@ export default function LaboratoryPage() {
                                 <p className="text-slate-800 font-medium">{selectedVisit.testOrder}</p>
                             </div>
 
-                            <label className="text-sm font-bold text-slate-700 block mb-2">검사 결과 / 판독 소견</label>
-                            <textarea
-                                value={resultText}
-                                onChange={(e) => setResultText(e.target.value)}
-                                className="w-full h-48 p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-lg"
-                                placeholder="결과 값을 입력하세요..."
-                                autoFocus
-                            />
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-sm font-bold text-slate-700">검사 결과 / 판독 소견</label>
+                                {voiceSupported && (
+                                    <button
+                                        onClick={() => toggleVoice()}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-all ${
+                                            isListening
+                                                ? 'bg-red-500 text-white shadow-lg shadow-red-200 animate-pulse'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700'
+                                        }`}
+                                    >
+                                        {isListening ? <Square className="w-3.5 h-3.5 fill-current" /> : <Mic className="w-3.5 h-3.5" />}
+                                        {isListening ? '음성 중지' : '음성 입력'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Interim transcript while listening */}
+                            {isListening && interimTranscript && (
+                                <div className="mb-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 text-sm animate-pulse">
+                                    {interimTranscript}
+                                </div>
+                            )}
+
+                            <div className="relative">
+                                <textarea
+                                    value={resultText}
+                                    onChange={(e) => setResultText(e.target.value)}
+                                    className={`w-full h-48 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 text-lg transition-colors ${
+                                        isListening
+                                            ? 'border-red-300 focus:ring-red-100 focus:border-red-400 bg-red-50/30'
+                                            : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500'
+                                    }`}
+                                    placeholder={isListening ? '음성으로 말씀하세요...' : '결과 값을 입력하세요...'}
+                                    autoFocus
+                                />
+                                {isListening && (
+                                    <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                                        <span className="text-xs text-red-500 font-bold">REC</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">

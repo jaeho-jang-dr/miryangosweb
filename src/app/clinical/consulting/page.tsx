@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase-clinical';
 import { startOfDay, subDays } from 'date-fns';
 import { Visit } from '@/types/clinical';
 import { useRouter } from 'next/navigation';
-import { Clock, User, ChevronRight, Activity, Calendar } from 'lucide-react';
+import { Clock, User, ChevronRight, Activity, Calendar, Mic } from 'lucide-react';
 
 export default function ConsultingPage() {
     const router = useRouter();
@@ -95,9 +95,20 @@ export default function ConsultingPage() {
                                             접수: {visit.date ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                                         </p>
                                     </div>
-                                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-md group-hover:bg-blue-700 transition-colors flex items-center gap-2">
-                                        차트 열기 <ChevronRight className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                router.push(`/clinical/voice-chart?visitId=${visit.id}&patientName=${encodeURIComponent(visit.patientName)}`);
+                                            }}
+                                            className="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:bg-purple-700 transition-colors flex items-center gap-2"
+                                        >
+                                            <Mic className="w-4 h-4" /> 음성진료
+                                        </button>
+                                        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-md group-hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                            차트 열기 <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )) : (
@@ -143,7 +154,19 @@ export default function ConsultingPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500" />
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(`/clinical/voice-chart?visitId=${visit.id}&patientName=${encodeURIComponent(visit.patientName)}`);
+                                        }}
+                                        className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors opacity-0 group-hover:opacity-100"
+                                        title="음성 진료"
+                                    >
+                                        <Mic className="w-4 h-4" />
+                                    </button>
+                                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500" />
+                                </div>
                             </div>
                         )) : (
                             <div className="p-8 text-center text-slate-400">

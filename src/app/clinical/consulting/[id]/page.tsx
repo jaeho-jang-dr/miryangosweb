@@ -9,8 +9,10 @@ import { Loader2, Mic, ArrowLeft, Save, Square, Play, Pause, ChevronDown, CheckC
 
 import { RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem, PHYSICAL_THERAPY_LIST, PHYSICAL_THERAPY_BUNDLES, TEST_GROUPS, PROCEDURE_GROUPS, MEDICATION_GROUPS, PT_GROUPS, SURGICAL_GROUPS } from '@/data/clinical-resources';
 import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressions';
+import { detectXrayCommand, buildXrayOrderText, XRAY_BODY_PARTS, getBodyPartsByRegion, XrayBodyPart, XrayViewOption, XrayDetectionResult } from '@/data/xray-view-options';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import ImageUpload from '@/components/image-upload';
+import { determineNextStatus, STATUS_LABELS } from '@/lib/workflow-engine';
 
 import PrescriptionModule from '@/components/clinical/PrescriptionModule';
 
@@ -40,6 +42,12 @@ export default function ConsultingDetailPage() {
     const [detectedOrders, setDetectedOrders] = useState<any[]>([]);
 
     const [symptomSuggestions, setSymptomSuggestions] = useState<SymptomExpression[]>([]);
+
+    // X-ray View Selection Popup State
+    const [xrayPopup, setXrayPopup] = useState<{
+        bodyPart: XrayBodyPart;
+        side: 'Lt' | 'Rt' | 'Both' | null;
+    } | null>(null);
 
     // KCD Search State
     interface KCDCode { code: string; ko: string; en: string; }
@@ -131,7 +139,7 @@ export default function ConsultingDetailPage() {
                 chiefComplaint: formData.cc,
                 testOrder: formData.test,
                 testResult: formData.testResult,
-                testStatus: formData.testResult.trim() ? 'completed' : (visit?.testStatus || 'ordered'),
+                testStatus: formData.testResult.trim() ? 'completed' : (formData.test.trim() ? (visit?.testStatus || 'ordered') : undefined),
                 diagnosis: formData.diagnosis,
                 treatmentNote: formData.plan,
                 orders: medicalOrders,
@@ -140,13 +148,32 @@ export default function ConsultingDetailPage() {
             };
 
             if (complete) {
-                updates.status = 'treatment';
+                // 워크플로우 엔진이 다음 상태를 자동 결정
+                const nextState = determineNextStatus({
+                    status: 'consulting',
+                    testOrder: formData.test,
+                    testResult: formData.testResult,
+                    testStatus: formData.testResult.trim() ? 'completed' : visit?.testStatus,
+                    treatmentNote: formData.plan,
+                    diagnosis: formData.diagnosis,
+                });
+
+                if (nextState) {
+                    updates.status = nextState.status;
+                    updates.statusChangedAt = serverTimestamp();
+                } else {
+                    // 오더가 없으면 기본적으로 치료실로
+                    updates.status = 'treatment';
+                    updates.statusChangedAt = serverTimestamp();
+                }
             }
 
             await updateDoc(docRef, updates);
 
             if (complete) {
-                alert("처치실로 이동되었습니다.");
+                const destLabel = updates.status === 'testing' ? '검사실' :
+                    updates.status === 'treatment' ? '치료실' : STATUS_LABELS[updates.status as keyof typeof STATUS_LABELS];
+                alert(`${destLabel}로 이동되었습니다.`);
                 router.push('/clinical/consulting');
             } else {
                 alert("저장되었습니다.");
@@ -164,6 +191,16 @@ export default function ConsultingDetailPage() {
     // STT Hook
     const { isListening, interimTranscript, toggle, isSupported } = useVoiceDictation({
         onFinalResult: (text) => {
+            // Check for X-ray voice commands first
+            const xrayResult = detectXrayCommand(text);
+            if (xrayResult) {
+                setXrayPopup({
+                    bodyPart: xrayResult.bodyPart,
+                    side: xrayResult.side,
+                });
+                return; // Don't append raw X-ray command text to field
+            }
+
             if (activeField) {
                 setFormData(prev => ({
                     ...prev,
@@ -198,6 +235,7 @@ export default function ConsultingDetailPage() {
                     if (data.status === 'reception') {
                         await updateDoc(docRef, {
                             status: 'consulting',
+                            statusChangedAt: serverTimestamp(),
                             startedAt: serverTimestamp()
                         });
                     }
@@ -301,11 +339,21 @@ export default function ConsultingDetailPage() {
 
                     <div className="w-px h-8 bg-slate-200 mx-2" />
 
+                    <button
+                        onClick={() => router.push(`/clinical/voice-chart?visitId=${visitId}&patientName=${encodeURIComponent(visit.patientName)}`)}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 text-white font-medium shadow-md"
+                    >
+                        <Mic className="w-4 h-4" /> 음성진료
+                    </button>
+
                     <button onClick={() => handleSave(false)} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-medium">
                         <Save className="w-4 h-4" /> 저장
                     </button>
                     <button onClick={() => handleSave(true)} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-emerald-600 rounded-lg hover:bg-emerald-700 text-white font-bold shadow-md">
-                        <CheckCircle className="w-4 h-4" /> 처치실로 보내기
+                        <CheckCircle className="w-4 h-4" />
+                        {formData.test.trim() && !formData.testResult.trim() && visit?.testStatus !== 'completed'
+                            ? '검사실로 보내기'
+                            : '치료실로 보내기'}
                     </button>
                 </div>
             </div>
@@ -632,6 +680,33 @@ export default function ConsultingDetailPage() {
                                                     SURGICAL_GROUPS);
                                     const subGroup = currentGroup.find(g => g.id === (activeSubGroupId || currentGroup[0].id));
 
+                                    // Special: Radiology sub-group shows expanded X-ray body parts
+                                    if (activeOrderGroup === 'test' && (subGroup?.id === 'radiology' || (!activeSubGroupId && currentGroup[0]?.id === 'radiology'))) {
+                                        const bodyPartsByRegion = getBodyPartsByRegion();
+                                        return (
+                                            <div className="space-y-4">
+                                                <h4 className="text-xs font-black text-slate-400 uppercase mb-2">방사선 검사 — 부위를 선택하세요</h4>
+                                                {Object.entries(bodyPartsByRegion).map(([region, parts]) => (
+                                                    <div key={region}>
+                                                        <h5 className="text-[10px] font-bold text-indigo-500 uppercase mb-2 border-b border-indigo-100 pb-1">{region}</h5>
+                                                        <div className="grid grid-cols-2 gap-1.5">
+                                                            {parts.map(part => (
+                                                                <button
+                                                                    key={part.id}
+                                                                    onClick={() => setXrayPopup({ bodyPart: part, side: null })}
+                                                                    className="text-left p-2.5 rounded-lg border border-slate-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+                                                                >
+                                                                    <p className="text-xs font-bold text-slate-700 group-hover:text-indigo-700">{part.nameKo}</p>
+                                                                    <p className="text-[10px] text-slate-400">{part.nameEn}</p>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    }
+
                                     return (
                                         <div className="space-y-3">
                                             <h4 className="text-xs font-black text-slate-400 uppercase mb-4">{subGroup?.label}</h4>
@@ -706,6 +781,94 @@ export default function ConsultingDetailPage() {
                                 value={kcdQuery}
                                 onChange={(e) => setKcdQuery(e.target.value)}
                             />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* X-ray View Selection Popup */}
+            {xrayPopup && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setXrayPopup(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                        <ClipboardList className="w-5 h-5 text-indigo-600" />
+                                        {xrayPopup.bodyPart.nameKo} X-ray
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mt-0.5">
+                                        {xrayPopup.bodyPart.nameEn} — 촬영 옵션을 선택하세요
+                                    </p>
+                                </div>
+                                <button onClick={() => setXrayPopup(null)} className="p-2 hover:bg-white rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-slate-400" />
+                                </button>
+                            </div>
+
+                            {/* Side Selection (only for sided body parts) */}
+                            {xrayPopup.bodyPart.sided && (
+                                <div className="flex gap-2 mt-3">
+                                    {(['Lt', 'Rt', 'Both'] as const).map(side => (
+                                        <button
+                                            key={side}
+                                            onClick={() => setXrayPopup(prev => prev ? { ...prev, side } : null)}
+                                            className={`flex-1 py-2 text-sm font-bold rounded-lg border-2 transition-all ${
+                                                xrayPopup.side === side
+                                                    ? 'border-indigo-500 bg-indigo-500 text-white shadow-md'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
+                                            }`}
+                                        >
+                                            {side === 'Lt' ? 'Lt (좌)' : side === 'Rt' ? 'Rt (우)' : 'Both (양측)'}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* View Options */}
+                        <div className="p-4 max-h-[50vh] overflow-y-auto">
+                            <div className="space-y-2">
+                                {xrayPopup.bodyPart.viewOptions.map(option => {
+                                    const sidePrefix = xrayPopup.side && xrayPopup.bodyPart.sided
+                                        ? `${xrayPopup.side} `
+                                        : '';
+                                    const fullText = `${sidePrefix}${xrayPopup.bodyPart.nameEn} ${option.label}`;
+
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            onClick={() => {
+                                                if (xrayPopup.bodyPart.sided && !xrayPopup.side) {
+                                                    alert('좌/우/양측을 먼저 선택해주세요.');
+                                                    return;
+                                                }
+                                                addOrder('test', fullText);
+                                                setXrayPopup(null);
+                                            }}
+                                            className="w-full text-left p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group flex items-center justify-between"
+                                        >
+                                            <div>
+                                                <p className="font-bold text-slate-700 group-hover:text-indigo-700 text-sm">
+                                                    {sidePrefix}{xrayPopup.bodyPart.nameEn} {option.label}
+                                                </p>
+                                            </div>
+                                            <Plus className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                            <button
+                                onClick={() => setXrayPopup(null)}
+                                className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 font-medium"
+                            >
+                                취소
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -21,15 +21,20 @@ interface DiagnosisSuggestion {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { transcript, visitType: requestedType } = body;
+    const { transcript, visitType: requestedType, mode } = body;
+
+    // mode: 'realtime' = 녹음 중 실시간 분석 (AI 1회만 호출)
+    //        'final'    = 녹음 완료 후 최종 분석 (전체 AI 호출)
+    //        undefined  = 기존 호환 (final과 동일)
+    const isRealtime = mode === 'realtime';
 
     if (!transcript || typeof transcript !== 'string' || transcript.trim().length === 0) {
       return NextResponse.json({ error: 'Transcript is required and must be a non-empty string' }, { status: 400 });
     }
 
-    // 1. Detect Visit Type
+    // 1. Detect Visit Type (실시간에서는 스킵 - visitType이 이미 지정됨)
     let visitType: 'initial' | 'followup' = requestedType === 'followup' ? 'followup' : 'initial';
-    if (!requestedType || requestedType === 'auto') {
+    if (!isRealtime && (!requestedType || requestedType === 'auto')) {
       try {
         visitType = await detectVisitType(transcript);
       } catch (e) {
@@ -38,7 +43,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Extract Information
+    // 2. Extract Information (핵심 - 항상 실행, AI 1회 호출)
     let chartData: InitialVisitChart | SoapNote | Record<string, unknown> = {};
     try {
       if (visitType === 'initial') {
@@ -48,42 +53,47 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       console.error('[AnalyzeChart] Chart extraction failed:', e);
-      throw e; // Propagate to the main catch block for 500 error
+      throw e;
     }
 
-    // 3. Generate Suggestions (non-critical, graceful degradation)
+    // 3~4: 실시간 모드에서는 추가 AI 호출 스킵 (쿼터 절약)
     let xrayRecommendations: XrayRecommendation[] = [];
     let diagnosisSuggestions: DiagnosisSuggestion[] = [];
+    let diarizedSegments: DiarizedSegment[] = [];
 
-    if (visitType === 'initial' && 'chiefComplaint' in chartData) {
-      const initialChart = chartData as unknown as InitialVisitChart;
-      const symptoms = initialChart.chiefComplaint?.complaint || '';
-      const location = initialChart.history?.painLocation?.join(', ') || symptoms;
+    if (!isRealtime) {
+      // 3. Generate Suggestions (non-critical, graceful degradation)
+      if (visitType === 'initial' && 'chiefComplaint' in chartData) {
+        const initialChart = chartData as unknown as InitialVisitChart;
+        const symptoms = initialChart.chiefComplaint?.complaint || '';
+        const location = initialChart.history?.painLocation?.join(', ') || symptoms;
 
-      // X-ray suggestions (non-critical)
-      if (symptoms || location) {
+        // X-ray suggestions (non-critical)
+        if (symptoms || location) {
+          try {
+            xrayRecommendations = await suggestXray(symptoms, location);
+          } catch (e) {
+            console.warn('[AnalyzeChart] X-ray suggestion failed:', e);
+          }
+        }
+
+        // Diagnosis suggestions (non-critical)
         try {
-          xrayRecommendations = await suggestXray(symptoms, location);
+          diagnosisSuggestions = await suggestDiagnosis(chartData);
         } catch (e) {
-          console.warn('[AnalyzeChart] X-ray suggestion failed:', e);
+          console.warn('[AnalyzeChart] Diagnosis suggestion failed:', e);
         }
       }
 
-      // Diagnosis suggestions (non-critical)
+      // 4. Speaker Diarization (non-critical)
       try {
-        diagnosisSuggestions = await suggestDiagnosis(chartData);
+        diarizedSegments = await identifySpeakers(transcript);
       } catch (e) {
-        console.warn('[AnalyzeChart] Diagnosis suggestion failed:', e);
+        console.warn('[AnalyzeChart] Speaker diarization failed:', e);
       }
     }
 
-    // 4. Speaker Diarization (non-critical)
-    let diarizedSegments: DiarizedSegment[] = [];
-    try {
-      diarizedSegments = await identifySpeakers(transcript);
-    } catch (e) {
-      console.warn('[AnalyzeChart] Speaker diarization failed:', e);
-    }
+    console.log(`[AnalyzeChart] 완료 (mode=${mode || 'final'}, AI호출=${isRealtime ? '1회' : '4~5회'})`);
 
     return NextResponse.json({
       visitType,
@@ -97,7 +107,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[AnalyzeChart] Critical error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const is429 = message.includes('429') || message.includes('Too Many Requests') || message.includes('quota');
+    console.error(`[AnalyzeChart] ${is429 ? 'Rate limit hit' : 'Critical error'}:`, message);
+    return NextResponse.json(
+      { error: message, rateLimited: is429 },
+      { status: is429 ? 429 : 500 }
+    );
   }
 }

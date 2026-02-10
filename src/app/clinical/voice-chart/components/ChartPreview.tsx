@@ -92,6 +92,17 @@ function InitialChartView({ chart, onChange }: { chart: InitialVisitChart, onCha
                 status={chart.history.onsetDate ? 'complete' : 'pending'}
             />
             <EditableSection
+                icon="📍"
+                title="통증 부위 (Pain Location)"
+                value={chart.history.painLocation?.join(', ') || ''}
+                onChange={(v) => {
+                    const locations = v.split(',').map(s => s.trim()).filter(Boolean);
+                    const newChart = { ...chart, history: { ...chart.history, painLocation: locations } };
+                    onChange?.(newChart);
+                }}
+                status={chart.history.painLocation?.length ? 'complete' : 'pending'}
+            />
+            <EditableSection
                 icon="💥"
                 title="외상력 (Trauma History)"
                 value={chart.history.traumaHistory || ''}
@@ -111,6 +122,17 @@ function InitialChartView({ chart, onChange }: { chart: InitialVisitChart, onCha
                 value={chart.occupationalHistory.occupation || ''}
                 onChange={(v) => updateField(['occupationalHistory', 'occupation'], v)}
                 status={chart.occupationalHistory.occupation ? 'complete' : 'pending'}
+            />
+            <EditableSection
+                icon="🏃"
+                title="운동 습관"
+                value={chart.occupationalHistory.exercises?.join(', ') || ''}
+                onChange={(v) => {
+                    const exercises = v.split(',').map(s => s.trim()).filter(Boolean);
+                    const newChart = { ...chart, occupationalHistory: { ...chart.occupationalHistory, exercises } };
+                    onChange?.(newChart);
+                }}
+                status={chart.occupationalHistory.exercises?.length ? 'complete' : 'pending'}
             />
             <EditableSection
                 icon="📸"

@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, onSnapshot, getDocs, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
-import { Users, Clock, AlertCircle, Calendar, FileText, Activity, Stethoscope } from 'lucide-react';
+import { Users, Clock, Calendar, FileText, Activity, Stethoscope, Wrench, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { startOfDay, subDays } from 'date-fns';
-import { Visit } from '@/types/clinical';
+import { Visit, Patient } from '@/types/clinical';
 
 export default function ClinicalDashboard() {
     const [stats, setStats] = useState({
@@ -18,6 +18,57 @@ export default function ClinicalDashboard() {
     });
     const [waitingList, setWaitingList] = useState<Visit[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // DEV TOOLS
+    const [devOpen, setDevOpen] = useState(false);
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [patientsLoading, setPatientsLoading] = useState(false);
+
+    const loadPatients = async () => {
+        setPatientsLoading(true);
+        try {
+            const snap = await getDocs(collection(db, 'patients'));
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Patient[];
+            setPatients(list);
+        } catch (e) {
+            console.error('환자 목록 로드 실패:', e);
+        } finally {
+            setPatientsLoading(false);
+        }
+    };
+
+    const sendToStatus = async (patient: Patient, status: 'reception' | 'consulting') => {
+        try {
+            await addDoc(collection(db, 'visits'), {
+                patientId: patient.id,
+                patientName: patient.name,
+                status,
+                type: 'return',
+                date: serverTimestamp(),
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            });
+        } catch (e) {
+            alert('접수 실패: ' + (e as Error).message);
+        }
+    };
+
+    const changeVisitStatus = async (visitId: string, status: string) => {
+        try {
+            await updateDoc(doc(db, 'visits', visitId), { status, updatedAt: serverTimestamp() });
+        } catch (e) {
+            alert('상태 변경 실패: ' + (e as Error).message);
+        }
+    };
+
+    const deleteVisit = async (visitId: string) => {
+        try {
+            await deleteDoc(doc(db, 'visits', visitId));
+        } catch (e) {
+            alert('삭제 실패: ' + (e as Error).message);
+        }
+    };
+
     // ...
     useEffect(() => {
         // Real-time subscription to visits (Matching Reception Page's 7-day window)
@@ -51,7 +102,7 @@ export default function ClinicalDashboard() {
     }, []);
 
     // Helper for formatting time
-    const formatTime = (timestamp: any) => {
+    const formatTime = (timestamp: { toDate?: () => Date; seconds?: number }) => {
         if (!timestamp) return '-';
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -200,11 +251,103 @@ export default function ClinicalDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* DEV TOOLS 패널 */}
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                <button
+                    onClick={() => { setDevOpen(!devOpen); if (!devOpen && patients.length === 0) loadPatients(); }}
+                    className="w-full px-6 py-4 flex items-center justify-between text-white hover:bg-slate-700 transition-colors"
+                >
+                    <div className="flex items-center gap-2">
+                        <Wrench className="w-5 h-5 text-amber-400" />
+                        <span className="font-bold">DEV TOOLS</span>
+                        <span className="text-xs text-slate-400 ml-2">환자 접수/상태 관리</span>
+                    </div>
+                    {devOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                </button>
+
+                {devOpen && (
+                    <div className="px-6 pb-6 space-y-6">
+                        {/* 등록된 환자 → 접수/진료 보내기 */}
+                        <div>
+                            <h4 className="text-sm font-bold text-amber-400 mb-3 flex items-center justify-between">
+                                등록된 환자 목록
+                                <button onClick={loadPatients} className="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-700 rounded">
+                                    {patientsLoading ? '로딩...' : '새로고침'}
+                                </button>
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                                {patients.map(p => (
+                                    <div key={p.id} className="bg-slate-700 rounded-lg p-3 flex items-center justify-between">
+                                        <div>
+                                            <span className="text-white font-bold text-sm">{p.name}</span>
+                                            <span className="text-slate-400 text-xs ml-2">{p.birthDate}</span>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => sendToStatus(p, 'reception')}
+                                                className="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded transition-colors"
+                                            >
+                                                접수
+                                            </button>
+                                            <button
+                                                onClick={() => sendToStatus(p, 'consulting')}
+                                                className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded transition-colors"
+                                            >
+                                                진료
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {patients.length === 0 && !patientsLoading && (
+                                    <div className="col-span-3 text-center text-slate-500 py-4">등록된 환자가 없습니다</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 현재 대기/진료 중 환자 상태 변경 */}
+                        <div>
+                            <h4 className="text-sm font-bold text-emerald-400 mb-3">현재 활성 방문 (상태 변경/삭제)</h4>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {waitingList.filter(v => !['paid'].includes(v.status)).map(v => (
+                                    <div key={v.id} className="bg-slate-700 rounded-lg p-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-white font-bold text-sm">{v.patientName}</span>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                                                v.status === 'reception' ? 'bg-yellow-500/20 text-yellow-300' :
+                                                v.status === 'consulting' ? 'bg-blue-500/20 text-blue-300' :
+                                                v.status === 'treatment' ? 'bg-green-500/20 text-green-300' :
+                                                v.status === 'testing' ? 'bg-orange-500/20 text-orange-300' :
+                                                'bg-slate-500/20 text-slate-300'
+                                            }`}>
+                                                {v.status === 'reception' ? '접수' : v.status === 'consulting' ? '진료' : v.status === 'treatment' ? '치료' : v.status === 'testing' ? '검사' : v.status}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => changeVisitStatus(v.id, 'reception')} className="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded">접수</button>
+                                            <button onClick={() => changeVisitStatus(v.id, 'consulting')} className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded">진료</button>
+                                            <button onClick={() => changeVisitStatus(v.id, 'treatment')} className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded">치료</button>
+                                            <button onClick={() => changeVisitStatus(v.id, 'testing')} className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded">검사</button>
+                                            <button onClick={() => changeVisitStatus(v.id, 'completed')} className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded">수납</button>
+                                            <button onClick={() => deleteVisit(v.id)} className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded">
+                                                <Trash2 className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {waitingList.filter(v => !['paid'].includes(v.status)).length === 0 && (
+                                    <div className="text-center text-slate-500 py-4">활성 방문이 없습니다</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
 
-function StatCard({ title, value, subtext, icon, color }: any) {
+function StatCard({ title, value, subtext, icon, color }: { title: string; value: string; subtext: string; icon: React.ReactNode; color: string }) {
     return (
         <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-start justify-between relative overflow-hidden group hover:border-${color}-200 transition-all`}>
             <div className={`absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-10 transition-opacity bg-${color}-500/20 rounded-bl-3xl w-24 h-24 -mr-4 -mt-4 pointer-events-none`}></div>

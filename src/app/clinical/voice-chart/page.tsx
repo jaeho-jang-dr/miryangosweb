@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AudioRecorderComponent } from './components/AudioRecorderComponent';
 import { LiveTranscript } from './components/LiveTranscript';
 import { ChartPreview } from './components/ChartPreview';
@@ -12,14 +13,10 @@ import { createEmptyInitialChart } from '@/lib/medical/templates/initial-visit-t
 import Link from 'next/link';
 import type { DiarizedSegment } from '@/lib/medical/speaker-diarization';
 import { db, storage } from '@/lib/firebase-clinical';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Types for API responses
-interface TranscriptionResponse {
-    segments: { text: string; timestamp: string; }[];
-}
-
 interface AnalysisResponse {
     visitType: 'initial' | 'followup';
     chartData: InitialVisitChart | SoapNote;
@@ -31,6 +28,10 @@ interface AnalysisResponse {
 }
 
 export default function VoiceChartPage() {
+    const searchParams = useSearchParams();
+    const visitIdParam = searchParams.get('visitId');
+    const patientNameParam = searchParams.get('patientName');
+
     const [visitType, setVisitType] = useState<'initial' | 'followup'>('initial');
     const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>([]);
     const [recordingState, setRecordingState] = useState<RecordingState>({
@@ -39,53 +40,101 @@ export default function VoiceChartPage() {
         duration: 0
     });
     const [chart, setChart] = useState<InitialVisitChart | SoapNote | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'uploading' | 'saving' | 'completed' | 'error'>('idle');
-    const [patientId] = useState('demo-patient-001'); // TODO: 실제 환자 ID 연동
+    const [patientId] = useState(visitIdParam || 'demo-patient-001');
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [recognition, setRecognition] = useState<any>(null);
-    const [lastAnalyzedLength, setLastAnalyzedLength] = useState(0);
+    const [autoAnalyzeCount, setAutoAnalyzeCount] = useState(0);
+
+    // Refs for auto-analyze timer
     const autoAnalyzeTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const isAutoAnalyzingRef = useRef(false);
+    const isAnalyzingRef = useRef(false);
+    const transcriptSegmentsRef = useRef<TranscriptSegment[]>([]);
+    const lastAnalyzedLengthRef = useRef(0);
 
-    // ── 실시간 차트 분석 함수 (재사용) ──
-    const analyzeAndUpdateChart = useCallback(async (transcript: string) => {
-        if (!transcript.trim() || isAutoAnalyzingRef.current) return;
+    // Keep ref in sync with state
+    useEffect(() => {
+        transcriptSegmentsRef.current = transcriptSegments;
+    }, [transcriptSegments]);
 
-        isAutoAnalyzingRef.current = true;
-        setIsGenerating(true);
+    // ── 트랜스크립트를 발화 단위로 포맷팅 (AI 분석용) ──
+    const formatTranscriptForAI = useCallback((segments: TranscriptSegment[]) => {
+        const finalSegments = segments.filter(s => s.isFinal);
+        return finalSegments.map((s, i) => `발화 ${i + 1}: ${s.text}`).join('\n');
+    }, []);
+
+    // ── 녹음된 텍스트를 차트에 바로 넣기 (AI 없이) ──
+    const createChartFromTranscript = useCallback((segments: TranscriptSegment[]) => {
+        const rawText = segments.filter(s => s.isFinal).map(s => s.text).join(' ');
+        if (!rawText.trim()) return;
+
+        const newChart = createEmptyInitialChart(patientId);
+        newChart.chiefComplaint.complaint = rawText;
+        newChart.rawTranscript = rawText;
+        setChart(newChart);
+        setAnalysisStatus('idle');
+    }, [patientId]);
+
+    // ── AI 분석 (수동 버튼) ──
+    const handleAIAnalyze = useCallback(async () => {
+        const finalSegments = transcriptSegments.filter(s => s.isFinal);
+        if (finalSegments.length === 0) {
+            alert('분석할 대화 내용이 없습니다. 먼저 녹음해주세요.');
+            return;
+        }
+
+        setIsAnalyzing(true);
+        setAnalysisStatus('analyzing');
 
         try {
-            const analysisResponse = await fetch('/api/clinical/analyze-chart', {
+            const formattedTranscript = formatTranscriptForAI(transcriptSegments);
+
+            const response = await fetch('/api/clinical/analyze-chart', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    transcript,
-                    visitType
+                    transcript: formattedTranscript,
+                    visitType,
+                    mode: 'final'
                 })
             });
 
-            if (!analysisResponse.ok) {
-                console.warn('[AutoChart] AI 분석 실패:', analysisResponse.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[AI분석] 실패:', response.status, errorText);
+                setAnalysisStatus('error');
+
+                if (response.status === 429) {
+                    alert('AI API 사용량 초과입니다. 잠시 후 다시 시도하세요.\n차트를 수동으로 편집할 수 있습니다.');
+                } else {
+                    alert('AI 분석에 실패했습니다. 차트를 수동으로 편집해주세요.');
+                }
                 return;
             }
 
-            const analysisData = await analysisResponse.json() as AnalysisResponse;
-            console.log('[AutoChart] AI 실시간 분석 완료:', analysisData);
+            const analysisData = await response.json() as AnalysisResponse;
+            console.log('[AI분석] 성공:', analysisData);
 
+            // 분석 결과 차트에 반영
             if (analysisData.visitType === 'initial') {
                 const baseChart = createEmptyInitialChart(patientId);
                 const aiChart = analysisData.chartData as InitialVisitChart;
+                // 원본 텍스트 보존
+                const rawText = transcriptSegments.filter(s => s.isFinal).map(s => s.text).join(' ');
 
                 const mergedChart: InitialVisitChart = {
                     ...baseChart,
                     ...aiChart,
                     chiefComplaint: { ...baseChart.chiefComplaint, ...aiChart.chiefComplaint },
                     history: { ...baseChart.history, ...aiChart.history },
+                    occupationalHistory: { ...baseChart.occupationalHistory, ...aiChart.occupationalHistory },
                     physicalExam: { ...baseChart.physicalExam, ...aiChart.physicalExam },
                     imagingPlan: { ...baseChart.imagingPlan, ...aiChart.imagingPlan },
-                    diagnosis: { ...baseChart.diagnosis, ...aiChart.diagnosis }
+                    diagnosis: { ...baseChart.diagnosis, ...aiChart.diagnosis },
+                    rawTranscript: rawText
                 };
 
                 if (analysisData.suggestions?.xray?.length) {
@@ -120,43 +169,100 @@ export default function VoiceChartPage() {
                 }));
                 setTranscriptSegments(newSegments);
             }
+
+            setAnalysisStatus('success');
         } catch (error) {
-            console.warn('[AutoChart] 실시간 분석 에러:', error);
+            console.error('[AI분석] 에러:', error);
+            setAnalysisStatus('error');
+            alert('AI 분석 중 오류가 발생했습니다. 차트를 수동으로 편집해주세요.');
         } finally {
-            setIsGenerating(false);
-            isAutoAnalyzingRef.current = false;
+            setIsAnalyzing(false);
+        }
+    }, [transcriptSegments, visitType, patientId, formatTranscriptForAI]);
+
+    // ── 실시간 자동 분석 (30초마다, realtime 모드 = API 1회) ──
+    const runRealtimeAnalysis = useCallback(async () => {
+        const segments = transcriptSegmentsRef.current;
+        const finalSegments = segments.filter(s => s.isFinal);
+
+        // 새 발화가 없으면 스킵
+        if (finalSegments.length <= lastAnalyzedLengthRef.current || finalSegments.length < 2) return;
+        if (isAnalyzingRef.current) return;
+
+        isAnalyzingRef.current = true;
+        setIsAnalyzing(true);
+        setAnalysisStatus('analyzing');
+
+        try {
+            const formatted = finalSegments.map((s, i) => `발화 ${i + 1}: ${s.text}`).join('\n');
+            const response = await fetch('/api/clinical/analyze-chart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transcript: formatted, visitType, mode: 'realtime' })
+            });
+
+            if (response.ok) {
+                const data = await response.json() as AnalysisResponse;
+                console.log('[자동분석] 실시간 결과:', data);
+
+                if (data.visitType === 'initial') {
+                    const baseChart = createEmptyInitialChart(patientId);
+                    const aiChart = data.chartData as InitialVisitChart;
+                    const rawText = finalSegments.map(s => s.text).join(' ');
+                    setChart({
+                        ...baseChart,
+                        ...aiChart,
+                        chiefComplaint: { ...baseChart.chiefComplaint, ...aiChart.chiefComplaint },
+                        history: { ...baseChart.history, ...aiChart.history },
+                        occupationalHistory: { ...baseChart.occupationalHistory, ...aiChart.occupationalHistory },
+                        physicalExam: { ...baseChart.physicalExam, ...aiChart.physicalExam },
+                        imagingPlan: { ...baseChart.imagingPlan, ...aiChart.imagingPlan },
+                        diagnosis: { ...baseChart.diagnosis, ...aiChart.diagnosis },
+                        rawTranscript: rawText
+                    });
+                }
+
+                lastAnalyzedLengthRef.current = finalSegments.length;
+                setAutoAnalyzeCount(prev => prev + 1);
+                setAnalysisStatus('success');
+            } else {
+                console.warn('[자동분석] 실패:', response.status);
+                setAnalysisStatus('error');
+            }
+        } catch (e) {
+            console.warn('[자동분석] 에러:', e);
+            setAnalysisStatus('error');
+        } finally {
+            isAnalyzingRef.current = false;
+            setIsAnalyzing(false);
         }
     }, [visitType, patientId]);
 
-    // ── 실시간 자동 차트 생성 (디바운스 5초) ──
+    // ── 녹음 중 30초 타이머 ──
     useEffect(() => {
-        // 녹음 중이 아니면 무시
-        if (!recordingState.isRecording) return;
+        if (recordingState.isRecording && !recordingState.isPaused) {
+            // 녹음 시작 시 카운터 리셋
+            lastAnalyzedLengthRef.current = 0;
+            setAutoAnalyzeCount(0);
 
-        const finalSegments = transcriptSegments.filter(s => s.isFinal);
-        const currentText = finalSegments.map(s => s.text).join(' ');
+            autoAnalyzeTimerRef.current = setInterval(() => {
+                runRealtimeAnalysis();
+            }, 30000); // 30초마다
 
-        // 새로운 내용이 충분히 추가되었을 때만 분석 (최소 30자 이상 새로운 내용)
-        if (currentText.length - lastAnalyzedLength < 30) return;
-
-        // 기존 타이머 취소
-        if (autoAnalyzeTimerRef.current) {
-            clearTimeout(autoAnalyzeTimerRef.current);
-        }
-
-        // 5초 디바운스 후 분석 실행
-        autoAnalyzeTimerRef.current = setTimeout(() => {
-            console.log(`[AutoChart] 디바운스 트리거 - 텍스트 길이: ${currentText.length} (이전: ${lastAnalyzedLength})`);
-            setLastAnalyzedLength(currentText.length);
-            void analyzeAndUpdateChart(currentText);
-        }, 5000);
-
-        return () => {
+            return () => {
+                if (autoAnalyzeTimerRef.current) {
+                    clearInterval(autoAnalyzeTimerRef.current);
+                    autoAnalyzeTimerRef.current = null;
+                }
+            };
+        } else {
+            // 녹음 정지 시 타이머 해제
             if (autoAnalyzeTimerRef.current) {
-                clearTimeout(autoAnalyzeTimerRef.current);
+                clearInterval(autoAnalyzeTimerRef.current);
+                autoAnalyzeTimerRef.current = null;
             }
-        };
-    }, [transcriptSegments, recordingState.isRecording, lastAnalyzedLength, analyzeAndUpdateChart]);
+        }
+    }, [recordingState.isRecording, recordingState.isPaused, runRealtimeAnalysis]);
 
     // Initialize Web Speech Recognition
     useEffect(() => {
@@ -165,8 +271,6 @@ export default function VoiceChartPage() {
                 try {
                     const speechRecognition = new WebSpeechRecognition((segment) => {
                         setTranscriptSegments(prev => {
-                            // Filter out existing temporary segments if new one is final
-                            // or replace the last temporary segment
                             const filtered = prev.filter(p => p.isFinal);
                             return [...filtered, segment];
                         });
@@ -182,7 +286,6 @@ export default function VoiceChartPage() {
     // Handle recording state changes to toggle recognition
     const handleStateChange = useCallback((state: RecordingState) => {
         setRecordingState(state);
-        // Toggle recognition based on recording state
         if (state.isRecording && !state.isPaused) {
             recognition?.start();
         } else {
@@ -190,156 +293,19 @@ export default function VoiceChartPage() {
         }
     }, [recognition]);
 
-    // 녹음 완료 시 음성 인식 및 차트 생성
-    const handleRecordingComplete = useCallback(async (audioBlob: Blob) => {
+    // ── 녹음 완료: AI 호출 없이 텍스트만 차트에 넣기 ──
+    const handleRecordingComplete = useCallback((audioBlob: Blob) => {
         console.log('[VoiceChart] 녹음 완료:', audioBlob.size, 'bytes');
         setRecordedBlob(audioBlob);
 
-        try {
-            setIsGenerating(true);
+        // 즉시 텍스트를 차트에 넣기 (AI 호출 안 함)
+        createChartFromTranscript(transcriptSegments);
+    }, [transcriptSegments, createChartFromTranscript]);
 
-            let fullTranscript = '';
+    // 오디오 청크 수신
+    const handleAudioChunk = useCallback(() => {}, []);
 
-            // 1. 이미 실시간 인식된 텍스트가 있는지 확인 (Web Speech API)
-            // isFinal이 아닌 임시 텍스트도 포함할지 여부는 선택사항이나, 
-            // 녹음 종료 시점에는 보통 isFinal이 완료되었거나 마지막 청크로 남음.
-            if (transcriptSegments.length > 0) {
-                fullTranscript = transcriptSegments
-                    .map(s => s.text)
-                    .join(' ');
-                console.log('[VoiceChart] 실시간 인식 결과 사용:', fullTranscript);
-            }
-
-            // 2. 실시간 결과가 없으면 서버 STT API 호출 (Fallback)
-            if (!fullTranscript.trim()) {
-                console.log('[VoiceChart] 실시간 결과 없음, 서버 STT API 호출...');
-                const formData = new FormData();
-                formData.append('audio', audioBlob);
-                formData.append('config', JSON.stringify({
-                    languageCode: 'ko-KR',
-                    enableMedicalVocabulary: true
-                }));
-
-                const response = await fetch('/api/voice/transcribe', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error('음성 인식 실패');
-                }
-
-                const data = await response.json() as TranscriptionResponse;
-                fullTranscript = data.segments.map((s) => s.text).join(' ');
-                console.log('[VoiceChart] 서버 STT 결과 사용:', data);
-            }
-
-            if (!fullTranscript.trim()) {
-                alert('인식된 음성이 없습니다. 다시 시도해주세요.');
-                return;
-            }
-
-            // 3. AI로 차트 생성 (Phase 2 Implement)
-            const analysisResponse = await fetch('/api/clinical/analyze-chart', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    transcript: fullTranscript,
-                    visitType: visitType
-                })
-            });
-
-            if (!analysisResponse.ok) {
-                console.error('AI Analysis failed:', await analysisResponse.text());
-                // Fallback to empty chart
-                if (!chart) {
-                    const newChart = createEmptyInitialChart(patientId);
-                    newChart.chiefComplaint.complaint = fullTranscript;
-                    setChart(newChart);
-                }
-            } else {
-                const analysisData = await analysisResponse.json() as AnalysisResponse;
-                console.log('[VoiceChart] AI Analysis Result:', analysisData);
-                
-                // Update chart state with AI extracted data
-                if (analysisData.visitType === 'initial') {
-                    // Start with empty chart to ensure structure
-                    const baseChart = createEmptyInitialChart(patientId);
-                    const aiChart = analysisData.chartData as InitialVisitChart;
-
-                    // Merge AI data
-                    const mergedChart: InitialVisitChart = {
-                        ...baseChart,
-                        ...aiChart,
-                        chiefComplaint: { ...baseChart.chiefComplaint, ...aiChart.chiefComplaint },
-                        history: { ...baseChart.history, ...aiChart.history },
-                        physicalExam: { ...baseChart.physicalExam, ...aiChart.physicalExam },
-                        imagingPlan: { ...baseChart.imagingPlan, ...aiChart.imagingPlan },
-                        diagnosis: { ...baseChart.diagnosis, ...aiChart.diagnosis }
-                    };
-                    
-                    // Add X-ray recommendations to Imaging Plan (Phase 3)
-                    if (analysisData.suggestions?.xray?.length) {
-                        const xrayViews = analysisData.suggestions.xray.flatMap(rec => rec.views);
-                        // Merge with existing xrayViews, avoiding duplicates
-                        const existingViews = mergedChart.imagingPlan.xrayViews || [];
-                        mergedChart.imagingPlan.xrayViews = Array.from(new Set([...existingViews, ...xrayViews]));
-                        
-                        // Add reasons
-                        const reasons = analysisData.suggestions.xray.map(rec => rec.reason).join(', ');
-                         if (!mergedChart.imagingPlan.reason) {
-                            mergedChart.imagingPlan.reason = reasons;
-                        } else {
-                            mergedChart.imagingPlan.reason += `, ${reasons}`;
-                        }
-                    }
-
-                    // Add Diagnosis suggestions (Phase 3)
-                    if (analysisData.suggestions?.diagnosis?.length) {
-                        const diagnoses = analysisData.suggestions.diagnosis.map(dx => `${dx.icd10Code} ${dx.name}`);
-                        const existingDx = mergedChart.diagnosis.suspectedDiagnosis || [];
-                        mergedChart.diagnosis.suspectedDiagnosis = Array.from(new Set([...existingDx, ...diagnoses]));
-                    }
-
-                    setChart(mergedChart);
-                } else {
-                    // Use SOAP note structure (Assuming createEmptySoapNote exists or just use analysisData)
-                    // For now heavily relying on AI structure
-                    setChart(analysisData.chartData);
-                }
-
-                // Update transcript with diarized segments (Phase 4)
-                if (analysisData.diarizedSegments && analysisData.diarizedSegments.length > 0) {
-                    const newSegments: TranscriptSegment[] = analysisData.diarizedSegments.map((seg) => ({
-                        text: seg.text,
-                        confidence: 1.0,
-                        isFinal: true,
-                        timestamp: new Date(), // Timestamp approximate
-                        speaker: seg.speaker
-                    }));
-                    setTranscriptSegments(newSegments);
-                }
-            }
-
-        } catch (error: unknown) {
-            const err = error as Error;
-            console.error('[VoiceChart] 에러:', err);
-            alert('음성 인식 중 오류가 발생했습니다: ' + err.message);
-        } finally {
-            setIsGenerating(false);
-        }
-    }, [chart, patientId, visitType, transcriptSegments]); // Added visitType dependency
-
-
-    // 오디오 청크 수신 (실시간 스트리밍용 - Phase 2)
-    const handleAudioChunk = useCallback(() => {
-        // console.log('[VoiceChart] 오디오 청크:', chunk.size);
-        // TODO: 실시간 음성 인식 구현
-    }, []);
-
-    // 차트 저장
+    // 차트 저장 (Firestore — visits 컬렉션에 업데이트)
     const handleSaveChart = async () => {
         if (!chart) {
             alert('저장할 차트가 없습니다.');
@@ -351,70 +317,109 @@ export default function VoiceChartPage() {
         try {
             let audioUrl = null;
 
-            // 오디오 파일 업로드
             if (recordedBlob) {
                 const timestamp = Date.now();
                 const storageRef = ref(storage, `voice-charts/${patientId}/${timestamp}.webm`);
-                
                 const metadata = {
                     contentType: 'audio/webm',
-                    customMetadata: {
-                        patientId: patientId,
-                        visitType: visitType
-                    }
+                    customMetadata: { patientId, visitType }
                 };
 
-                // 간단한 재시도 로직 (3회)
                 let uploadSuccess = false;
                 let retryCount = 0;
                 while (!uploadSuccess && retryCount < 3) {
                     try {
-                        console.log(`Uploading audio (Attempt ${retryCount + 1})...`);
                         const snapshot = await uploadBytes(storageRef, recordedBlob, metadata);
                         audioUrl = await getDownloadURL(snapshot.ref);
                         uploadSuccess = true;
-                        console.log('[VoiceChart] Audio uploaded:', audioUrl);
                     } catch (e) {
-                         console.warn(`Upload failed (Attempt ${retryCount + 1}):`, e);
-                         retryCount++;
-                         if (retryCount >= 3) throw e;
-                         await new Promise(r => setTimeout(r, 1000)); // 1초 대기 후 재시도
+                        retryCount++;
+                        if (retryCount >= 3) throw e;
+                        await new Promise(r => setTimeout(r, 1000));
                     }
                 }
             }
 
             setSaveStatus('saving');
 
-            const chartData = {
-                ...chart,
-                transcriptSegments, 
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                status: 'completed',
-                audioUrl: audioUrl
-            };
+            // InitialVisitChart → Visit 필드로 변환
+            const initialChart = chart as InitialVisitChart;
+            const cc = initialChart.chiefComplaint?.complaint || '';
+            const history = [
+                initialChart.history?.onsetDate ? `발병: ${initialChart.history.onsetDate}` : '',
+                initialChart.history?.traumaHistory ? `외상: ${initialChart.history.traumaHistory}` : '',
+                initialChart.history?.surgeryHistory ? `수술: ${initialChart.history.surgeryHistory}` : '',
+                initialChart.history?.painLocation?.length ? `부위: ${initialChart.history.painLocation.join(', ')}` : '',
+                initialChart.occupationalHistory?.occupation ? `직업: ${initialChart.occupationalHistory.occupation}` : '',
+                initialChart.occupationalHistory?.exercises?.length ? `운동: ${initialChart.occupationalHistory.exercises.join(', ')}` : '',
+            ].filter(Boolean).join('\n');
 
-            // Firestore에 저장
-            const docRef = await addDoc(collection(db, 'charts'), chartData);
-            console.log('[VoiceChart] 차트 저장 완료:', docRef.id);
-            
-            setSaveStatus('completed');
-            alert(`차트가 성공적으로 저장되었습니다.\n문서 ID: ${docRef.id}`);
-            
-            if (confirm('저장이 완료되었습니다. 새로운 진료를 시작하시겠습니까?')) {
-                handleReset();
+            const xrayViews = initialChart.imagingPlan?.xrayViews || [];
+            const testOrder = xrayViews.join(', ');
+            const diagnosis = initialChart.diagnosis?.suspectedDiagnosis?.join(', ') || '';
+            const rawTranscript = transcriptSegments.filter(s => s.isFinal).map(s => s.text).join(' ');
+
+            // visitId가 있으면 visits 컬렉션 업데이트 (진료실 연동)
+            if (visitIdParam) {
+                const visitRef = doc(db, 'visits', visitIdParam);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const visitUpdate: Record<string, any> = {
+                    chiefComplaint: cc,
+                    history: history,
+                    diagnosis: diagnosis,
+                    treatmentNote: initialChart.physicalExam?.inspection || '',
+                    updatedAt: serverTimestamp(),
+                    voiceChartAudioUrl: audioUrl,
+                    voiceChartRawTranscript: rawTranscript,
+                };
+
+                // X-ray 오더가 있으면 검사실로 전달
+                if (testOrder) {
+                    visitUpdate.testOrder = testOrder;
+                    visitUpdate.testStatus = 'ordered';
+                }
+
+                await updateDoc(visitRef, visitUpdate);
+                console.log('[VoiceChart] Visit 업데이트 완료:', visitIdParam);
+
+                setSaveStatus('completed');
+                alert('차트가 환자 기록에 저장되었습니다.' + (testOrder ? `\n검사 오더: ${testOrder}` : ''));
+
+                if (confirm('진료실로 돌아가시겠습니까?')) {
+                    window.location.href = `/clinical/consulting/${visitIdParam}`;
+                }
+            } else {
+                // visitId 없으면 별도 charts 컬렉션에 저장 (독립 모드)
+                const chartData = {
+                    ...chart,
+                    chiefComplaint: cc,
+                    history,
+                    testOrder,
+                    diagnosis,
+                    transcriptSegments,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    status: 'completed',
+                    audioUrl
+                };
+
+                const newDocRef = await addDoc(collection(db, 'charts'), chartData);
+                console.log('[VoiceChart] 차트 저장 완료:', newDocRef.id);
+
+                setSaveStatus('completed');
+                alert(`차트가 저장되었습니다. (ID: ${newDocRef.id})`);
+
+                if (confirm('새로운 진료를 시작하시겠습니까?')) {
+                    handleReset();
+                }
             }
-
         } catch (error: unknown) {
             setSaveStatus('error');
             const err = error as Error;
             console.error('차트 저장 실패:', err);
             alert('차트 저장 실패: ' + err.message);
         } finally {
-             // 3초 후 상태 초기화 (에러나 완료 상태를 잠시 보여주기 위함)
-             if (saveStatus !== 'error') {
-                 setTimeout(() => setSaveStatus('idle'), 3000);
-             }
+            setTimeout(() => setSaveStatus('idle'), 3000);
         }
     };
 
@@ -424,11 +429,13 @@ export default function VoiceChartPage() {
             setTranscriptSegments([]);
             setChart(null);
             setRecordedBlob(null);
-            setIsGenerating(false);
+            setIsAnalyzing(false);
+            setAnalysisStatus('idle');
             setSaveStatus('idle');
-            setLastAnalyzedLength(0);
         }
     };
+
+    const hasTranscript = transcriptSegments.filter(s => s.isFinal).length > 0;
 
     return (
         <div className="min-h-screen bg-slate-50 p-6">
@@ -438,7 +445,7 @@ export default function VoiceChartPage() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Link
-                                href="/clinical"
+                                href={visitIdParam ? `/clinical/consulting/${visitIdParam}` : '/clinical'}
                                 className="text-slate-600 hover:text-slate-900 transition-colors"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,11 +453,16 @@ export default function VoiceChartPage() {
                                 </svg>
                             </Link>
                             <div>
-                                <h1 className="text-3xl font-bold text-slate-900">
+                                <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
                                     🎙️ 음성 인식 진료 차트
+                                    {patientNameParam && (
+                                        <span className="text-lg font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                                            {patientNameParam}
+                                        </span>
+                                    )}
                                 </h1>
                                 <p className="text-slate-600 mt-1">
-                                    대화를 듣고 자동으로 차트를 작성합니다
+                                    대화를 녹음하고, AI 분석 또는 수동으로 차트를 작성합니다
                                 </p>
                             </div>
                         </div>
@@ -485,29 +497,77 @@ export default function VoiceChartPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* 왼쪽: 녹음 및 대화 내용 */}
                     <div className="space-y-6">
-                        {/* 녹음 컨트롤 */}
                         <AudioRecorderComponent
                             onRecordingComplete={(blob: Blob) => {
-                                void handleRecordingComplete(blob);
+                                handleRecordingComplete(blob);
                             }}
                             onRecordingStateChange={handleStateChange}
                             onAudioChunk={handleAudioChunk}
                         />
 
-                        {/* 실시간 대화 내용 */}
                         <LiveTranscript
                             segments={transcriptSegments}
                             isRecording={recordingState.isRecording}
-                            isAnalyzing={isGenerating}
+                            isAnalyzing={isAnalyzing}
                         />
+
+                        {/* 녹음 중 자동 분석 상태 */}
+                        {recordingState.isRecording && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"/>
+                                    <span className="text-sm text-purple-700">
+                                        30초마다 AI 자동 분석 중
+                                    </span>
+                                </div>
+                                <span className="text-xs text-purple-500">
+                                    분석 횟수: {autoAnalyzeCount}회
+                                </span>
+                            </div>
+                        )}
+
+                        {/* AI 분석 버튼 (녹음 완료 후 표시) */}
+                        {hasTranscript && !recordingState.isRecording && (
+                            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={handleAIAnalyze}
+                                        disabled={isAnalyzing}
+                                        className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        {isAnalyzing ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                                                AI 분석 중...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                </svg>
+                                                AI 자동 분석 (히스토리 분할)
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                                {analysisStatus === 'success' && (
+                                    <p className="text-sm text-green-600 mt-2 text-center">AI 분석 완료 - 각 항목이 자동으로 채워졌습니다</p>
+                                )}
+                                {analysisStatus === 'error' && (
+                                    <p className="text-sm text-orange-600 mt-2 text-center">AI 분석 실패 - 아래 차트를 수동으로 편집하세요</p>
+                                )}
+                                <p className="text-xs text-slate-400 mt-2 text-center">
+                                    AI 없이도 아래 차트에서 직접 수정/입력할 수 있습니다
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* 오른쪽: 차트 미리보기 */}
                     <div className="space-y-6">
-                        {/* 차트 프리뷰 */}
                         <ChartPreview
                             chart={chart}
-                            isGenerating={isGenerating}
+                            isGenerating={isAnalyzing}
                             onChartChange={setChart}
                         />
 
@@ -515,7 +575,7 @@ export default function VoiceChartPage() {
                         <div className="flex gap-3">
                             <button
                                 onClick={handleSaveChart}
-                                disabled={!chart || isGenerating || saveStatus === 'uploading' || saveStatus === 'saving'}
+                                disabled={!chart || isAnalyzing || saveStatus === 'uploading' || saveStatus === 'saving'}
                                 className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
                             >
                                 {saveStatus === 'uploading' ? (
@@ -526,10 +586,10 @@ export default function VoiceChartPage() {
                                 ) : saveStatus === 'saving' ? (
                                     <>
                                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                                        데이터 저장 중...
+                                        저장 중...
                                     </>
                                 ) : (
-                                    '차트 저장'
+                                    visitIdParam ? '환자 기록에 저장' : '차트 저장'
                                 )}
                             </button>
                             <button
@@ -542,28 +602,16 @@ export default function VoiceChartPage() {
                     </div>
                 </div>
 
-                {/* 도움말 */}
+                {/* 사용 안내 */}
                 <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-semibold text-blue-900 mb-2">💡 사용 방법</h4>
                     <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                        <li>녹음 시작 버튼을 클릭하여 진료 대화를 녹음합니다</li>
-                        <li>의사와 환자의 대화가 자동으로 텍스트로 변환됩니다</li>
-                        <li>녹음 정지 후 AI가 자동으로 차트를 작성합니다</li>
-                        <li>생성된 차트를 확인하고 필요시 수정한 후 저장합니다</li>
+                        <li><strong>녹음</strong> — 녹음 시작 버튼으로 진료 대화를 녹음합니다</li>
+                        <li><strong>자동 분석</strong> — 녹음 중 30초마다 AI가 자동으로 차트를 분석합니다</li>
+                        <li><strong>추가 분석</strong> — 녹음 완료 후 &quot;AI 자동 분석&quot; 버튼으로 최종 분석 (X-ray, 진단 포함)</li>
+                        <li><strong>수동 편집</strong> — AI 없이도 우측 차트에서 직접 입력/수정 가능합니다</li>
+                        <li><strong>저장</strong> — 차트 저장 버튼으로 Firestore에 저장합니다</li>
                     </ol>
-                </div>
-
-                {/* 시스템 상태 */}
-                <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-900 mb-2">✅ 시스템 상태</h4>
-                    <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
-                        <li>✅ 음성 녹음 기능</li>
-                        <li>✅ 실시간 텍스트 표시 & 화자 분리</li>
-                        <li>✅ 차트 미리보기 & 수정 UI</li>
-                        <li>✅ AI 차트 자동 생성 (Gemini v2)</li>
-                        <li>✅ Firestore 차트 저장 (Phase 5 완료)</li>
-                        <li>⏳ 오디오 파일 영구 저장 (Phase 5+ 예정)</li>
-                    </ul>
                 </div>
             </div>
         </div>

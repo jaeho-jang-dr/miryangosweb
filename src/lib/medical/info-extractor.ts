@@ -3,104 +3,113 @@ import type { InitialVisitChart } from './templates/initial-visit-template';
 
 /**
  * Extracts structured medical information from an initial visit transcript.
- * @param transcript The full conversation transcript.
+ * @param transcript The full conversation transcript (utterances joined by newlines).
  * @returns PartialInitialVisitChart
  */
 export async function extractInitialVisitInfo(
   transcript: string
 ): Promise<Partial<InitialVisitChart>> {
   const prompt = `
-당신은 정형외과 전문의 보조 AI입니다.
-의사-환자의 대화를 분석하여 초진 차트(Initial Visit Chart)를 작성하세요.
-절대 없는 내용을 지어내지 말고, 대화에 있는 내용만 추출하세요.
+당신은 정형외과 초진 차트 작성 전문 AI입니다.
+아래 "의사-환자 대화"를 분석하여 각 항목별로 정보를 분류·추출하세요.
 
-[추출할 정보]
-1. Chief Complaint (주소)
-   - 환자가 가장 불편하다고 말하는 증상
-   - 통증 정도 (NRS 0-10)가 언급되면 포함
+## 핵심 규칙
+- 대화에 **없는 내용은 절대 지어내지 마세요**. 해당 필드를 빈 문자열("")로 두세요.
+- **"주소(complaint)"에는 환자의 핵심 증상만** 넣으세요 (예: "다리가 아픕니다", "무릎이 아파요").
+  절대로 대화 전체를 넣지 마세요!
+- 의사의 질문은 추출 대상이 아닙니다. **환자의 답변 내용만** 추출하세요.
+- 대화에서 "아니요", "없어요" 같은 부정 답변도 중요합니다. 해당 필드에 "없음" 또는 "아니요"로 기록하세요.
 
-2. History (병력)
-   - 발병 시기 (Onset): "언제부터 아팠나요?"
-   - 외상력 (Trauma): "다친 적 있나요?" (낙상, 타박, 교통사고 등)
-   - 수술력 (Surgery): "수술하신 적 있나요?"
-   - 통증 부위 (Location): "정확히 어디가 아프세요?" (무릎 내측, 허리 하부 등 구체적으로)
-   - 변형 및 부종 (Deformity/Swelling): "부었나요? 모양이 변했나요?"
-   
-3. Occupational / Social History (직업력/사회력)
-   - 직업: 환자의 직업명
-   - 업무 자세/방식: 주로 취하는 자세, 구체적으로 어떤 업무인지 ("무거운 걸 드는지", "하루종일 앉아있는지")
-   - 운동 습관: 하는 운동 종류, 취미 활동
+## 추출 항목
 
-4. Physical Exam (이학적 검사)
-   - 관찰된 모양이나 이상 소견 (변형, 부종, 발적 등)
+1. **complaint** (주소): 환자가 호소하는 핵심 증상 한 줄. (예: "무릎이 아픕니다")
+2. **painScore**: 통증 NRS 점수 (0-10). 언급 없으면 null.
+3. **onset**: 발병 시기. "얼마나 됐습니까?" → "석달쯤" / "언제부터" → "3개월 전"
+4. **trauma**: 외상력. "다쳤어요?" → "아니요" 이면 "없음". 넘어졌다면 "넘어져서 다침".
+5. **surgery**: 수술력. "수술하신 적?" → "아니요" 이면 "없음". 있으면 구체적으로.
+6. **location**: 통증 부위. "무릎", "허리", "어깨" 등 구체적 위치.
+7. **deformitySwelling**: 변형/부종 여부. 언급 없으면 "".
+8. **job**: 직업. "농사짓습니다" → "농업". "회사원" → "사무직".
+9. **workDetails**: 구체적 업무 내용/자세. "무거운 거 드세요?" → "중량물 취급" 등.
+10. **exercise**: 운동 습관. "운동하시나요?" → "아니요" 이면 "없음". 있으면 종류.
+11. **physicalFinding**: 이학적 검사 소견. 대화에 언급된 경우만.
+12. **investigation**: 검사 계획. "엑스레이 찍어봅시다" → "무릎 X-ray".
+13. **treatment**: 치료 계획. 약물/주사/물리치료 등. 언급 없으면 "".
 
-5. Plan (계획)
-   - 환자와 논의된 검사 계획 (X-ray, MRI 등)
-   - 처방된 약물이나 치료 계획
+## 예시
 
-[대화 내용]
+입력 대화:
+발화 1: 어디가 아파서 오셨습니까?
+발화 2: 허리가 아픕니다.
+발화 3: 언제부터 아프셨어요?
+발화 4: 한 달 전부터요.
+발화 5: 다친 적 있으세요?
+발화 6: 아니요 특별히 다친 건 없습니다.
+발화 7: 무슨 일을 하십니까?
+발화 8: 사무직입니다. 하루종일 앉아있어요.
+발화 9: 운동은 하시나요?
+발화 10: 주말에 등산합니다.
+발화 11: 허리 엑스레이 한번 찍어봅시다.
+
+출력:
+{
+  "complaint": "허리가 아픕니다",
+  "painScore": null,
+  "onset": "한 달 전",
+  "trauma": "없음",
+  "surgery": "",
+  "location": "허리",
+  "deformitySwelling": "",
+  "job": "사무직",
+  "workDetails": "하루종일 앉아있는 업무",
+  "exercise": "주말 등산",
+  "physicalFinding": "",
+  "investigation": "허리 X-ray",
+  "treatment": ""
+}
+
+## 분석 대상 대화
+
 ${transcript}
 
-JSON 형식으로 출력하세요. 필드가 없으면 빈 문자열("")로 두세요.
-{
-  "chiefComplaint": {
-    "complaint": string,
-    "painScore": number | null
-  },
-  "history": {
-    "onset": string,
-    "trauma": string,
-    "surgery": string,
-    "location": string,
-    "deformitySwelling": string
-  },
-  "occupational": {
-    "job": string,
-    "postureAndTask": string,
-    "exercise": string
-  },
-  "physicalExam": {
-    "finding": string
-  },
-  "plan": {
-    "investigation": string,
-    "treatment": string
-  }
-}
+위 대화를 분석하여 JSON을 출력하세요.
 `;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await generateMedicalAnalysis(prompt) as any;
-    
+
+    console.log('[InfoExtractor] AI 추출 결과:', JSON.stringify(data, null, 2));
+
     return {
       chiefComplaint: {
-        complaint: data.chiefComplaint?.complaint || '',
-        painLevel: data.chiefComplaint?.painScore || 0,
-        onset: data.history?.onset || ''
+        complaint: data.complaint || '',
+        painLevel: data.painScore ?? 0,
+        onset: data.onset || ''
       },
       history: {
-        onsetDate: data.history?.onset || '',
-        traumaHistory: data.history?.trauma || '',
-        surgeryHistory: data.history?.surgery || '',
-        painLocation: data.history?.location ? [data.history.location] : [],
-        deformityOrSwelling: data.history?.deformitySwelling || ''
+        onsetDate: data.onset || '',
+        traumaHistory: data.trauma || '',
+        surgeryHistory: data.surgery || '',
+        painLocation: data.location ? [data.location] : [],
+        deformityOrSwelling: data.deformitySwelling || ''
       },
       occupationalHistory: {
-        occupation: data.occupational?.job || '',
-        specificTasks: data.occupational?.postureAndTask || '',
-        exercises: data.occupational?.exercise ? [data.occupational.exercise] : []
+        occupation: data.job || '',
+        workDetails: data.workDetails || '',
+        exercises: data.exercise ? [data.exercise] : []
       },
       physicalExam: {
-        inspection: data.physicalExam?.finding || '',
+        inspection: data.physicalFinding || '',
         palpation: '',
         rangeOfMotion: ''
       },
       imagingPlan: {
-        xrayViews: data.plan?.investigation ? [data.plan.investigation] : [],
+        xrayViews: data.investigation ? [data.investigation] : [],
         reason: ''
       },
       diagnosis: {
         suspectedDiagnosis: [],
         confirmed: false
       }
-    } as Partial<InitialVisitChart>; 
+    } as Partial<InitialVisitChart>;
 }
