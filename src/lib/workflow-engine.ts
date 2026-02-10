@@ -11,12 +11,11 @@
  */
 
 import { ClinicalStatus, Visit } from '@/types/clinical';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-clinical';
 
 // ─── 워크플로우 설정 ───────────────────────────────────────
 export const WORKFLOW_CONFIG = {
-    /** 검사실 타임아웃: 결과 미입력 시 자동으로 진료실 복귀 (분) */
-    testingTimeoutMinutes: 10,
-
     /** 치료실 타임아웃: 자동으로 수납 대기로 전환 (분) */
     treatmentTimeoutMinutes: 15,
 
@@ -136,14 +135,11 @@ export function checkTimeoutTransition(
 
     switch (visit.status) {
         case 'testing': {
-            // 검사 결과가 이미 있으면 → 진료실 복귀
+            // 검사 결과가 입력된 경우에만 진료실 복귀
             if (visit.testStatus === 'completed' || visit.testResult?.trim()) {
                 return { status: 'consulting', reason: 'test_result_entered' };
             }
-            // 타임아웃 → 진료실 복귀 (의사가 직접 결과 입력)
-            if (elapsedMs > WORKFLOW_CONFIG.testingTimeoutMinutes * 60 * 1000) {
-                return { status: 'consulting', reason: 'test_timeout' };
-            }
+            // 타임아웃 자동이동 없음 — 결과 입력 후에만 이동
             return null;
         }
 
@@ -187,4 +183,24 @@ export function findAutoCompletableTreatments(
         const elapsedMs = now - changedAt;
         return elapsedMs > WORKFLOW_CONFIG.treatmentMinStayMinutes * 60 * 1000;
     });
+}
+
+// ─── 공통 상태 변경 함수 ─────────────────────────────────
+/**
+ * 환자의 상태를 변경하는 공통 유틸리티.
+ * 모든 페이지에서 동일한 로직으로 상태를 전환한다.
+ */
+export async function changeVisitStatus(
+    visitId: string,
+    newStatus: ClinicalStatus
+): Promise<void> {
+    const updates: Record<string, unknown> = {
+        status: newStatus,
+        statusChangedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+    if (newStatus === 'completed') {
+        updates.treatmentCompletedAt = serverTimestamp();
+    }
+    await updateDoc(doc(db, 'visits', visitId), updates);
 }

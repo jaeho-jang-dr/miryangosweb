@@ -359,6 +359,14 @@ export default function VoiceChartPage() {
             const diagnosis = initialChart.diagnosis?.suspectedDiagnosis?.join(', ') || '';
             const rawTranscript = transcriptSegments.filter(s => s.isFinal).map(s => s.text).join(' ');
 
+            // P/E 데이터를 하나의 문자열로 결합
+            const physicalExam = [
+                initialChart.physicalExam?.inspection ? `시진: ${initialChart.physicalExam.inspection}` : '',
+                initialChart.physicalExam?.palpation ? `촉진: ${initialChart.physicalExam.palpation}` : '',
+                initialChart.physicalExam?.rangeOfMotion ? `ROM: ${initialChart.physicalExam.rangeOfMotion}` : '',
+                initialChart.physicalExam?.specialTests?.length ? `특수검사: ${initialChart.physicalExam.specialTests.join(', ')}` : '',
+            ].filter(Boolean).join('\n');
+
             // visitId가 있으면 visits 컬렉션 업데이트 (진료실 연동)
             if (visitIdParam) {
                 const visitRef = doc(db, 'visits', visitIdParam);
@@ -367,7 +375,7 @@ export default function VoiceChartPage() {
                     chiefComplaint: cc,
                     history: history,
                     diagnosis: diagnosis,
-                    treatmentNote: initialChart.physicalExam?.inspection || '',
+                    physicalExam: physicalExam,
                     updatedAt: serverTimestamp(),
                     voiceChartAudioUrl: audioUrl,
                     voiceChartRawTranscript: rawTranscript,

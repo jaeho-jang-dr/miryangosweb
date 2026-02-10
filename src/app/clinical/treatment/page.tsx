@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { startOfDay, subDays } from 'date-fns';
 import { Visit } from '@/types/clinical';
+import { useVoiceDictation } from '@/hooks/useVoiceDictation';
+import { changeVisitStatus } from '@/lib/workflow-engine';
+import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 import {
     ClipboardList, User, CheckCircle, Clock, Stethoscope,
-    ArrowLeft, Plus, AlertTriangle, Save, Mic, MicOff,
+    ArrowLeft, ArrowRight, Plus, AlertTriangle, Save, Mic, Square,
     Zap, Syringe, Scan, Sparkles
 } from 'lucide-react';
 
@@ -193,10 +196,13 @@ export default function TreatmentPage() {
     const [isEditingOrder, setIsEditingOrder] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    // 음성 입력
-    const [isListening, setIsListening] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recognitionRef = useRef<any>(null);
+    // 음성 입력 (공유 훅 사용)
+    const onVoiceResult = useCallback((text: string) => {
+        setOrderInput(prev => (prev ? prev + ' ' : '') + text);
+    }, []);
+    const { isListening, interimTranscript, toggle: toggleVoice, stop: stopListening, isSupported: voiceSupported } = useVoiceDictation({
+        onFinalResult: onVoiceResult,
+    });
 
     // ── Firestore 구독 ──
     useEffect(() => {
@@ -221,76 +227,6 @@ export default function TreatmentPage() {
         return () => unsubscribe();
     }, [selectedVisit?.id]);
 
-    // ── 음성 인식 ──
-    const startListening = useCallback(() => {
-        // @ts-expect-error - Web Speech API 브라우저 호환성
-        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognitionAPI) {
-            alert('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해 주세요.');
-            return;
-        }
-
-        const recognition = new SpeechRecognitionAPI();
-        recognition.lang = 'ko-KR';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-
-        let finalTranscript = '';
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognition.onresult = (event: any) => {
-            let interim = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    finalTranscript += transcript + ' ';
-                } else {
-                    interim = transcript;
-                }
-            }
-            setOrderInput(prev => {
-                const combined = prev + finalTranscript;
-                return interim ? combined + interim : combined;
-            });
-            if (finalTranscript) {
-                finalTranscript = '';
-            }
-        };
-
-        recognition.onerror = () => {
-            setIsListening(false);
-        };
-
-        recognition.onend = () => {
-            // 연속 인식을 위해 자동 재시작
-            if (isListening) {
-                try { recognition.start(); } catch { /* ignore */ }
-            }
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        setIsListening(true);
-    }, [isListening]);
-
-    const stopListening = useCallback(() => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-        }
-        setIsListening(false);
-    }, []);
-
-    const toggleVoice = useCallback(() => {
-        if (isListening) stopListening();
-        else startListening();
-    }, [isListening, startListening, stopListening]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => { recognitionRef.current?.stop(); };
-    }, []);
-
     // ── 프리셋 칩 클릭 ──
     const appendPreset = (item: string) => {
         setOrderInput(prev => {
@@ -304,14 +240,20 @@ export default function TreatmentPage() {
     // ── 액션 핸들러 ──
     const handleSendBackToConsulting = async (visit: Visit) => {
         try {
-            await updateDoc(doc(db, 'visits', visit.id), {
-                status: 'consulting',
-                statusChangedAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
+            await changeVisitStatus(visit.id, 'consulting');
             setSelectedVisit(null);
             stopListening();
-        } catch (error) {
+        } catch (error: unknown) {
+            alert('상태 변경 실패: ' + (error as Error).message);
+        }
+    };
+
+    const handleForceToPayment = async (visit: Visit) => {
+        try {
+            await changeVisitStatus(visit.id, 'completed');
+            setSelectedVisit(null);
+            stopListening();
+        } catch (error: unknown) {
             alert('상태 변경 실패: ' + (error as Error).message);
         }
     };
@@ -341,12 +283,7 @@ export default function TreatmentPage() {
         const visit = confirmModal.visit;
         if (!visit) return;
         try {
-            await updateDoc(doc(db, 'visits', visit.id), {
-                status: 'completed',
-                statusChangedAt: serverTimestamp(),
-                treatmentCompletedAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
+            await changeVisitStatus(visit.id, 'completed');
             setConfirmModal({ isOpen: false, visit: null });
             setSelectedVisit(null);
         } catch (error) {
@@ -401,7 +338,7 @@ export default function TreatmentPage() {
                                     setIsEditingOrder(false);
                                     stopListening();
                                 }}
-                                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                                className={`p-4 rounded-xl border cursor-pointer transition-all group ${
                                     selectedVisit?.id === visit.id
                                         ? 'bg-purple-50 border-purple-500 shadow-md ring-1 ring-purple-500'
                                         : 'bg-white border-slate-200 hover:border-purple-200 hover:bg-purple-50/50'
@@ -417,7 +354,7 @@ export default function TreatmentPage() {
                                         {visit.treatmentNote ? '치료대기' : '오더없음'}
                                     </span>
                                 </div>
-                                <div className="text-sm text-slate-500 flex items-center gap-4">
+                                <div className="text-sm text-slate-500 flex items-center gap-4 mb-2">
                                     <span className="flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
                                         {visit.date ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
@@ -426,6 +363,8 @@ export default function TreatmentPage() {
                                         <span className="truncate max-w-[120px] text-slate-600">{visit.diagnosis}</span>
                                     )}
                                 </div>
+                                {/* 상태 뱃지 + 팝오버 */}
+                                <PatientStatusBadges visit={visit} />
                             </div>
                         ))
                     )}
@@ -553,26 +492,28 @@ export default function TreatmentPage() {
                                                 <h3 className="text-sm font-bold text-purple-700 flex items-center gap-2">
                                                     <ClipboardList className="w-4 h-4" /> 오더 내용
                                                 </h3>
-                                                <button
-                                                    onClick={toggleVoice}
-                                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
-                                                        isListening
-                                                            ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-200'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700'
-                                                    }`}
-                                                >
-                                                    {isListening ? (
-                                                        <><MicOff className="w-3.5 h-3.5" /> 음성 중지</>
-                                                    ) : (
-                                                        <><Mic className="w-3.5 h-3.5" /> 음성 입력</>
-                                                    )}
-                                                </button>
+                                                {voiceSupported && (
+                                                    <button
+                                                        onClick={() => toggleVoice()}
+                                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
+                                                            isListening
+                                                                ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-200'
+                                                                : 'bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700'
+                                                        }`}
+                                                    >
+                                                        {isListening ? (
+                                                            <><Square className="w-3.5 h-3.5 fill-current" /> 음성 중지</>
+                                                        ) : (
+                                                            <><Mic className="w-3.5 h-3.5" /> 음성 입력</>
+                                                        )}
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {isListening && (
                                                 <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 flex items-center gap-2">
                                                     <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                                                    음성 인식 중... 말씀하세요
+                                                    {interimTranscript || '음성 인식 중... 말씀하세요'}
                                                 </div>
                                             )}
 

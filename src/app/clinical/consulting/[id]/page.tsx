@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { Visit, MedicalOrder } from '@/types/clinical';
-import { Loader2, Mic, ArrowLeft, Save, Square, Play, Pause, ChevronDown, CheckCircle, Search, X, Stethoscope, ClipboardList, Activity, Pill, Trash2, Plus } from 'lucide-react';
+import { Mic, ArrowLeft, Save, Square, CheckCircle, Search, X, Stethoscope, ClipboardList, Activity, Pill, Plus, UserPlus } from 'lucide-react';
 
 import { RADIOLOGY_LIST, LAB_LIST, PRESCRIPTION_CATEGORIES, PRESCRIPTION_LIST, PrescriptionItem, PHYSICAL_THERAPY_LIST, PHYSICAL_THERAPY_BUNDLES, TEST_GROUPS, PROCEDURE_GROUPS, MEDICATION_GROUPS, PT_GROUPS, SURGICAL_GROUPS } from '@/data/clinical-resources';
 import { SYMPTOM_EXPRESSIONS, SymptomExpression } from '@/data/symptom-expressions';
@@ -15,6 +15,21 @@ import ImageUpload from '@/components/image-upload';
 import { determineNextStatus, STATUS_LABELS } from '@/lib/workflow-engine';
 
 import PrescriptionModule from '@/components/clinical/PrescriptionModule';
+
+interface DetectedOrder {
+    id: string;
+    text: string;
+    type: MedicalOrder['type'];
+    isBundleItem?: boolean;
+    bundleName?: string;
+}
+
+interface OrderGroupItem {
+    id: string;
+    text: string;
+    type?: string;
+    subType?: 'sided' | 'dosage_1_2';
+}
 
 export default function ConsultingDetailPage() {
     const params = useParams();
@@ -26,20 +41,21 @@ export default function ConsultingDetailPage() {
     const [medicalOrders, setMedicalOrders] = useState<MedicalOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [activeField, setActiveField] = useState<'cc' | 'test' | 'diagnosis' | 'plan' | null>('plan');
+    const [activeField, setActiveField] = useState<'cc' | 'pe' | 'test' | 'diagnosis' | 'plan' | null>('plan');
 
     const [activeOrderGroup, setActiveOrderGroup] = useState<'symptom' | 'diagnosis' | 'test' | 'procedure' | 'medication' | 'pt' | 'surgical'>('test');
     const [activeSubGroupId, setActiveSubGroupId] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         cc: '',
+        pe: '',
         test: '',
         testResult: '',
         diagnosis: '',
         plan: ''
     });
     const [medicalImages, setMedicalImages] = useState<string[]>([]);
-    const [detectedOrders, setDetectedOrders] = useState<any[]>([]);
+    const [detectedOrders, setDetectedOrders] = useState<DetectedOrder[]>([]);
 
     const [symptomSuggestions, setSymptomSuggestions] = useState<SymptomExpression[]>([]);
 
@@ -61,12 +77,12 @@ export default function ConsultingDetailPage() {
 
     const addOrder = (type: MedicalOrder['type'], name: string) => {
         const newOrder: MedicalOrder = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
             visitId,
             type,
             name,
             status: 'ordered',
-            createdAt: Timestamp.now() as any
+            createdAt: Timestamp.now()
         };
         setMedicalOrders(prev => [...prev, newOrder]);
 
@@ -82,7 +98,7 @@ export default function ConsultingDetailPage() {
     };
 
     function detectSmartOrders(text: string) {
-        const detected: any[] = [];
+        const detected: DetectedOrder[] = [];
 
         // 1. Check Bundles First
         PHYSICAL_THERAPY_BUNDLES.forEach(bundle => {
@@ -135,8 +151,9 @@ export default function ConsultingDetailPage() {
         setSaving(true);
         try {
             const docRef = doc(db, 'visits', visitId);
-            const updates: any = {
+            const updates: Record<string, unknown> = {
                 chiefComplaint: formData.cc,
+                physicalExam: formData.pe,
                 testOrder: formData.test,
                 testResult: formData.testResult,
                 testStatus: formData.testResult.trim() ? 'completed' : (formData.test.trim() ? (visit?.testStatus || 'ordered') : undefined),
@@ -162,8 +179,8 @@ export default function ConsultingDetailPage() {
                     updates.status = nextState.status;
                     updates.statusChangedAt = serverTimestamp();
                 } else {
-                    // 오더가 없으면 기본적으로 치료실로
-                    updates.status = 'treatment';
+                    // 오더가 없으면 수납대기로 (검사/치료 없이 진료만 하고 바로 수납)
+                    updates.status = 'completed';
                     updates.statusChangedAt = serverTimestamp();
                 }
             }
@@ -178,11 +195,39 @@ export default function ConsultingDetailPage() {
             } else {
                 alert("저장되었습니다.");
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("Save Error:", e);
-            alert(`저장 중 오류가 발생했습니다: ${e.message}`);
+            alert(`저장 중 오류가 발생했습니다: ${e instanceof Error ? e.message : String(e)}`);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleAddInitialVisit = async () => {
+        if (!visit) return;
+        if (!confirm('새 부위에 대한 초진을 추가하시겠습니까?\n현재 차트를 자동 저장 후 새 초진 차트를 생성합니다.')) return;
+
+        try {
+            // 현재 차트 자동 저장
+            await handleSave(false);
+
+            // 새 Visit 생성
+            const newVisitRef = await addDoc(collection(db, 'visits'), {
+                patientId: visit.patientId,
+                patientName: visit.patientName,
+                status: 'consulting',
+                type: 'new' as const,
+                parentVisitId: visitId,
+                date: serverTimestamp(),
+                statusChangedAt: serverTimestamp(),
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+
+            router.push(`/clinical/consulting/${newVisitRef.id}`);
+        } catch (e) {
+            console.error('초진추가 오류:', e);
+            alert('초진 추가 중 오류가 발생했습니다.');
         }
     };
 
@@ -211,6 +256,22 @@ export default function ConsultingDetailPage() {
         }
     });
 
+    // --- MEMOIZED VALUES ---
+    const filteredSymptomsByCategory = useMemo(() => {
+        return SYMPTOM_EXPRESSIONS
+            .filter(s => {
+                if (!formData.cc.trim()) return true;
+                const search = formData.cc.toLowerCase();
+                return s.keywords.some(k => search.includes(k)) ||
+                    s.expression.includes(search) ||
+                    s.standardTerm.includes(search);
+            })
+            .reduce((acc, curr) => {
+                (acc[curr.category] = acc[curr.category] || []).push(curr);
+                return acc;
+            }, {} as Record<string, SymptomExpression[]>);
+    }, [formData.cc]);
+
     // --- EFFECTS ---
 
     // 1. Initial Data Fetch
@@ -224,6 +285,7 @@ export default function ConsultingDetailPage() {
                     setVisit({ ...data, id: snap.id } as Visit);
                     setFormData({
                         cc: data.chiefComplaint || '',
+                        pe: data.physicalExam || '',
                         test: data.testOrder || '',
                         testResult: data.testResult || '',
                         diagnosis: data.diagnosis || '',
@@ -313,8 +375,16 @@ export default function ConsultingDetailPage() {
                         <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             {visit.patientName}
                             <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                {visit.type === 'new' ? '신환' : '재진'}
+                                {visit.parentVisitId ? '초진추가' : visit.type === 'new' ? '신환' : '재진'}
                             </span>
+                            {visit.type === 'return' && !visit.parentVisitId && (
+                                <button
+                                    onClick={handleAddInitialVisit}
+                                    className="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full transition-colors flex items-center gap-1"
+                                >
+                                    <UserPlus className="w-3 h-3" /> 초진추가
+                                </button>
+                            )}
                         </h1>
                         <p className="text-xs text-slate-500">
                             접수: {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -353,7 +423,9 @@ export default function ConsultingDetailPage() {
                         <CheckCircle className="w-4 h-4" />
                         {formData.test.trim() && !formData.testResult.trim() && visit?.testStatus !== 'completed'
                             ? '검사실로 보내기'
-                            : '치료실로 보내기'}
+                            : formData.plan.trim()
+                                ? '치료실로 보내기'
+                                : '수납으로 보내기'}
                     </button>
                 </div>
             </div>
@@ -433,6 +505,23 @@ export default function ConsultingDetailPage() {
                         />
                     </div>
 
+                    {/* P/E (Physical Exam) Section */}
+                    <div
+                        onClick={() => {
+                            setActiveField('pe');
+                            setActiveOrderGroup('symptom');
+                        }}
+                        className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'pe' ? 'border-amber-500 shadow-md ring-4 ring-amber-50' : 'border-slate-200 hover:border-slate-300'}`}
+                    >
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'pe' ? 'text-amber-700' : 'text-slate-500'}`}>Objective (진찰소견 / P.E.)</label>
+                        <textarea
+                            value={formData.pe}
+                            onChange={(e) => setFormData({ ...formData, pe: e.target.value })}
+                            placeholder="이학적 검사 소견을 입력하세요... (예: ROM 제한, 압통, 부종 등)"
+                            className="w-full min-h-[80px] text-lg resize-none outline-none placeholder:text-slate-300 bg-transparent"
+                        />
+                    </div>
+
                     {/* Test Section */}
                     <div
                         onClick={() => {
@@ -441,7 +530,7 @@ export default function ConsultingDetailPage() {
                         }}
                         className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'test' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}
                     >
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'test' ? 'text-emerald-700' : 'text-slate-500'}`}>Objective (검사 / Physical)</label>
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'test' ? 'text-emerald-700' : 'text-slate-500'}`}>Objective (검사 오더)</label>
                         <textarea
                             value={formData.test}
                             onChange={(e) => setFormData({ ...formData, test: e.target.value })}
@@ -500,7 +589,7 @@ export default function ConsultingDetailPage() {
                             <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-lg">
                                 {medicalOrders.filter(o => o.type !== 'test').map(order => (
                                     <div key={order.id} className="flex items-center gap-1 bg-white border border-blue-200 text-blue-700 px-2 py-1 rounded text-sm shadow-sm">
-                                        <span className="text-xs font-bold uppercase mr-1 text-blue-400">{order.type.substr(0, 3)}</span>
+                                        <span className="text-xs font-bold uppercase mr-1 text-blue-400">{order.type.substring(0, 3)}</span>
                                         <span>{order.name}</span>
                                         <button onClick={(e) => { e.stopPropagation(); removeOrder(order.id); }}><X className="w-3 h-3" /></button>
                                     </div>
@@ -528,17 +617,17 @@ export default function ConsultingDetailPage() {
                             <Search className="w-5 h-5" />
                             진단
                         </button>
-                        {[
-                            { id: 'test', label: '검사', icon: ClipboardList, color: 'text-indigo-600' },
-                            { id: 'procedure', label: '특수치료', icon: Activity, color: 'text-rose-600' },
-                            { id: 'medication', label: '약물', icon: Pill, color: 'text-blue-600' },
-                            { id: 'pt', label: '물리치료', icon: Activity, color: 'text-teal-600' },
-                            { id: 'surgical', label: '처치/수술', icon: Stethoscope, color: 'text-slate-700' },
-                        ].map(group => (
+                        {([
+                            { id: 'test' as const, label: '검사', icon: ClipboardList, color: 'text-indigo-600' },
+                            { id: 'procedure' as const, label: '특수치료', icon: Activity, color: 'text-rose-600' },
+                            { id: 'medication' as const, label: '약물', icon: Pill, color: 'text-blue-600' },
+                            { id: 'pt' as const, label: '물리치료', icon: Activity, color: 'text-teal-600' },
+                            { id: 'surgical' as const, label: '처치/수술', icon: Stethoscope, color: 'text-slate-700' },
+                        ]).map((group) => (
                             <button
                                 key={group.id}
                                 onClick={() => {
-                                    setActiveOrderGroup(group.id as any);
+                                    setActiveOrderGroup(group.id);
                                     setActiveSubGroupId(null);
                                 }}
                                 className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === group.id ? `bg-white border-blue-600 ${group.color}` : 'border-transparent text-slate-400 hover:bg-white/50'}`}
@@ -591,20 +680,7 @@ export default function ConsultingDetailPage() {
                                 {/* 1. SYMPTOM VIEW */}
                                 {activeOrderGroup === 'symptom' && (
                                     <div className="space-y-4">
-                                        {Object.entries(
-                                            SYMPTOM_EXPRESSIONS
-                                                .filter(s => {
-                                                    if (!formData.cc.trim()) return true;
-                                                    const search = formData.cc.toLowerCase();
-                                                    return s.keywords.some(k => search.includes(k)) ||
-                                                        s.expression.includes(search) ||
-                                                        s.standardTerm.includes(search);
-                                                })
-                                                .reduce((acc, curr) => {
-                                                    (acc[curr.category] = acc[curr.category] || []).push(curr);
-                                                    return acc;
-                                                }, {} as Record<string, SymptomExpression[]>)
-                                        ).map(([category, items]) => (
+                                        {Object.entries(filteredSymptomsByCategory).map(([category, items]) => (
                                             <div key={category}>
                                                 <h4 className="text-xs font-black text-slate-400 uppercase mb-2 border-b border-slate-100 pb-1">{category}</h4>
                                                 <div className="space-y-1">
@@ -711,7 +787,7 @@ export default function ConsultingDetailPage() {
                                         <div className="space-y-3">
                                             <h4 className="text-xs font-black text-slate-400 uppercase mb-4">{subGroup?.label}</h4>
                                             <div className="grid grid-cols-1 gap-2">
-                                                {subGroup?.items.map((item: any) => (
+                                                {subGroup?.items.map((item: OrderGroupItem) => (
                                                     <div key={item.id} className="group relative bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-500 hover:shadow-md transition-all">
                                                         <div className="flex justify-between items-center mb-2">
                                                             <span className="font-bold text-slate-700 text-sm">{item.text}</span>
@@ -788,91 +864,109 @@ export default function ConsultingDetailPage() {
 
             {/* X-ray View Selection Popup */}
             {xrayPopup && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setXrayPopup(null)}>
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
-                        {/* Header */}
-                        <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-blue-50">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                                        <ClipboardList className="w-5 h-5 text-indigo-600" />
-                                        {xrayPopup.bodyPart.nameKo} X-ray
-                                    </h3>
-                                    <p className="text-sm text-slate-500 mt-0.5">
-                                        {xrayPopup.bodyPart.nameEn} — 촬영 옵션을 선택하세요
-                                    </p>
-                                </div>
-                                <button onClick={() => setXrayPopup(null)} className="p-2 hover:bg-white rounded-full transition-colors">
-                                    <X className="w-5 h-5 text-slate-400" />
+                <XrayPopup
+                    bodyPart={xrayPopup.bodyPart}
+                    side={xrayPopup.side}
+                    onSideChange={(side) => setXrayPopup(prev => prev ? { ...prev, side } : null)}
+                    onSelectView={(fullText) => { addOrder('test', fullText); setXrayPopup(null); }}
+                    onClose={() => setXrayPopup(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+// ─── Extracted Component: XrayPopup ──────────────────────────
+interface XrayPopupProps {
+    bodyPart: XrayBodyPart;
+    side: 'Lt' | 'Rt' | 'Both' | null;
+    onSideChange: (side: 'Lt' | 'Rt' | 'Both') => void;
+    onSelectView: (fullText: string) => void;
+    onClose: () => void;
+}
+
+function XrayPopup({ bodyPart, side, onSideChange, onSelectView, onClose }: XrayPopupProps) {
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                <ClipboardList className="w-5 h-5 text-indigo-600" />
+                                {bodyPart.nameKo} X-ray
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-0.5">
+                                {bodyPart.nameEn} — 촬영 옵션을 선택하세요
+                            </p>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors">
+                            <X className="w-5 h-5 text-slate-400" />
+                        </button>
+                    </div>
+
+                    {/* Side Selection */}
+                    {bodyPart.sided && (
+                        <div className="flex gap-2 mt-3">
+                            {(['Lt', 'Rt', 'Both'] as const).map(s => (
+                                <button
+                                    key={s}
+                                    onClick={() => onSideChange(s)}
+                                    className={`flex-1 py-2 text-sm font-bold rounded-lg border-2 transition-all ${
+                                        side === s
+                                            ? 'border-indigo-500 bg-indigo-500 text-white shadow-md'
+                                            : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
+                                    }`}
+                                >
+                                    {s === 'Lt' ? 'Lt (좌)' : s === 'Rt' ? 'Rt (우)' : 'Both (양측)'}
                                 </button>
-                            </div>
-
-                            {/* Side Selection (only for sided body parts) */}
-                            {xrayPopup.bodyPart.sided && (
-                                <div className="flex gap-2 mt-3">
-                                    {(['Lt', 'Rt', 'Both'] as const).map(side => (
-                                        <button
-                                            key={side}
-                                            onClick={() => setXrayPopup(prev => prev ? { ...prev, side } : null)}
-                                            className={`flex-1 py-2 text-sm font-bold rounded-lg border-2 transition-all ${
-                                                xrayPopup.side === side
-                                                    ? 'border-indigo-500 bg-indigo-500 text-white shadow-md'
-                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'
-                                            }`}
-                                        >
-                                            {side === 'Lt' ? 'Lt (좌)' : side === 'Rt' ? 'Rt (우)' : 'Both (양측)'}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            ))}
                         </div>
+                    )}
+                </div>
 
-                        {/* View Options */}
-                        <div className="p-4 max-h-[50vh] overflow-y-auto">
-                            <div className="space-y-2">
-                                {xrayPopup.bodyPart.viewOptions.map(option => {
-                                    const sidePrefix = xrayPopup.side && xrayPopup.bodyPart.sided
-                                        ? `${xrayPopup.side} `
-                                        : '';
-                                    const fullText = `${sidePrefix}${xrayPopup.bodyPart.nameEn} ${option.label}`;
+                {/* View Options */}
+                <div className="p-4 max-h-[50vh] overflow-y-auto">
+                    <div className="space-y-2">
+                        {bodyPart.viewOptions.map(option => {
+                            const sidePrefix = side && bodyPart.sided ? `${side} ` : '';
+                            const fullText = `${sidePrefix}${bodyPart.nameEn} ${option.label}`;
 
-                                    return (
-                                        <button
-                                            key={option.id}
-                                            onClick={() => {
-                                                if (xrayPopup.bodyPart.sided && !xrayPopup.side) {
-                                                    alert('좌/우/양측을 먼저 선택해주세요.');
-                                                    return;
-                                                }
-                                                addOrder('test', fullText);
-                                                setXrayPopup(null);
-                                            }}
-                                            className="w-full text-left p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group flex items-center justify-between"
-                                        >
-                                            <div>
-                                                <p className="font-bold text-slate-700 group-hover:text-indigo-700 text-sm">
-                                                    {sidePrefix}{xrayPopup.bodyPart.nameEn} {option.label}
-                                                </p>
-                                            </div>
-                                            <Plus className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
-                            <button
-                                onClick={() => setXrayPopup(null)}
-                                className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 font-medium"
-                            >
-                                취소
-                            </button>
-                        </div>
+                            return (
+                                <button
+                                    key={option.id}
+                                    onClick={() => {
+                                        if (bodyPart.sided && !side) {
+                                            alert('좌/우/양측을 먼저 선택해주세요.');
+                                            return;
+                                        }
+                                        onSelectView(fullText);
+                                    }}
+                                    className="w-full text-left p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group flex items-center justify-between"
+                                >
+                                    <div>
+                                        <p className="font-bold text-slate-700 group-hover:text-indigo-700 text-sm">
+                                            {sidePrefix}{bodyPart.nameEn} {option.label}
+                                        </p>
+                                    </div>
+                                    <Plus className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
-            )}
+
+                {/* Footer */}
+                <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 font-medium"
+                    >
+                        취소
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

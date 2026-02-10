@@ -31,21 +31,24 @@ export function useWorkflowEngine() {
     const [toasts, setToasts] = useState<WorkflowToast[]>([]);
     const previousVisitsRef = useRef<Map<string, ClinicalStatus>>(new Map());
     const processingRef = useRef<Set<string>>(new Set());
+    const toastTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
     // ─── Toast 관리 ──────────────────────────────────────
     const addToast = useCallback((message: string, type: WorkflowToast['type'] = 'info') => {
         const toast: WorkflowToast = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             message,
             type,
             timestamp: Date.now(),
         };
         setToasts(prev => [...prev, toast]);
 
-        // 5초 후 자동 제거
-        setTimeout(() => {
+        // 5초 후 자동 제거 (타이머 추적으로 메모리 누수 방지)
+        const timer = setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== toast.id));
+            toastTimersRef.current.delete(timer);
         }, 5000);
+        toastTimersRef.current.add(timer);
     }, []);
 
     const removeToast = useCallback((id: string) => {
@@ -95,6 +98,15 @@ export function useWorkflowEngine() {
             processingRef.current.delete(visit.id);
         }
     }, [addToast]);
+
+    // ─── Toast 타이머 cleanup ─────────────────────────────
+    useEffect(() => {
+        const timers = toastTimersRef.current;
+        return () => {
+            timers.forEach(timer => clearTimeout(timer));
+            timers.clear();
+        };
+    }, []);
 
     // ─── Firestore 구독: 활성 visit 감시 ──────────────────
     useEffect(() => {

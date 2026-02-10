@@ -26,6 +26,7 @@ export interface Visit {
     testResult?: string; // Lab/Imaging Result
     testStatus?: 'ordered' | 'processing' | 'completed';
     type: 'new' | 'return'; // New patient or existing
+    parentVisitId?: string; // 초진추가 시 원래 재진 visit ID
     insuranceType?: 'nhis' | 'auto' | 'none'; // National Health, Auto Insurance, etc.
 
     // Clinical Data (Target for STT)

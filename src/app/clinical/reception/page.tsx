@@ -6,6 +6,8 @@ import { db } from '@/lib/firebase-clinical';
 import { Search, UserPlus, Clock, Calendar, User, ChevronRight, Stethoscope, AlertCircle, CheckCircle, CalendarCheck, Plus, Phone, FileText, CalendarDays, Printer, FileDown, ShieldCheck, X } from 'lucide-react';
 import Link from 'next/link';
 import { Patient, Visit } from '@/types/clinical';
+import { changeVisitStatus } from '@/lib/workflow-engine';
+import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 import { startOfDay, subDays, format, addDays, startOfDay as startOfDayFns, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -174,11 +176,25 @@ export default function ReceptionPage() {
     const handleRegister = async (patient: Patient) => {
         if (!confirm(`${patient.name}님을 대기목록에 등록하시겠습니까?`)) return;
         try {
+            // 3개월 이내 완료된 visit이 있으면 재진, 없으면 초진
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+            const recentQ = query(
+                collection(db, 'visits'),
+                where('patientId', '==', patient.id),
+                where('date', '>=', Timestamp.fromDate(threeMonthsAgo)),
+                orderBy('date', 'desc'),
+                limit(1)
+            );
+            const recentSnap = await getDocs(recentQ);
+            const visitType = recentSnap.empty ? 'new' : 'return';
+
             await addDoc(collection(db, 'visits'), {
                 patientId: patient.id,
                 patientName: patient.name,
                 status: 'reception',
-                type: 'return',
+                type: visitType,
                 date: serverTimestamp(),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -308,7 +324,19 @@ export default function ReceptionPage() {
 
     const receptionList = todayVisits.filter(v => ['reception', 'consulting', 'treatment', 'testing'].includes(v.status));
     const paymentList = todayVisits.filter(v => v.status === 'completed');
+    const activeNonCompletedList = todayVisits.filter(v => ['consulting', 'testing', 'treatment'].includes(v.status));
     const historyList = todayVisits.filter(v => v.status === 'paid');
+
+    // 강제 수납: 어떤 상태에서든 수납대기(completed)로 당겨옴
+    const handleForceToPayment = async (visit: Visit) => {
+        if (!confirm(`${visit.patientName}님을 현재 상태(${getStatusLabel(visit.status)})에서 수납대기로 당겨오시겠습니까?`)) return;
+        try {
+            await changeVisitStatus(visit.id, 'completed');
+        } catch (e) {
+            console.error(e);
+            alert('상태 변경 중 오류가 발생했습니다.');
+        }
+    };
 
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)]">
@@ -362,7 +390,8 @@ export default function ReceptionPage() {
                                                     </div>
                                                     <span className={`text-xs px-2 py-0.5 rounded-full border ${getStatusColor(visit.status)}`}>{getStatusLabel(visit.status)}</span>
                                                 </div>
-                                                <div className="text-xs text-slate-500 mt-1">{new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <div className="text-xs text-slate-500 mt-1 mb-1">{new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                <PatientStatusBadges visit={visit} />
                                             </div>
                                             {visit.status === 'reception' && <button onClick={() => handleCallPatient(visit.id)} className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${isAppointment ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}`}>호출</button>}
                                         </div>
@@ -374,21 +403,53 @@ export default function ReceptionPage() {
                 )}
 
                 {activeTab === 'payment' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {paymentList.map(visit => (
-                            <div key={visit.id} className="bg-white p-6 rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 shadow-sm transition-all cursor-pointer flex flex-col gap-4" onClick={() => openInvoice(visit)}>
-                                <div className="flex justify-between items-start">
-                                    <div><h3 className="text-xl font-bold text-slate-800">{visit.patientName}</h3><p className="text-sm text-slate-500">{new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 접수</p></div>
-                                    <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">수납대기</div>
+                    <div className="space-y-6">
+                        {/* 수납 대기 환자 (completed 상태) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {paymentList.map(visit => (
+                                <div key={visit.id} className="bg-white p-6 rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 shadow-sm transition-all cursor-pointer flex flex-col gap-4" onClick={() => openInvoice(visit)}>
+                                    <div className="flex justify-between items-start">
+                                        <div><h3 className="text-xl font-bold text-slate-800">{visit.patientName}</h3><p className="text-sm text-slate-500">{new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 접수</p></div>
+                                        <div className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">수납대기</div>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-600">
+                                        <div className="flex justify-between mb-1"><span>진찰료</span><span className="font-bold">5,000원</span></div>
+                                        <div className="flex justify-between mb-1"><span>검사료</span><span className="font-bold">{visit.testOrder ? '15,000' : '0'}원</span></div>
+                                        <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between text-indigo-700 font-bold text-lg"><span>총 진료비</span><span>{visit.testOrder ? '20,000' : '5,000'}원</span></div>
+                                    </div>
+                                    <button className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all">결제/수납 하기</button>
                                 </div>
-                                <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-600">
-                                    <div className="flex justify-between mb-1"><span>진찰료</span><span className="font-bold">5,000원</span></div>
-                                    <div className="flex justify-between mb-1"><span>검사료</span><span className="font-bold">{visit.testOrder ? '15,000' : '0'}원</span></div>
-                                    <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between text-indigo-700 font-bold text-lg"><span>총 진료비</span><span>{visit.testOrder ? '20,000' : '5,000'}원</span></div>
+                            ))}
+                        </div>
+
+                        {/* 강제 수납: 진료/검사/치료 중인 환자를 당겨올 수 있음 */}
+                        {activeNonCompletedList.length > 0 && (
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <ChevronRight className="w-4 h-4" />
+                                    진행 중인 환자 — 강제 수납
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {activeNonCompletedList.map(visit => (
+                                        <div key={visit.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-amber-300 shadow-sm transition-all flex items-center justify-between gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-bold text-slate-800 truncate">{visit.patientName}</h4>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${getStatusColor(visit.status)}`}>{getStatusLabel(visit.status)}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-0.5">{new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 접수</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleForceToPayment(visit)}
+                                                className="flex-shrink-0 px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors"
+                                            >
+                                                수납으로
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
-                                <button className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all">결제/수납 하기</button>
                             </div>
-                        ))}
+                        )}
                     </div>
                 )}
 

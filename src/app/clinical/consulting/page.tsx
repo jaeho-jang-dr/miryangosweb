@@ -7,6 +7,7 @@ import { startOfDay, subDays } from 'date-fns';
 import { Visit } from '@/types/clinical';
 import { useRouter } from 'next/navigation';
 import { Clock, User, ChevronRight, Activity, Calendar, Mic } from 'lucide-react';
+import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 
 export default function ConsultingPage() {
     const router = useRouter();
@@ -90,10 +91,11 @@ export default function ConsultingPage() {
                                 <div className="relative z-10 flex justify-between items-center">
                                     <div>
                                         <h3 className="text-xl font-bold text-slate-900 mb-1">{visit.patientName}</h3>
-                                        <p className="text-sm text-slate-500 flex items-center gap-1">
+                                        <p className="text-sm text-slate-500 flex items-center gap-1 mb-2">
                                             <Clock className="w-3 h-3" />
                                             접수: {visit.date ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                                         </p>
+                                        <PatientStatusBadges visit={visit} />
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
@@ -146,12 +148,13 @@ export default function ConsultingPage() {
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-slate-800">{visit.patientName}</h3>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
                                             <span>
                                                 {visit.date ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                                             </span>
                                             {visit.type === 'new' && <span className="text-emerald-600 font-medium">신규</span>}
                                         </div>
+                                        <PatientStatusBadges visit={visit} />
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">

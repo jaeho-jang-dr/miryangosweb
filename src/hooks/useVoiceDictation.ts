@@ -21,10 +21,15 @@ export function useVoiceDictation({ onFinalResult }: UseVoiceDictationProps = {}
     const [isSupported, setIsSupported] = useState(false);
 
     const recognitionRef = useRef<any>(null);
+    // Ref로 최신 콜백 추적 → SpeechRecognition 재생성 없이 항상 최신 activeField 반영
+    const onFinalResultRef = useRef(onFinalResult);
+
+    useEffect(() => {
+        onFinalResultRef.current = onFinalResult;
+    }, [onFinalResult]);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
             setIsSupported(true);
             const SpeechRecognition = (window as any).webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
@@ -69,9 +74,8 @@ export function useVoiceDictation({ onFinalResult }: UseVoiceDictationProps = {}
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         const finalChunk = event.results[i][0].transcript;
-                        if (onFinalResult) {
-                            onFinalResult(finalChunk);
-                        }
+                        // Ref 통해 최신 콜백 호출 → stale closure 방지
+                        onFinalResultRef.current?.(finalChunk);
                     } else {
                         interim += event.results[i][0].transcript;
                     }
@@ -84,7 +88,8 @@ export function useVoiceDictation({ onFinalResult }: UseVoiceDictationProps = {}
             setIsSupported(false);
             setError("이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.");
         }
-    }, [onFinalResult]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // 한 번만 생성 — 콜백은 ref로 추적
 
     const start = () => {
         if (recognitionRef.current && !isListening) {

@@ -135,6 +135,38 @@ function InitialChartView({ chart, onChange }: { chart: InitialVisitChart, onCha
                 status={chart.occupationalHistory.exercises?.length ? 'complete' : 'pending'}
             />
             <EditableSection
+                icon="👁️"
+                title="시진 (Inspection)"
+                value={chart.physicalExam?.inspection || ''}
+                onChange={(v) => updateField(['physicalExam', 'inspection'], v)}
+                status={chart.physicalExam?.inspection ? 'complete' : 'pending'}
+            />
+            <EditableSection
+                icon="🤲"
+                title="촉진 (Palpation)"
+                value={chart.physicalExam?.palpation || ''}
+                onChange={(v) => updateField(['physicalExam', 'palpation'], v)}
+                status={chart.physicalExam?.palpation ? 'complete' : 'pending'}
+            />
+            <EditableSection
+                icon="🔄"
+                title="관절 가동 범위 (ROM)"
+                value={chart.physicalExam?.rangeOfMotion || ''}
+                onChange={(v) => updateField(['physicalExam', 'rangeOfMotion'], v)}
+                status={chart.physicalExam?.rangeOfMotion ? 'complete' : 'pending'}
+            />
+            <EditableSection
+                icon="🧪"
+                title="특수 검사 (Special Tests)"
+                value={chart.physicalExam?.specialTests?.join(', ') || ''}
+                onChange={(v) => {
+                    const tests = v.split(',').map(s => s.trim()).filter(Boolean);
+                    const newChart = { ...chart, physicalExam: { ...chart.physicalExam, specialTests: tests } };
+                    onChange?.(newChart);
+                }}
+                status={chart.physicalExam?.specialTests?.length ? 'complete' : 'pending'}
+            />
+            <EditableSection
                 icon="📸"
                 title="영상 검사 (X-ray Views)"
                 value={chart.imagingPlan.xrayViews?.join(', ') || ''}

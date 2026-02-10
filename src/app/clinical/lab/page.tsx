@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical';
 import { Visit } from '@/types/clinical';
-import { FlaskConical, CheckCircle2, Search, TestTube2, ArrowRight, FileText, X, Mic, Square } from 'lucide-react';
+import { FlaskConical, CheckCircle2, TestTube2, FileText, X, Mic, Square, ArrowRight } from 'lucide-react';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
+import { changeVisitStatus } from '@/lib/workflow-engine';
+import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 
 export default function LaboratoryPage() {
     const [visits, setVisits] = useState<Visit[]>([]);
@@ -61,7 +63,7 @@ export default function LaboratoryPage() {
         if (!selectedVisit) return;
 
         try {
-            const updates: any = {
+            const updates: Record<string, unknown> = {
                 testResult: resultText,
                 testStatus: complete ? 'completed' : 'processing',
                 updatedAt: serverTimestamp()
@@ -82,6 +84,16 @@ export default function LaboratoryPage() {
         } catch (e) {
             console.error(e);
             alert('저장 중 오류가 발생했습니다.');
+        }
+    };
+
+    const handleForceToConsulting = async (visit: Visit) => {
+        if (!confirm(`${visit.patientName}님을 결과 입력 없이 진료실로 이동하시겠습니까?\n(나중에 결과를 입력할 수 있습니다)`)) return;
+        try {
+            await changeVisitStatus(visit.id, 'consulting');
+        } catch (e) {
+            console.error(e);
+            alert('이동 중 오류가 발생했습니다.');
         }
     };
 
@@ -132,6 +144,11 @@ export default function LaboratoryPage() {
                                 </button>
                             </div>
 
+                            {/* 상태 뱃지 + 팝오버 */}
+                            <div className="mb-3">
+                                <PatientStatusBadges visit={visit} />
+                            </div>
+
                             <div className="flex-1 bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
                                 <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
                                     <ClipboardListIcon className="w-3 h-3" />
@@ -147,6 +164,15 @@ export default function LaboratoryPage() {
                                     <h4 className="text-xs font-bold text-green-700 uppercase mb-1">Result</h4>
                                     <p className="text-sm text-green-800 line-clamp-2">{visit.testResult}</p>
                                 </div>
+                            )}
+
+                            {visit.status === 'testing' && visit.testStatus !== 'completed' && (
+                                <button
+                                    onClick={() => handleForceToConsulting(visit)}
+                                    className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors"
+                                >
+                                    <ArrowRight className="w-4 h-4" /> 진료실로 강제이동
+                                </button>
                             )}
                         </div>
                     ))}
