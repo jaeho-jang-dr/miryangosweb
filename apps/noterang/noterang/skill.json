@@ -1,0 +1,107 @@
+{
+  "name": "noterang",
+  "display_name": "Noterang (노트랑)",
+  "version": "2.0.0",
+  "description": "Google NotebookLM 완전 자동화 에이전트. 노트북 생성 → 소스 수집 → 슬라이드 생성 → PDF 분석 → 웹 자료실 등록까지 End-to-End 파이프라인 제공.",
+  "author": "Antigravity x Claude",
+  "type": "agent",
+  "category": "productivity",
+  "tags": ["notebooklm", "ai", "content-generation", "research", "automation", "nlm_to_web"],
+  "entry_point": "noterang.py",
+  "work_directory": "G:/내 드라이브/notebooklm",
+  "dependencies": {
+    "python": ">=3.10",
+    "packages": [
+      "notebooklm-mcp-cli>=0.2.10",
+      "PyMuPDF",
+      "firebase-admin",
+      "python-dotenv",
+      "requests"
+    ]
+  },
+  "capabilities": [
+    "list_notebooks",
+    "create_notebook",
+    "create_infographic",
+    "create_audio_overview",
+    "create_slide_deck",
+    "create_quiz",
+    "create_flashcards",
+    "create_report",
+    "create_video",
+    "add_url_source",
+    "add_file_source",
+    "query_notebook",
+    "research_topics",
+    "nlm_to_web",
+    "full_pipeline",
+    "pdf_analysis",
+    "firestore_register"
+  ],
+  "skills": {
+    "nlm_to_web": {
+      "description": "이미 다운로드된 PDF → 분석 → 웹 자료실 등록 (브라우저 불필요, 5-10초)",
+      "script": "D:/Projects/miryangosweb/apps/noterang/nlm_to_web.py",
+      "triggers": ["nlm_to_web", "자료실 등록", "자료실에 올려", "pdf 등록", "pdf 올려", "웹에 등록"],
+      "requires_browser": false,
+      "typical_duration": "5-10초",
+      "args": "--pdf <path> --title <title> [--type disease|guide|news] [--hidden] [--design <style>]"
+    },
+    "full_pipeline": {
+      "description": "NotebookLM 노트북 생성 → 소스 수집 → 슬라이드 생성 → PDF 다운로드 → 분석 → 웹 자료실 등록",
+      "script": "D:/Projects/miryangosweb/apps/noterang/run_pipeline.py",
+      "triggers": ["노트랑", "noterang", "슬라이드 만들어", "ppt 만들어", "노트북 만들어"],
+      "requires_browser": true,
+      "typical_duration": "10-12분",
+      "args": "--title <title> [--design <style>] [--queries <q1,q2>] [--type disease|guide|news] [--hidden] [--no-register]"
+    }
+  },
+  "conductor_config": {
+    "memory_enabled": true,
+    "auto_save_results": true,
+    "results_directory": "G:/내 드라이브/notebooklm"
+  },
+  "proven_configs": {
+    "timeout_slides": 600,
+    "design_styles_tested": ["미니멀 젠", "인포그래픽"],
+    "avg_sources_per_notebook": 25,
+    "avg_slide_count": 15,
+    "avg_duration_seconds": 710,
+    "ocr_engine": "Google Vision API (PyMuPDF fallback)",
+    "content_rules": {
+      "no_notebooklm_mention": true,
+      "no_korean_ortho_line": true,
+      "first_page_image_as_markdown": true,
+      "images_array_empty": true
+    }
+  },
+  "usage_examples": [
+    {
+      "description": "풀 파이프라인: 노트북 생성부터 자료실 등록까지",
+      "command": "python run_pipeline.py --title \"아킬레스건염\" --design \"미니멀 젠\""
+    },
+    {
+      "description": "PDF만 자료실에 등록 (브라우저 불필요)",
+      "command": "python nlm_to_web.py --pdf \"G:/내 드라이브/notebooklm/slides.pdf\" --title \"오십견\""
+    },
+    {
+      "description": "최신 PDF 자동 선택하여 등록",
+      "command": "python nlm_to_web.py --latest --title \"족저근막염\""
+    },
+    {
+      "description": "비공개로 등록 (관리자 검토 후 공개)",
+      "command": "python run_pipeline.py --title \"회전근개\" --design \"미니멀 젠\" --hidden"
+    },
+    {
+      "description": "여러 노트북 순차 생성",
+      "command": "순차 실행: run_pipeline.py 반복 호출 (한 번에 하나씩, 각 10-12분)"
+    }
+  ],
+  "installation": {
+    "steps": [
+      "pip install notebooklm-mcp-cli PyMuPDF firebase-admin python-dotenv requests",
+      "notebooklm-mcp-auth",
+      "gcloud auth application-default login (Firestore ADC)"
+    ]
+  }
+}

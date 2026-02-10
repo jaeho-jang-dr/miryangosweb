@@ -59,10 +59,15 @@ CLAUDE_SETUP_GUIDE.md
 auth_info.txt
 auth_output_*.txt
 gemini.bat
-nul
 
-# Separate git repositories in apps folder
-apps/notebooklm-automation/
+# Noterang (NotebookLM Automation)
+apps/noterang/__pycache__/
+apps/noterang/noterang/__pycache__/
+apps/noterang/webapp/__pycache__/
+apps/noterang/jpdf/__pycache__/
+apps/noterang/*.png
+apps/noterang/CCimages/
+*.pyc
 
 # Claude temporary files
 tmpclaude-*
