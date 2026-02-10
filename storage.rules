@@ -1,6 +1,13 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Voice Charts (High Privacy) - DEVELOPMENT MODE
+    // TODO: Re-enable strict security (authenticated only)
+    match /voice-charts/{patientId}/{fileName} {
+      allow read, write: if true; // DEV MODE: Set to 'true' temporarily
+    }
+
+    // Default: Allow read/write for now (Dev Mode)
     match /{allPaths=**} {
       allow read, write: if true;
     }

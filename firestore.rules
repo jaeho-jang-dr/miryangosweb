@@ -61,6 +61,12 @@ service cloud.firestore {
       allow read, write: if true; // DEV MODE: Open access for development
     }
 
+    // Voice Charts (High Privacy) - DEVELOPMENT MODE
+    // TODO: Re-enable strict security (authenticated only + role check)
+    match /charts/{document=**} {
+      allow read, write: if true; // DEV MODE: Set to 'true' temporarily for easy testing without auth
+    }
+
     // Users Collection (Added for Admin Dashboard)
     // Users can read their own data, Admin can manage all users
     match /users/{userId} {

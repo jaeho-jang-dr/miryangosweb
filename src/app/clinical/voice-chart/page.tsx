@@ -40,6 +40,7 @@ export default function VoiceChartPage() {
     });
     const [chart, setChart] = useState<InitialVisitChart | SoapNote | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'uploading' | 'saving' | 'completed' | 'error'>('idle');
     const [patientId] = useState('demo-patient-001'); // TODO: 실제 환자 ID 연동
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -233,6 +234,8 @@ export default function VoiceChartPage() {
             return;
         }
 
+        setSaveStatus('uploading');
+
         try {
             let audioUrl = null;
 
@@ -241,7 +244,6 @@ export default function VoiceChartPage() {
                 const timestamp = Date.now();
                 const storageRef = ref(storage, `voice-charts/${patientId}/${timestamp}.webm`);
                 
-                // 메타데이터 추가
                 const metadata = {
                     contentType: 'audio/webm',
                     customMetadata: {
@@ -250,19 +252,33 @@ export default function VoiceChartPage() {
                     }
                 };
 
-                // 업로드 시작 토스트나 인디케이터가 있으면 좋음
-                console.log('Uploading audio...');
-                const snapshot = await uploadBytes(storageRef, recordedBlob, metadata);
-                audioUrl = await getDownloadURL(snapshot.ref);
-                console.log('[VoiceChart] Audio uploaded:', audioUrl);
+                // 간단한 재시도 로직 (3회)
+                let uploadSuccess = false;
+                let retryCount = 0;
+                while (!uploadSuccess && retryCount < 3) {
+                    try {
+                        console.log(`Uploading audio (Attempt ${retryCount + 1})...`);
+                        const snapshot = await uploadBytes(storageRef, recordedBlob, metadata);
+                        audioUrl = await getDownloadURL(snapshot.ref);
+                        uploadSuccess = true;
+                        console.log('[VoiceChart] Audio uploaded:', audioUrl);
+                    } catch (e) {
+                         console.warn(`Upload failed (Attempt ${retryCount + 1}):`, e);
+                         retryCount++;
+                         if (retryCount >= 3) throw e;
+                         await new Promise(r => setTimeout(r, 1000)); // 1초 대기 후 재시도
+                    }
+                }
             }
+
+            setSaveStatus('saving');
 
             const chartData = {
                 ...chart,
-                transcriptSegments, // 대화 내용 포함
+                transcriptSegments, 
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                status: 'completed', // 상태 관리 (임시)
+                status: 'completed',
                 audioUrl: audioUrl
             };
 
@@ -270,17 +286,23 @@ export default function VoiceChartPage() {
             const docRef = await addDoc(collection(db, 'charts'), chartData);
             console.log('[VoiceChart] 차트 저장 완료:', docRef.id);
             
+            setSaveStatus('completed');
             alert(`차트가 성공적으로 저장되었습니다.\n문서 ID: ${docRef.id}`);
             
-            // 성공 후 초기화 여부 확인
             if (confirm('저장이 완료되었습니다. 새로운 진료를 시작하시겠습니까?')) {
                 handleReset();
             }
 
         } catch (error: unknown) {
+            setSaveStatus('error');
             const err = error as Error;
             console.error('차트 저장 실패:', err);
             alert('차트 저장 실패: ' + err.message);
+        } finally {
+             // 3초 후 상태 초기화 (에러나 완료 상태를 잠시 보여주기 위함)
+             if (saveStatus !== 'error') {
+                 setTimeout(() => setSaveStatus('idle'), 3000);
+             }
         }
     };
 
@@ -291,6 +313,7 @@ export default function VoiceChartPage() {
             setChart(null);
             setRecordedBlob(null);
             setIsGenerating(false);
+            setSaveStatus('idle');
         }
     };
 
@@ -379,10 +402,22 @@ export default function VoiceChartPage() {
                         <div className="flex gap-3">
                             <button
                                 onClick={handleSaveChart}
-                                disabled={!chart || isGenerating}
-                                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors"
+                                disabled={!chart || isGenerating || saveStatus === 'uploading' || saveStatus === 'saving'}
+                                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
                             >
-                                차트 저장
+                                {saveStatus === 'uploading' ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                                        음성 업로드 중...
+                                    </>
+                                ) : saveStatus === 'saving' ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                                        데이터 저장 중...
+                                    </>
+                                ) : (
+                                    '차트 저장'
+                                )}
                             </button>
                             <button
                                 onClick={handleReset}
