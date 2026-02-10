@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import JSZip from 'jszip';
+import { extractPptxText, isPptxFile } from '@/lib/pptx-parser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,9 +82,19 @@ async function ocrPdfPagesWithVision(buffer: Buffer): Promise<string> {
         const path = require('path');
 
         // GraphicsMagick + Ghostscript PATH 추가
-        const gmBinPath = 'D:\\antigravity\\GraphicsMagick-1.3.46-Q16';
-        const gsBinPath = 'D:\\antigravity\\gs10.06.0\\bin';
-        const gsLibPath = 'D:\\antigravity\\gs10.06.0\\lib';
+        const gmBinPath = process.env.GRAPHICSMAGICK_PATH;
+        const gsBinPath = process.env.GHOSTSCRIPT_BIN_PATH;
+        const gsLibPath = process.env.GHOSTSCRIPT_LIB_PATH;
+
+        // 환경 변수 검증
+        if (!gmBinPath || !gsBinPath || !gsLibPath) {
+            console.error('[GM] GraphicsMagick/Ghostscript 경로 환경 변수가 설정되지 않았습니다.');
+            console.error('[GM] 필수 환경 변수: GRAPHICSMAGICK_PATH, GHOSTSCRIPT_BIN_PATH, GHOSTSCRIPT_LIB_PATH');
+            return NextResponse.json({
+                error: true,
+                errorMessage: 'GraphicsMagick/Ghostscript 설정이 필요합니다.',
+            }, { status: 500 });
+        }
 
         if (!process.env.PATH?.includes(gmBinPath)) {
             process.env.PATH = `${gmBinPath};${gsBinPath};${gsLibPath};${process.env.PATH}`;
@@ -240,7 +251,7 @@ export async function POST(request: Request) {
 
         const fileName = file.name.toLowerCase();
         const isPdf = fileName.endsWith('.pdf');
-        const isPptx = fileName.endsWith('.pptx');
+        const isPptx = isPptxFile(file.name, file.type);
 
         if (!isPdf && !isPptx) {
             return NextResponse.json({
@@ -257,35 +268,19 @@ export async function POST(request: Request) {
         let method = '';
 
         if (isPptx) {
-            // PPTX: JSZip으로 슬라이드 텍스트 추출
+            // PPTX: 공유 라이브러리로 텍스트 추출
             console.log('[PDF-Vision] PPTX 파일, 텍스트 추출 중...');
-            try {
-                const zip = new JSZip();
-                const contents = await zip.loadAsync(buffer);
-                const slideFiles = Object.keys(contents.files)
-                    .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
-                    .sort((a, b) => {
-                        const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0');
-                        const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
-                        return numA - numB;
-                    });
+            const result = await extractPptxText(buffer, {
+                slideFormat: 'dash'
+            });
 
-                for (const slidePath of slideFiles) {
-                    const slideXml = await contents.files[slidePath].async('text');
-                    const textMatches = slideXml.match(/<a:t>([^<]*)<\/a:t>/g);
-                    if (textMatches) {
-                        const slideNum = slidePath.match(/slide(\d+)/)?.[1] || '?';
-                        const slideText = textMatches
-                            .map((m: string) => m.replace(/<\/?a:t>/g, ''))
-                            .join(' ');
-                        extractedText += `\n--- 슬라이드 ${slideNum} ---\n${slideText}`;
-                    }
-                }
-                pageCount = slideFiles.length;
+            if (result.success) {
+                extractedText = result.totalText;
+                pageCount = result.totalSlides;
                 method = `PPTX 텍스트 추출 (${pageCount}슬라이드)`;
                 console.log(`[PDF-Vision] PPTX 추출 완료: ${extractedText.length}자, ${pageCount}슬라이드`);
-            } catch (e: any) {
-                console.error('[PDF-Vision] PPTX 파싱 실패:', e.message);
+            } else {
+                console.error('[PDF-Vision] PPTX 파싱 실패:', result.error);
             }
         } else {
             // PDF 처리

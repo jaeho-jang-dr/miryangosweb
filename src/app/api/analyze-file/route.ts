@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
+import { extractPptxText, isPptxFile } from '@/lib/pptx-parser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,13 +37,13 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Initialize OpenAI for ChatGPT
 const openai = new OpenAI({
-    apiKey: process.env.GPTOSS_API_KEY || 'dummy-key',
+    apiKey: process.env.GPTOSS_API_KEY || '',
     baseURL: process.env.GPTOSS_BASE_URL || 'https://api.openai.com/v1',
 });
 
 // Initialize Anthropic for Claude
 const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY || 'dummy-key',
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
 
 function bufferToPart(buffer: Buffer, mimeType: string) {
@@ -525,41 +526,19 @@ export async function POST(request: Request) {
             }
         }
         // --- STRATEGY 5: PPTX (PowerPoint) ---
-        else if (file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || file.name.endsWith('.pptx')) {
+        else if (isPptxFile(file.name, file.type)) {
             console.log("📊 PPTX 파일 감지. 텍스트 추출 중...");
-            try {
-                const zip = new JSZip();
-                const contents = await zip.loadAsync(buffer);
-                let allText = '';
+            const result = await extractPptxText(buffer, {
+                maxTextLength: 15000,
+                slideFormat: 'bracket'
+            });
 
-                // PPTX 슬라이드 XML에서 텍스트 추출
-                const slideFiles = Object.keys(contents.files)
-                    .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
-                    .sort((a, b) => {
-                        const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0');
-                        const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
-                        return numA - numB;
-                    });
-
-                for (const slidePath of slideFiles) {
-                    const slideXml = await contents.files[slidePath].async('text');
-                    // XML 태그 제거하고 텍스트만 추출
-                    const textMatches = slideXml.match(/<a:t>([^<]*)<\/a:t>/g);
-                    if (textMatches) {
-                        const slideNum = slidePath.match(/slide(\d+)/)?.[1] || '?';
-                        const slideText = textMatches
-                            .map(m => m.replace(/<\/?a:t>/g, ''))
-                            .join(' ');
-                        allText += `[슬라이드 ${slideNum}]\n${slideText}\n\n`;
-                    }
-                }
-
-                const text = allText.substring(0, 15000);
-                prompt = `PowerPoint 프레젠테이션 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
+            if (result.success && result.totalText.length > 0) {
+                prompt = `PowerPoint 프레젠테이션 분석:\n\n${result.totalText}\n\n` + MEDICAL_ANALYSIS_PROMPT;
                 contentParts = [];
-                console.log(`✅ PPTX 파싱 완료: ${text.length}자, ${slideFiles.length}슬라이드`);
-            } catch (e: any) {
-                console.error("PPTX 파싱 실패:", e.message);
+                console.log(`✅ PPTX 파싱 완료: ${result.totalText.length}자, ${result.totalSlides}슬라이드`);
+            } else {
+                console.error("PPTX 파싱 실패:", result.error);
                 prompt = `PowerPoint 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
                 contentParts = [];
             }
