@@ -8,18 +8,16 @@ import * as XLSX from 'xlsx';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Lazy load pdf-parse to avoid build errors
+// pdf-parse v2.4.5 API
 async function parsePdf(buffer: Buffer) {
     try {
-        // pdf-parse의 default export는 함수입니다
-        const pdfParseModule: any = await import('pdf-parse');
-        const pdfParse = pdfParseModule.default || pdfParseModule;
-
-        if (typeof pdfParse !== 'function') {
-            throw new Error('pdf-parse module is not a function');
-        }
-
-        return await pdfParse(buffer);
+        const { PDFParse, VerbosityLevel } = require('pdf-parse');
+        const parser = new PDFParse({
+            data: new Uint8Array(buffer),
+            verbosity: VerbosityLevel.ERRORS,
+        });
+        const result = await parser.getText();
+        return { text: result.text || '', numpages: result.pages?.length || 0 };
     } catch (error: any) {
         throw new Error(`PDF parsing failed: ${error.message}`);
     }
@@ -466,16 +464,24 @@ export async function POST(request: Request) {
         // --- STRATEGY 2: PDF ---
         else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
             console.log("📄 PDF 파일 감지. 텍스트 추출 중...");
+            let pdfText = '';
             try {
                 const data = await parsePdf(buffer);
-                const text = data.text.substring(0, 15000);
-                prompt = `PDF 문서 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
-                contentParts = [];
-                console.log(`✅ PDF 파싱 완료: ${text.length}자`);
+                pdfText = data.text.trim();
+                console.log(`✅ PDF 파싱 완료: ${pdfText.length}자`);
             } catch (e: any) {
                 console.error("PDF 파싱 실패:", e.message);
-                prompt = `PDF 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
+            }
+
+            if (pdfText.length >= 100) {
+                // 텍스트 기반 PDF - 추출된 텍스트로 분석
+                prompt = `PDF 문서 분석:\n\n${pdfText.substring(0, 15000)}\n\n` + MEDICAL_ANALYSIS_PROMPT;
                 contentParts = [];
+            } else {
+                // 이미지 기반 PDF - PDF를 Gemini에 직접 전달
+                console.log(`📸 이미지 기반 PDF (텍스트 ${pdfText.length}자). PDF를 직접 AI에 전달합니다.`);
+                prompt = MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [bufferToPart(buffer, 'application/pdf')];
             }
         }
         // --- STRATEGY 3: DOCX (Word) ---
@@ -518,7 +524,47 @@ export async function POST(request: Request) {
                 contentParts = [];
             }
         }
-        // --- STRATEGY 5: TEXT ---
+        // --- STRATEGY 5: PPTX (PowerPoint) ---
+        else if (file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || file.name.endsWith('.pptx')) {
+            console.log("📊 PPTX 파일 감지. 텍스트 추출 중...");
+            try {
+                const zip = new JSZip();
+                const contents = await zip.loadAsync(buffer);
+                let allText = '';
+
+                // PPTX 슬라이드 XML에서 텍스트 추출
+                const slideFiles = Object.keys(contents.files)
+                    .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+                    .sort((a, b) => {
+                        const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0');
+                        const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
+                        return numA - numB;
+                    });
+
+                for (const slidePath of slideFiles) {
+                    const slideXml = await contents.files[slidePath].async('text');
+                    // XML 태그 제거하고 텍스트만 추출
+                    const textMatches = slideXml.match(/<a:t>([^<]*)<\/a:t>/g);
+                    if (textMatches) {
+                        const slideNum = slidePath.match(/slide(\d+)/)?.[1] || '?';
+                        const slideText = textMatches
+                            .map(m => m.replace(/<\/?a:t>/g, ''))
+                            .join(' ');
+                        allText += `[슬라이드 ${slideNum}]\n${slideText}\n\n`;
+                    }
+                }
+
+                const text = allText.substring(0, 15000);
+                prompt = `PowerPoint 프레젠테이션 분석:\n\n${text}\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+                console.log(`✅ PPTX 파싱 완료: ${text.length}자, ${slideFiles.length}슬라이드`);
+            } catch (e: any) {
+                console.error("PPTX 파싱 실패:", e.message);
+                prompt = `PowerPoint 파일 (파일명: ${file.name})\n\n` + MEDICAL_ANALYSIS_PROMPT;
+                contentParts = [];
+            }
+        }
+        // --- STRATEGY 6: TEXT ---
         else {
             const textStart = buffer.toString('utf-8').substring(0, 5000);
             prompt = `텍스트 파일 분석\n\n파일명: ${file.name}\n내용:\n${textStart}\n\n` + MEDICAL_ANALYSIS_PROMPT;

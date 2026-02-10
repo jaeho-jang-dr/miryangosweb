@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import ReactMarkdown from 'react-markdown';
 import { db, storage } from '@/lib/firebase-public';
 import Link from 'next/link';
 
@@ -33,12 +32,14 @@ export default function SmartMaterialPage() {
     const [isDragging, setIsDragging] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string>('');
 
-    // PDF 파일 처리
+    // PDF/PPTX 파일 처리
     const processFile = async (selectedFile: File) => {
-        const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+        const ext = selectedFile.name.toLowerCase();
+        const isPdf = selectedFile.type === 'application/pdf' || ext.endsWith('.pdf');
+        const isPptx = selectedFile.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || ext.endsWith('.pptx');
 
-        if (!isPdf) {
-            alert('PDF 파일만 업로드 가능합니다.');
+        if (!isPdf && !isPptx) {
+            alert('PDF 또는 PPTX 파일만 업로드 가능합니다.');
             return;
         }
 
@@ -63,8 +64,8 @@ export default function SmartMaterialPage() {
 
             // API 응답을 폼 형식에 맞게 변환
             const result: AnalysisResult = {
-                title: data.fileName || selectedFile.name.replace(/\.[^/.]+$/, ''),
-                category: mapFileTypeToCategory(data.fileType),
+                title: data.title || selectedFile.name.replace(/\.[^/.]+$/, ''),
+                category: data.category || mapFileTypeToCategory(data.fileType),
                 tags: data.tags || ['자동생성'],
                 summary: data.summary || '',
                 content: data.content || '',
@@ -148,15 +149,15 @@ export default function SmartMaterialPage() {
         setStatus('saving');
 
         try {
-            // 1. PDF 파일 업로드
+            // 1. 파일 업로드 (PDF/PPTX)
             const timestamp = Date.now();
             const safeName = file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, '_');
-            const pdfRef = ref(storage, `materials/${timestamp}_${safeName}`);
+            const fileRef = ref(storage, `materials/${timestamp}_${safeName}`);
 
-            await uploadBytes(pdfRef, file);
-            const uploadedPdfUrl = await getDownloadURL(pdfRef);
-            setPdfUrl(uploadedPdfUrl);
-            console.log('PDF 업로드 완료:', uploadedPdfUrl);
+            await uploadBytes(fileRef, file);
+            const uploadedFileUrl = await getDownloadURL(fileRef);
+            setPdfUrl(uploadedFileUrl);
+            console.log('파일 업로드 완료:', uploadedFileUrl);
 
             // 2. Firestore에 문서 저장
             const docRef = await addDoc(collection(db, 'articles'), {
@@ -167,12 +168,12 @@ export default function SmartMaterialPage() {
                 content: analysisResult.content,
 
                 // 첨부 파일 정보
-                attachmentUrl: uploadedPdfUrl,
+                attachmentUrl: uploadedFileUrl,
                 attachmentName: file.name,
-                pdfUrl: uploadedPdfUrl,
+                pdfUrl: uploadedFileUrl,
 
                 // 메타데이터
-                analyzedBy: analysisResult.analyzedBy || 'Gemini + Vision OCR',
+                analyzedBy: analysisResult.analyzedBy || 'AI',
                 isVisible: true,
                 createdAt: serverTimestamp(),
             });
@@ -211,7 +212,7 @@ export default function SmartMaterialPage() {
                 </Link>
                 <h1 className="text-2xl font-bold text-slate-900">스마트 자료 등록</h1>
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                    PDF + Vision OCR
+                    PDF / PPTX + AI
                 </span>
             </div>
 
@@ -219,8 +220,8 @@ export default function SmartMaterialPage() {
             {status === 'idle' && (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
                     <p className="text-slate-600 mb-6 text-center">
-                        PDF 파일을 업로드하면 <strong className="text-blue-600">Google Vision OCR</strong>로 텍스트를 추출하고
-                        <strong className="text-blue-600"> Gemini</strong>가 자동으로 분류합니다.
+                        PDF/PPTX 파일을 업로드하면 <strong className="text-blue-600">AI</strong>가 텍스트를 추출하고
+                        자동으로 분류합니다.
                     </p>
 
                     <div
@@ -242,17 +243,17 @@ export default function SmartMaterialPage() {
                         </div>
 
                         <p className="text-lg font-medium text-slate-700 mb-2">
-                            {isDragging ? '여기에 놓으세요' : 'PDF 파일을 드래그하거나 클릭'}
+                            {isDragging ? '여기에 놓으세요' : 'PDF / PPTX 파일을 드래그하거나 클릭'}
                         </p>
                         <p className="text-sm text-slate-500">
-                            이미지 기반 PDF도 OCR로 텍스트 추출 가능
+                            PDF, PowerPoint 파일을 AI가 자동 분석합니다
                         </p>
 
                         <input
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept=".pdf,application/pdf"
+                            accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                             onChange={handleFileSelect}
                         />
                     </div>
@@ -264,12 +265,12 @@ export default function SmartMaterialPage() {
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
                     <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-slate-800 mb-2">AI가 분석 중입니다</h2>
-                    <p className="text-slate-500 mb-4">Google Vision OCR + Gemini</p>
+                    <p className="text-slate-500 mb-4">파일에서 텍스트를 추출하고 분류합니다</p>
 
                     <div className="max-w-xs mx-auto text-left text-sm text-slate-600 space-y-2">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                            <span>PDF에서 텍스트 추출 중...</span>
+                            <span>파일에서 텍스트 추출 중...</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.3s'}}></div>

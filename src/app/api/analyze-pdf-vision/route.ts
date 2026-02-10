@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import JSZip from 'jszip';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,12 +48,23 @@ async function ocrImageWithVision(imageBase64: string): Promise<string> {
  */
 async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
     try {
-        // pdf-parse v2.4.5 사용 - PDFParse는 클래스
-        const { PDFParse } = require('pdf-parse');
-        const parser = new PDFParse();
-        const data = await parser.parse(buffer);
-        console.log(`[PDF-Parse] ${data.numpages}페이지에서 ${data.text.length}자 추출`);
-        return { text: data.text, pageCount: data.numpages };
+        // pdf-parse v2.4.5 - constructor에 data + verbosity 전달
+        const { PDFParse, VerbosityLevel } = require('pdf-parse');
+        const parser = new PDFParse({
+            data: new Uint8Array(buffer),
+            verbosity: VerbosityLevel.ERRORS,
+        });
+        const result = await parser.getText();
+        const pageCount = result.pages?.length || 0;
+
+        // 각 페이지의 실제 텍스트만 합침 (페이지 마커 "-- X of Y --" 제외)
+        const actualText = (result.pages || [])
+            .map((p: any) => (p.text || '').trim())
+            .filter((t: string) => t.length > 0)
+            .join('\n\n');
+
+        console.log(`[PDF-Parse] ${pageCount}페이지에서 실제 텍스트 ${actualText.length}자 추출`);
+        return { text: actualText, pageCount };
     } catch (e: any) {
         console.log('[PDF-Parse] 실패:', e.message);
         return { text: '', pageCount: 0 };
@@ -226,10 +238,14 @@ export async function POST(request: Request) {
         console.log(`\n[PDF-Vision] ========================================`);
         console.log(`[PDF-Vision] 파일: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
-        if (!file.name.toLowerCase().endsWith('.pdf')) {
+        const fileName = file.name.toLowerCase();
+        const isPdf = fileName.endsWith('.pdf');
+        const isPptx = fileName.endsWith('.pptx');
+
+        if (!isPdf && !isPptx) {
             return NextResponse.json({
                 error: true,
-                errorMessage: 'PDF 파일만 지원합니다.',
+                errorMessage: 'PDF 또는 PPTX 파일만 지원합니다.',
             }, { status: 400 });
         }
 
@@ -240,24 +256,58 @@ export async function POST(request: Request) {
         let pageCount = 0;
         let method = '';
 
-        // 1단계: pdf-parse로 텍스트 추출
-        console.log('[PDF-Vision] 1단계: pdf-parse 시도...');
-        const pdfResult = await extractTextFromPdf(buffer);
+        if (isPptx) {
+            // PPTX: JSZip으로 슬라이드 텍스트 추출
+            console.log('[PDF-Vision] PPTX 파일, 텍스트 추출 중...');
+            try {
+                const zip = new JSZip();
+                const contents = await zip.loadAsync(buffer);
+                const slideFiles = Object.keys(contents.files)
+                    .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+                    .sort((a, b) => {
+                        const numA = parseInt(a.match(/slide(\d+)/)?.[1] || '0');
+                        const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
+                        return numA - numB;
+                    });
 
-        if (pdfResult.text.trim().length >= 100) {
-            extractedText = pdfResult.text;
-            pageCount = pdfResult.pageCount;
-            method = 'PDF-Parse (텍스트 PDF)';
-            console.log(`[PDF-Vision] 1단계 성공: ${extractedText.length}자`);
+                for (const slidePath of slideFiles) {
+                    const slideXml = await contents.files[slidePath].async('text');
+                    const textMatches = slideXml.match(/<a:t>([^<]*)<\/a:t>/g);
+                    if (textMatches) {
+                        const slideNum = slidePath.match(/slide(\d+)/)?.[1] || '?';
+                        const slideText = textMatches
+                            .map((m: string) => m.replace(/<\/?a:t>/g, ''))
+                            .join(' ');
+                        extractedText += `\n--- 슬라이드 ${slideNum} ---\n${slideText}`;
+                    }
+                }
+                pageCount = slideFiles.length;
+                method = `PPTX 텍스트 추출 (${pageCount}슬라이드)`;
+                console.log(`[PDF-Vision] PPTX 추출 완료: ${extractedText.length}자, ${pageCount}슬라이드`);
+            } catch (e: any) {
+                console.error('[PDF-Vision] PPTX 파싱 실패:', e.message);
+            }
         } else {
-            // 2단계: 이미지 기반 PDF - Vision OCR
-            console.log('[PDF-Vision] 2단계: 이미지 PDF, Vision OCR 시도...');
-            const visionText = await ocrPdfPagesWithVision(buffer);
+            // PDF 처리
+            // 1단계: pdf-parse로 텍스트 추출
+            console.log('[PDF-Vision] 1단계: pdf-parse 시도...');
+            const pdfResult = await extractTextFromPdf(buffer);
 
-            if (visionText.length > 0) {
-                extractedText = visionText;
-                method = 'Vision OCR (이미지 PDF)';
-                console.log(`[PDF-Vision] 2단계 성공: ${extractedText.length}자`);
+            if (pdfResult.text.trim().length >= 100) {
+                extractedText = pdfResult.text;
+                pageCount = pdfResult.pageCount;
+                method = 'PDF-Parse (텍스트 PDF)';
+                console.log(`[PDF-Vision] 1단계 성공: ${extractedText.length}자`);
+            } else {
+                // 2단계: 이미지 기반 PDF - Vision OCR
+                console.log('[PDF-Vision] 2단계: 이미지 PDF, Vision OCR 시도...');
+                const visionText = await ocrPdfPagesWithVision(buffer);
+
+                if (visionText.length > 0) {
+                    extractedText = visionText;
+                    method = 'Vision OCR (이미지 PDF)';
+                    console.log(`[PDF-Vision] 2단계 성공: ${extractedText.length}자`);
+                }
             }
         }
 
@@ -267,12 +317,12 @@ export async function POST(request: Request) {
         if (!extractedText.trim()) {
             return NextResponse.json({
                 error: true,
-                errorMessage: 'PDF에서 텍스트를 추출할 수 없습니다. GraphicsMagick 설치가 필요할 수 있습니다.',
+                errorMessage: '파일에서 텍스트를 추출할 수 없습니다.',
                 title: file.name.replace(/\.[^/.]+$/, ''),
                 category: 'disease',
                 tags: ['검토필요'],
                 summary: '텍스트 추출 실패',
-                content: '## 내용\n\nPDF에서 텍스트를 추출할 수 없습니다.\n\n이미지 기반 PDF의 경우 GraphicsMagick 설치가 필요합니다.',
+                content: '## 내용\n\n파일에서 텍스트를 추출할 수 없습니다.',
             });
         }
 

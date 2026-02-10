@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '50mb', // Increase limit for file uploads
     },
   },
+  transpilePackages: ['react-markdown'], // ESM-only 패키지 트랜스파일
   serverExternalPackages: ['pdf-parse'], // Externalize pdf-parse for build
   async headers() {
     return [
