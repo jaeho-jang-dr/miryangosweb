@@ -57,6 +57,17 @@ export async function extractPptxText(
     } = options;
 
     try {
+        // 버퍼 검증
+        if (!buffer || buffer.length === 0) {
+            return {
+                slides: [],
+                totalSlides: 0,
+                totalText: '',
+                success: false,
+                error: 'PPTX 파일이 비어있습니다'
+            };
+        }
+
         const zip = new JSZip();
         const contents = await zip.loadAsync(buffer);
 
@@ -68,6 +79,17 @@ export async function extractPptxText(
                 const numB = parseInt(b.match(/slide(\d+)/)?.[1] || '0');
                 return numA - numB;
             });
+
+        // 슬라이드가 없는 경우
+        if (slideFiles.length === 0) {
+            return {
+                slides: [],
+                totalSlides: 0,
+                totalText: '',
+                success: false,
+                error: 'PPTX 파일에 슬라이드가 없습니다'
+            };
+        }
 
         // maxSlides 제한 적용
         const slidesToProcess = maxSlides
@@ -110,6 +132,17 @@ export async function extractPptxText(
         const finalText = maxTextLength
             ? allText.substring(0, maxTextLength)
             : allText;
+
+        // 모든 슬라이드가 비어있는 경우 경고
+        if (slides.length === 0 || finalText.trim().length === 0) {
+            return {
+                slides,
+                totalSlides: slideFiles.length,
+                totalText: '',
+                success: false,
+                error: `${slideFiles.length}개의 슬라이드가 있지만 텍스트를 추출할 수 없습니다. 이미지 전용 슬라이드일 수 있습니다.`
+            };
+        }
 
         return {
             slides,

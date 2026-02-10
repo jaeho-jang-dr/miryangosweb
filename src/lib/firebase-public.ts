@@ -1,42 +1,17 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, initializeFirestore, memoryLocalCache } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+/**
+ * Public CMS용 Firebase 설정
+ *
+ * 메모리 캐시와 long polling을 사용하여 안정적인 연결 제공
+ *
+ * @deprecated 새 코드에서는 firebase-config.ts의 getFirebaseInstance('public')를 사용하세요
+ * 기존 코드 호환성을 위해 유지
+ */
 
-// Firebase configuration for the PUBLIC project
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+import { getFirebaseInstance } from './firebase-config';
 
-// Initialize Firebase
-// Initialize Firebase
-import { Firestore } from "firebase/firestore";
+const instance = getFirebaseInstance('public');
 
-let app;
-let db: Firestore;
-
-const appName = "MIRYANG_CLIENT";
-const existingApp = getApps().find(app => app.name === appName);
-
-if (existingApp) {
-    app = existingApp;
-    db = getFirestore(app);
-} else {
-    app = initializeApp(firebaseConfig, appName);
-    // Use initializeFirestore with experimentalForceLongPolling to prevent "client is offline" errors
-    // in environments where WebSockets might be restricted or unreliable
-    db = initializeFirestore(app, {
-        localCache: memoryLocalCache(),
-        experimentalForceLongPolling: true,
-    });
-}
-
-const auth = getAuth(app);
-const storage = getStorage(app);
-
-export { app, auth, db, storage };
+export const app = instance.app;
+export const auth = instance.auth;
+export const db = instance.db;
+export const storage = instance.storage;

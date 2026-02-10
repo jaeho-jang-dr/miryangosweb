@@ -9,6 +9,64 @@ import { extractPptxText, isPptxFile } from '@/lib/pptx-parser';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// ============================================================
+// TypeScript Type Definitions
+// ============================================================
+
+/** Claude API - Content Part 타입 */
+type ClaudeContentPart =
+    | { type: 'text'; text: string }
+    | {
+        type: 'image';
+        source: {
+            type: 'base64';
+            media_type: string;
+            data: string;
+        };
+    };
+
+/** ChatGPT API - Message Content 타입 */
+type ChatGPTMessageContent =
+    | string
+    | Array<
+        | { type: 'text'; text: string }
+        | {
+            type: 'image_url';
+            image_url: {
+                url: string;
+                detail: 'low' | 'high' | 'auto';
+            };
+        }
+    >;
+
+/** ChatGPT API - Message 타입 */
+interface ChatGPTMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: ChatGPTMessageContent;
+}
+
+/** Gemini API - Content Part 타입 */
+interface GeminiContentPart {
+    inlineData: {
+        data: string;
+        mimeType: string;
+    };
+}
+
+/** 분석 결과 JSON 구조 */
+interface AnalysisResult {
+    title: string;
+    category: 'disease' | 'treatment' | 'diagnosis' | 'prevention' | 'anatomy' | 'etc';
+    tags: string[];
+    summary: string;
+    content: string;
+    fileName?: string;
+    fileType?: string;
+    analyzedBy?: string;
+}
+
+// ============================================================
+
 // pdf-parse v2.4.5 API
 async function parsePdf(buffer: Buffer) {
     try {
@@ -25,7 +83,7 @@ async function parsePdf(buffer: Buffer) {
 }
 
 // Lazy load mammoth for DOCX support
-let mammoth: any = null;
+let mammoth: typeof import('mammoth') | null = null;
 async function getMammoth() {
     if (!mammoth) {
         mammoth = await import('mammoth');
@@ -207,7 +265,7 @@ async function retryWithBackoff<T>(
 async function executeAIModel(
     selectedModel: string,
     prompt: string,
-    contentParts: any[],
+    contentParts: GeminiContentPart[],
     buffer: Buffer,
     fileType: string
 ): Promise<string> {
@@ -219,7 +277,7 @@ async function executeAIModel(
         // Claude Opus 4.5 - 정확한 OCR 강점
         return await retryWithBackoff(async () => {
             const imageBase64 = contentParts.length > 0 ? buffer.toString('base64') : null;
-            const content: any[] = [{ type: "text", text: prompt }];
+            const content: ClaudeContentPart[] = [{ type: "text", text: prompt }];
 
             if (imageBase64) {
                 content.push({
@@ -259,7 +317,7 @@ async function executeAIModel(
             const isImage = fileType.startsWith('image/') && buffer.length > 0;
             const imageBase64 = isImage ? buffer.toString('base64') : null;
 
-            const messages: any[] = [{
+            const messages: ChatGPTMessage[] = [{
                 role: "user",
                 content: imageBase64
                     ? [
@@ -353,17 +411,34 @@ async function executeAIModel(
 }
 
 // 🔍 JSON 추출 및 검증
-function extractAndValidateJSON(responseText: string, fileName: string): any {
+function extractAndValidateJSON(responseText: string, fileName: string): AnalysisResult {
+    // 입력 검증
+    if (!responseText || responseText.trim().length === 0) {
+        throw new Error("AI 응답이 비어있습니다");
+    }
+
     // JSON 추출
     const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
     const jsonStart = cleanedJson.indexOf('{');
     const jsonEnd = cleanedJson.lastIndexOf('}');
 
     if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error("AI가 JSON을 반환하지 않았습니다");
+        throw new Error("AI가 JSON을 반환하지 않았습니다. 응답 형식을 확인하세요.");
     }
 
-    const data = JSON.parse(cleanedJson.substring(jsonStart, jsonEnd + 1));
+    // JSON 파싱 (에러 처리 포함)
+    let data: any;
+    try {
+        const jsonString = cleanedJson.substring(jsonStart, jsonEnd + 1);
+        data = JSON.parse(jsonString);
+    } catch (parseError: any) {
+        throw new Error(`JSON 파싱 실패: ${parseError.message}`);
+    }
+
+    // 데이터 타입 검증
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+        throw new Error("AI 응답이 올바른 객체 형식이 아닙니다");
+    }
 
     // 필수 필드 검증 및 기본값 설정
     if (!data.title || data.title.trim() === '') {
@@ -382,22 +457,39 @@ function extractAndValidateJSON(responseText: string, fileName: string): any {
         data.tags = ["자동생성"];
     }
 
-    if (!data.category) {
+    // 카테고리 검증 (허용된 값만)
+    const validCategories: AnalysisResult['category'][] = [
+        'disease', 'treatment', 'diagnosis', 'prevention', 'anatomy', 'etc'
+    ];
+    if (!data.category || !validCategories.includes(data.category)) {
         data.category = "disease";
     }
 
-    // 제목 길이 제한
-    if (data.title.length > 50) {
+    // 제목 길이 제한 (안전한 문자열 처리)
+    if (typeof data.title === 'string' && data.title.length > 50) {
         data.title = data.title.substring(0, 50) + "...";
     }
 
-    // 태그 정제
-    data.tags = data.tags
-        .map((tag: string) => tag.trim())
-        .filter((tag: string) => tag.length > 0)
-        .slice(0, 7); // 최대 7개
+    // 태그 정제 (타입 안전성 확보)
+    if (Array.isArray(data.tags)) {
+        data.tags = data.tags
+            .filter((tag: any) => typeof tag === 'string') // 문자열만 유지
+            .map((tag: string) => tag.trim())
+            .filter((tag: string) => tag.length > 0 && tag.length <= 20) // 빈 태그 및 너무 긴 태그 제거
+            .slice(0, 7); // 최대 7개
+    } else {
+        data.tags = ["자동생성"];
+    }
 
-    return data;
+    // summary와 content가 문자열인지 확인
+    if (typeof data.summary !== 'string') {
+        data.summary = "AI 분석 결과";
+    }
+    if (typeof data.content !== 'string') {
+        data.content = "## 내용\n\n내용을 입력하세요.";
+    }
+
+    return data as AnalysisResult;
 }
 
 export async function POST(request: Request) {
@@ -412,6 +504,23 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
         }
 
+        // 파일 검증
+        if (!file.name || file.name.trim() === '') {
+            return NextResponse.json({ error: 'Invalid file name' }, { status: 400 });
+        }
+
+        if (file.size === 0) {
+            return NextResponse.json({ error: 'File is empty' }, { status: 400 });
+        }
+
+        // 파일 크기 제한 (100MB)
+        const MAX_FILE_SIZE = 100 * 1024 * 1024;
+        if (file.size > MAX_FILE_SIZE) {
+            return NextResponse.json({
+                error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`
+            }, { status: 400 });
+        }
+
         fileNameForLog = file.name;
         console.log(`[SmartUpload] 📄 Processing: ${file.name} (${file.type}, ${file.size} bytes)`);
         console.log(`[SmartUpload] 🤖 Model: ${selectedModel}`);
@@ -419,10 +528,13 @@ export async function POST(request: Request) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        if (buffer.length === 0) throw new Error("File is empty");
+        // 버퍼 검증
+        if (buffer.length === 0) {
+            throw new Error("파일을 읽을 수 없습니다");
+        }
 
         let prompt = "";
-        let contentParts: any[] = [];
+        let contentParts: GeminiContentPart[] = [];
         const extractedImages: string[] = [];
 
         const isZip = file.type.includes('zip') || file.name.endsWith('.zip');
