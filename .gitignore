@@ -72,3 +72,14 @@ apps/noterang/CCimages/
 
 # Claude temporary files
 tmpclaude-*
+
+# Local temporary files and artifacts
+temp/
+*.zip
+*.log
+nul
+**/nul
+.git_backup
+
+
+
