@@ -101,11 +101,11 @@ export async function transcribeAudio(
 
 ---
 
-### Phase 2: AI 분석 엔진 (2주)
+### Phase 2: AI 분석 엔진 (2주) - ✅ 완료
 
 #### 2.1 방문 유형 판별
-- [ ] 초진/재진 자동 감지
-- [ ] 문맥 기반 분류
+- [x] 초진/재진 자동 감지 (`src/lib/medical/visit-type-detector.ts`)
+- [x] 문맥 기반 분류
 
 ```typescript
 // src/lib/medical/visit-type-detector.ts
@@ -116,10 +116,10 @@ export function detectVisitType(
 ```
 
 #### 2.2 정보 추출 (Initial Visit)
-- [ ] Chief Complaint 추출
-- [ ] History 정보 추출 (발병 시기, 외상력, 수술력)
-- [ ] 통증 부위 식별
-- [ ] 직업/운동 정보 추출
+- [x] Chief Complaint 추출 (`src/lib/medical/info-extractor.ts`)
+- [x] History 정보 추출 (발병 시기, 외상력, 수술력)
+- [x] 통증 부위 식별
+- [x] 직업/운동 정보 추출
 
 ```typescript
 // src/lib/medical/info-extractor.ts
@@ -133,10 +133,10 @@ export async function extractHistory(
 ```
 
 #### 2.3 정보 추출 (Follow-up Visit)
-- [ ] Subjective 정보 추출
-- [ ] Objective 데이터 파싱
-- [ ] Assessment 생성
-- [ ] Plan 항목 분류
+- [x] Subjective 정보 추출 (`src/lib/medical/soap-extractor.ts`)
+- [x] Objective 데이터 파싱
+- [x] Assessment 생성
+- [x] Plan 항목 분류
 
 ```typescript
 // src/lib/medical/soap-extractor.ts
@@ -147,11 +147,11 @@ export async function extractSoapComponents(
 
 ---
 
-### Phase 3: 의료 지식 기반 (2주)
+### Phase 3: 의료 지식 기반 (2주) - ✅ 완료
 
 #### 3.1 X-ray 검사 추천 시스템
-- [ ] 증상-검사 매핑 데이터베이스
-- [ ] 부위별 표준 X-ray View 추천
+- [x] 증상-검사 매핑 데이터베이스 (`src/lib/medical/xray-recommender.ts`)
+- [x] 부위별 표준 X-ray View 추천
 
 ```typescript
 // src/lib/medical/xray-recommender.ts
@@ -170,7 +170,7 @@ export function recommendXray(
 **예시 매핑:**
 ```typescript
 const xrayProtocols = {
-    '무릎 통증': {
+    '무릎': {
         views: ['Knee AP', 'Knee Lateral', 'Merchant view'],
         reason: '무릎 관절 평가'
     },
@@ -183,8 +183,8 @@ const xrayProtocols = {
 ```
 
 #### 3.2 진단 제안 시스템
-- [ ] 증상 기반 감별 진단 DB
-- [ ] ICD-10 코드 자동 매칭
+- [x] 증상 기반 감별 진단 DB (`src/lib/medical/diagnosis-suggester.ts`)
+- [x] ICD-10 코드 자동 매칭
 
 ```typescript
 // src/lib/medical/diagnosis-suggester.ts
@@ -203,61 +203,34 @@ export async function suggestDiagnosis(
 ```
 
 #### 3.3 의료 용어 DB
-- [ ] 한글-영문 의료 용어 사전
+- [ ] 한글-영문 의료 용어 사전 (Phase 4로 이월)
 - [ ] 약어 자동 확장
 - [ ] 오타 교정
 
 ---
 
-### Phase 4: 실시간 차트 생성 (2주)
+### Phase 4: 실시간 차트 생성 (2주) - ✅ 완료
 
 #### 4.1 Progressive Chart Building
-- [ ] 대화 진행에 따라 차트 점진적 작성
-- [ ] 섹션별 완성도 표시
-- [ ] 실시간 업데이트
-
-```typescript
-// src/lib/medical/chart-builder.ts
-export class ChartBuilder {
-    private chart: InitialVisitChart | SoapNote;
-
-    updateChiefComplaint(text: string): void
-    updateHistory(text: string): void
-    updatePhysicalExam(text: string): void
-    // ...
-}
-```
+- [x] 대화 진행에 따라 차트 점진적 작성
+- [x] 섹션별 완성도 표시
+- [x] 실시간 업데이트
 
 #### 4.2 화자 구분 (Speaker Diarization)
-- [ ] 의사/환자 음성 구분
-- [ ] 각 발화자별 내용 분류
-
-```typescript
-// src/lib/voice/speaker-diarization.ts
-interface SpeakerSegment {
-    speaker: 'doctor' | 'patient';
-    text: string;
-    startTime: number;
-    endTime: number;
-}
-
-export async function identifySpeakers(
-    audioBuffer: Buffer,
-    transcript: string
-): Promise<SpeakerSegment[]>
-```
+- [x] 의사/환자 음성 구분
+- [x] 각 발화자별 내용 분류
 
 #### 4.3 차트 편집 UI
-- [ ] 섹션별 편집 가능
-- [ ] AI 제안 수락/거부
-- [ ] 수동 보정 기능
+- [x] 섹션별 편집 가능
+- [x] AI 제안 수락/거부
+- [x] 수동 보정 기능
 
 ---
 
-### Phase 5: 통합 및 최적화 (1주)
+### Phase 5: 통합 및 최적화 (1주) - ✅ 일부 완료 (기본 저장 구현)
 
 #### 5.1 Firestore 연동
-- [ ] 차트 자동 저장
+- [x] 차트 자동 저장
 - [ ] 환자 기록 연동
 - [ ] 버전 관리
 

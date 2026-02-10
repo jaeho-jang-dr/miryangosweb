@@ -3,12 +3,14 @@
 import { useEffect, useRef } from 'react';
 import type { TranscriptSegment } from '@/lib/voice/speech-recognition';
 
+
 interface LiveTranscriptProps {
     segments: TranscriptSegment[];
     isRecording: boolean;
+    isAnalyzing?: boolean;
 }
 
-export function LiveTranscript({ segments, isRecording }: LiveTranscriptProps) {
+export function LiveTranscript({ segments, isRecording, isAnalyzing }: LiveTranscriptProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // 새로운 세그먼트 추가 시 자동 스크롤
@@ -24,11 +26,15 @@ export function LiveTranscript({ segments, isRecording }: LiveTranscriptProps) {
                 <h3 className="text-lg font-semibold text-slate-900">
                     📝 실시간 대화 내용
                 </h3>
-                {isRecording && (
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                        음성 인식 중
+                {isRecording ? (
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full animate-pulse">
+                        음성 인식 중...
                     </span>
-                )}
+                ) : isAnalyzing ? (
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full animate-pulse">
+                        AI 분석 중...
+                    </span>
+                 ) : null}
             </div>
 
             {/* 대화 내용 */}
@@ -84,50 +90,35 @@ function TranscriptSegmentItem({
     segment: TranscriptSegment;
     index: number;
 }) {
-    const confidenceColor =
-        segment.confidence > 0.9
-            ? 'text-green-600'
-            : segment.confidence > 0.7
-            ? 'text-yellow-600'
-            : 'text-red-600';
-
+    const isDoctor = segment.speaker === 'doctor';
+    const isPatient = segment.speaker === 'patient';
+    
     return (
-        <div className={`p-3 rounded-lg ${segment.isFinal ? 'bg-white' : 'bg-blue-50'} border ${segment.isFinal ? 'border-slate-200' : 'border-blue-200'}`}>
-            <div className="flex items-start gap-3">
-                {/* 화자 아이콘 */}
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                    segment.speaker === 'doctor'
-                        ? 'bg-blue-100 text-blue-700'
-                        : segment.speaker === 'patient'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-slate-100 text-slate-600'
-                }`}>
-                    {segment.speaker === 'doctor' ? '의' : segment.speaker === 'patient' ? '환' : index + 1}
+        <div className={`flex ${isDoctor ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] p-3 rounded-2xl ${
+                isDoctor 
+                    ? 'bg-blue-100 text-blue-900 rounded-tr-none' 
+                    : isPatient 
+                    ? 'bg-white border border-slate-200 rounded-tl-none' 
+                    : 'bg-slate-100 text-slate-700'
+            }`}>
+                <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-bold ${
+                        isDoctor ? 'text-blue-700' : isPatient ? 'text-green-700' : 'text-slate-500'
+                    }`}>
+                        {isDoctor ? '👨‍⚕️ 의사' : isPatient ? '👤 환자' : `발화 ${index + 1}`}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                        {new Date(segment.timestamp).toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
+                    </span>
                 </div>
-
-                {/* 텍스트 */}
-                <div className="flex-1 min-w-0">
-                    <p className={`text-slate-800 ${!segment.isFinal && 'italic'}`}>
-                        {segment.text}
-                    </p>
-
-                    {/* 메타데이터 */}
-                    <div className="flex gap-3 mt-1 text-xs text-slate-500">
-                        <span>
-                            {new Date(segment.timestamp).toLocaleTimeString('ko-KR', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit'
-                            })}
-                        </span>
-                        <span className={confidenceColor}>
-                            {(segment.confidence * 100).toFixed(0)}%
-                        </span>
-                        {!segment.isFinal && (
-                            <span className="text-blue-600">임시</span>
-                        )}
-                    </div>
-                </div>
+                
+                <p className={`${isDoctor ? 'text-blue-900' : 'text-slate-800'}`}>
+                    {segment.text}
+                </p>
             </div>
         </div>
     );

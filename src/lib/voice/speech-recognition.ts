@@ -80,7 +80,7 @@ export class SpeechRecognitionService {
             const data = await response.json();
             return data.segments || [];
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('음성 인식 에러:', error);
             throw error;
         }
@@ -227,13 +227,14 @@ export class StreamingRecognition {
  * Web Speech API 사용 (브라우저 기본 - 대체 방법)
  */
 export class WebSpeechRecognition {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private recognition: any = null;
     private isListening = false;
 
     constructor(
         private onTranscript?: (segment: TranscriptSegment) => void
     ) {
-        // @ts-ignore - Web Speech API 브라우저 호환성
+        // @ts-expect-error - Web Speech API 브라우저 호환성
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (!SpeechRecognition) {
@@ -250,6 +251,7 @@ export class WebSpeechRecognition {
     }
 
     private setupEventHandlers(): void {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         this.recognition.onresult = (event: any) => {
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const result = event.results[i];
@@ -266,6 +268,7 @@ export class WebSpeechRecognition {
             }
         };
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         this.recognition.onerror = (event: any) => {
             console.error('[Web Speech] 에러:', event.error);
         };
