@@ -11,8 +11,9 @@ import type { SoapNote } from '@/lib/medical/templates/soap-note-template';
 import { createEmptyInitialChart } from '@/lib/medical/templates/initial-visit-template';
 import Link from 'next/link';
 import type { DiarizedSegment } from '@/lib/medical/speaker-diarization';
-import { db } from '@/lib/firebase-clinical';
+import { db, storage } from '@/lib/firebase-clinical';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Types for API responses
 interface TranscriptionResponse {
@@ -40,6 +41,7 @@ export default function VoiceChartPage() {
     const [chart, setChart] = useState<InitialVisitChart | SoapNote | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [patientId] = useState('demo-patient-001'); // TODO: 실제 환자 ID 연동
+    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [recognition, setRecognition] = useState<any>(null);
 
@@ -78,6 +80,7 @@ export default function VoiceChartPage() {
     // 녹음 완료 시 음성 인식 및 차트 생성
     const handleRecordingComplete = useCallback(async (audioBlob: Blob) => {
         console.log('[VoiceChart] 녹음 완료:', audioBlob.size, 'bytes');
+        setRecordedBlob(audioBlob);
 
         try {
             setIsGenerating(true);
@@ -231,13 +234,36 @@ export default function VoiceChartPage() {
         }
 
         try {
+            let audioUrl = null;
+
+            // 오디오 파일 업로드
+            if (recordedBlob) {
+                const timestamp = Date.now();
+                const storageRef = ref(storage, `voice-charts/${patientId}/${timestamp}.webm`);
+                
+                // 메타데이터 추가
+                const metadata = {
+                    contentType: 'audio/webm',
+                    customMetadata: {
+                        patientId: patientId,
+                        visitType: visitType
+                    }
+                };
+
+                // 업로드 시작 토스트나 인디케이터가 있으면 좋음
+                console.log('Uploading audio...');
+                const snapshot = await uploadBytes(storageRef, recordedBlob, metadata);
+                audioUrl = await getDownloadURL(snapshot.ref);
+                console.log('[VoiceChart] Audio uploaded:', audioUrl);
+            }
+
             const chartData = {
                 ...chart,
                 transcriptSegments, // 대화 내용 포함
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 status: 'completed', // 상태 관리 (임시)
-                audioUrl: null // TODO: 오디오 파일 업로드 후 URL 저장 (Phase 5+)
+                audioUrl: audioUrl
             };
 
             // Firestore에 저장
@@ -263,6 +289,7 @@ export default function VoiceChartPage() {
         if (confirm('모든 내용을 초기화하시겠습니까?')) {
             setTranscriptSegments([]);
             setChart(null);
+            setRecordedBlob(null);
             setIsGenerating(false);
         }
     };
