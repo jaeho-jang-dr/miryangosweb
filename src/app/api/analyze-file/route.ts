@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { extractPptxText, isPptxFile } from '@/lib/pptx-parser';
+import { bufferToBase64, getMemoryUsage } from '@/lib/performance-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -107,7 +108,7 @@ const anthropic = new Anthropic({
 function bufferToPart(buffer: Buffer, mimeType: string) {
     return {
         inlineData: {
-            data: buffer.toString("base64"),
+            data: bufferToBase64(buffer), // 캐싱된 변환 사용
             mimeType,
         },
     };
@@ -276,7 +277,7 @@ async function executeAIModel(
         }
         // Claude Opus 4.5 - 정확한 OCR 강점
         return await retryWithBackoff(async () => {
-            const imageBase64 = contentParts.length > 0 ? buffer.toString('base64') : null;
+            const imageBase64 = contentParts.length > 0 ? bufferToBase64(buffer) : null;
             const content: ClaudeContentPart[] = [{ type: "text", text: prompt }];
 
             if (imageBase64) {
@@ -315,7 +316,7 @@ async function executeAIModel(
         return await retryWithBackoff(async () => {
             // 이미지 파일 여부 체크
             const isImage = fileType.startsWith('image/') && buffer.length > 0;
-            const imageBase64 = isImage ? buffer.toString('base64') : null;
+            const imageBase64 = isImage ? bufferToBase64(buffer) : null;
 
             const messages: ChatGPTMessage[] = [{
                 role: "user",
@@ -522,8 +523,10 @@ export async function POST(request: Request) {
         }
 
         fileNameForLog = file.name;
+        const memStart = getMemoryUsage();
         console.log(`[SmartUpload] 📄 Processing: ${file.name} (${file.type}, ${file.size} bytes)`);
         console.log(`[SmartUpload] 🤖 Model: ${selectedModel}`);
+        console.log(`[SmartUpload] 💾 Memory: ${memStart.heapUsedMB}MB / ${memStart.heapTotalMB}MB`);
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
