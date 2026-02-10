@@ -48,14 +48,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       console.error('[AnalyzeChart] Chart extraction failed:', e);
-      // Return partial result with error info
-      return NextResponse.json({
-        visitType,
-        chartData: {},
-        suggestions: { xray: [], diagnosis: [] },
-        diarizedSegments: [],
-        warnings: ['차트 데이터 추출에 실패했습니다. 수동으로 입력해주세요.']
-      });
+      throw e; // Propagate to the main catch block for 500 error
     }
 
     // 3. Generate Suggestions (non-critical, graceful degradation)

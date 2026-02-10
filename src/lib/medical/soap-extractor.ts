@@ -63,8 +63,6 @@ JSON 형식으로 출력하세요. 없으면 빈 문자열("")로 둡니다.
 }
 `;
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await generateMedicalAnalysis(prompt) as any;
     
     // Convert to structured SoapNote type
@@ -99,9 +97,4 @@ JSON 형식으로 출력하세요. 없으면 빈 문자열("")로 둡니다.
         followUp: data.plan?.followUp || ''
       }
     } as Partial<SoapNote>;
-    
-  } catch (error) {
-    console.error("Error extracting SOAP note:", error);
-    return {};
-  }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { AudioRecorderComponent } from './components/AudioRecorderComponent';
 import { LiveTranscript } from './components/LiveTranscript';
 import { ChartPreview } from './components/ChartPreview';
@@ -45,6 +45,118 @@ export default function VoiceChartPage() {
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [recognition, setRecognition] = useState<any>(null);
+    const [lastAnalyzedLength, setLastAnalyzedLength] = useState(0);
+    const autoAnalyzeTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isAutoAnalyzingRef = useRef(false);
+
+    // ── 실시간 차트 분석 함수 (재사용) ──
+    const analyzeAndUpdateChart = useCallback(async (transcript: string) => {
+        if (!transcript.trim() || isAutoAnalyzingRef.current) return;
+
+        isAutoAnalyzingRef.current = true;
+        setIsGenerating(true);
+
+        try {
+            const analysisResponse = await fetch('/api/clinical/analyze-chart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transcript,
+                    visitType
+                })
+            });
+
+            if (!analysisResponse.ok) {
+                console.warn('[AutoChart] AI 분석 실패:', analysisResponse.status);
+                return;
+            }
+
+            const analysisData = await analysisResponse.json() as AnalysisResponse;
+            console.log('[AutoChart] AI 실시간 분석 완료:', analysisData);
+
+            if (analysisData.visitType === 'initial') {
+                const baseChart = createEmptyInitialChart(patientId);
+                const aiChart = analysisData.chartData as InitialVisitChart;
+
+                const mergedChart: InitialVisitChart = {
+                    ...baseChart,
+                    ...aiChart,
+                    chiefComplaint: { ...baseChart.chiefComplaint, ...aiChart.chiefComplaint },
+                    history: { ...baseChart.history, ...aiChart.history },
+                    physicalExam: { ...baseChart.physicalExam, ...aiChart.physicalExam },
+                    imagingPlan: { ...baseChart.imagingPlan, ...aiChart.imagingPlan },
+                    diagnosis: { ...baseChart.diagnosis, ...aiChart.diagnosis }
+                };
+
+                if (analysisData.suggestions?.xray?.length) {
+                    const xrayViews = analysisData.suggestions.xray.flatMap(rec => rec.views);
+                    const existingViews = mergedChart.imagingPlan.xrayViews || [];
+                    mergedChart.imagingPlan.xrayViews = Array.from(new Set([...existingViews, ...xrayViews]));
+                    const reasons = analysisData.suggestions.xray.map(rec => rec.reason).join(', ');
+                    mergedChart.imagingPlan.reason = mergedChart.imagingPlan.reason
+                        ? `${mergedChart.imagingPlan.reason}, ${reasons}`
+                        : reasons;
+                }
+
+                if (analysisData.suggestions?.diagnosis?.length) {
+                    const diagnoses = analysisData.suggestions.diagnosis.map(dx => `${dx.icd10Code} ${dx.name}`);
+                    const existingDx = mergedChart.diagnosis.suspectedDiagnosis || [];
+                    mergedChart.diagnosis.suspectedDiagnosis = Array.from(new Set([...existingDx, ...diagnoses]));
+                }
+
+                setChart(mergedChart);
+            } else {
+                setChart(analysisData.chartData);
+            }
+
+            // 화자 분리 결과 업데이트
+            if (analysisData.diarizedSegments?.length) {
+                const newSegments: TranscriptSegment[] = analysisData.diarizedSegments.map((seg) => ({
+                    text: seg.text,
+                    confidence: 1.0,
+                    isFinal: true,
+                    timestamp: new Date(),
+                    speaker: seg.speaker
+                }));
+                setTranscriptSegments(newSegments);
+            }
+        } catch (error) {
+            console.warn('[AutoChart] 실시간 분석 에러:', error);
+        } finally {
+            setIsGenerating(false);
+            isAutoAnalyzingRef.current = false;
+        }
+    }, [visitType, patientId]);
+
+    // ── 실시간 자동 차트 생성 (디바운스 5초) ──
+    useEffect(() => {
+        // 녹음 중이 아니면 무시
+        if (!recordingState.isRecording) return;
+
+        const finalSegments = transcriptSegments.filter(s => s.isFinal);
+        const currentText = finalSegments.map(s => s.text).join(' ');
+
+        // 새로운 내용이 충분히 추가되었을 때만 분석 (최소 30자 이상 새로운 내용)
+        if (currentText.length - lastAnalyzedLength < 30) return;
+
+        // 기존 타이머 취소
+        if (autoAnalyzeTimerRef.current) {
+            clearTimeout(autoAnalyzeTimerRef.current);
+        }
+
+        // 5초 디바운스 후 분석 실행
+        autoAnalyzeTimerRef.current = setTimeout(() => {
+            console.log(`[AutoChart] 디바운스 트리거 - 텍스트 길이: ${currentText.length} (이전: ${lastAnalyzedLength})`);
+            setLastAnalyzedLength(currentText.length);
+            void analyzeAndUpdateChart(currentText);
+        }, 5000);
+
+        return () => {
+            if (autoAnalyzeTimerRef.current) {
+                clearTimeout(autoAnalyzeTimerRef.current);
+            }
+        };
+    }, [transcriptSegments, recordingState.isRecording, lastAnalyzedLength, analyzeAndUpdateChart]);
 
     // Initialize Web Speech Recognition
     useEffect(() => {
@@ -314,6 +426,7 @@ export default function VoiceChartPage() {
             setRecordedBlob(null);
             setIsGenerating(false);
             setSaveStatus('idle');
+            setLastAnalyzedLength(0);
         }
     };
 

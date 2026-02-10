@@ -21,24 +21,22 @@ export async function extractInitialVisitInfo(
 
 2. History (병력)
    - 발병 시기 (Onset): "언제부터 아팠나요?"
-   - 외상력 (Trauma): "다친 적 있나요?"
+   - 외상력 (Trauma): "다친 적 있나요?" (낙상, 타박, 교통사고 등)
    - 수술력 (Surgery): "수술하신 적 있나요?"
-   - 통증 부위 (Location): "어디가 아프세요?"
+   - 통증 부위 (Location): "정확히 어디가 아프세요?" (무릎 내측, 허리 하부 등 구체적으로)
+   - 변형 및 부종 (Deformity/Swelling): "부었나요? 모양이 변했나요?"
    
 3. Occupational / Social History (직업력/사회력)
-   - 직업
-   - 운동 습관 (취미)
-   - 주로 취하는 자세
+   - 직업: 환자의 직업명
+   - 업무 자세/방식: 주로 취하는 자세, 구체적으로 어떤 업무인지 ("무거운 걸 드는지", "하루종일 앉아있는지")
+   - 운동 습관: 하는 운동 종류, 취미 활동
 
 4. Physical Exam (이학적 검사)
-   - 시진 소견 (Inspection)
-   - 촉진 소견 (Tenderness)
-   - 관절 가동 범위 (ROM)
-   
+   - 관찰된 모양이나 이상 소견 (변형, 부종, 발적 등)
+
 5. Plan (계획)
-   - 약물 처방
-   - 물리치료
-   - 검사 계획 (X-ray 등)
+   - 환자와 논의된 검사 계획 (X-ray, MRI 등)
+   - 처방된 약물이나 치료 계획
 
 [대화 내용]
 ${transcript}
@@ -53,31 +51,26 @@ JSON 형식으로 출력하세요. 필드가 없으면 빈 문자열("")로 두�
     "onset": string,
     "trauma": string,
     "surgery": string,
-    "location": string
+    "location": string,
+    "deformitySwelling": string
   },
-  "socialHistory": {
-    "occupation": string,
-    "exercise habits": string
+  "occupational": {
+    "job": string,
+    "postureAndTask": string,
+    "exercise": string
   },
   "physicalExam": {
-    "inspection": string,
-    "palpation": string,
-    "rom": string
+    "finding": string
   },
   "plan": {
-    "medication": string,
-    "physicalTherapy": string,
-    "investigation": string
+    "investigation": string,
+    "treatment": string
   }
 }
 `;
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await generateMedicalAnalysis(prompt) as any;
-    // Map AI response to partial InitialVisitChart structure
-    // Note: The structure here is simplified for extraction. 
-    // You might need more robust mapping for production.
+    
     return {
       chiefComplaint: {
         complaint: data.chiefComplaint?.complaint || '',
@@ -89,16 +82,17 @@ JSON 형식으로 출력하세요. 필드가 없으면 빈 문자열("")로 두�
         traumaHistory: data.history?.trauma || '',
         surgeryHistory: data.history?.surgery || '',
         painLocation: data.history?.location ? [data.history.location] : [],
-        deformityOrSwelling: ''
+        deformityOrSwelling: data.history?.deformitySwelling || ''
       },
       occupationalHistory: {
-        occupation: data.socialHistory?.occupation || '',
-        exercises: data.socialHistory?.['exercise habits'] ? [data.socialHistory['exercise habits']] : []
+        occupation: data.occupational?.job || '',
+        specificTasks: data.occupational?.postureAndTask || '',
+        exercises: data.occupational?.exercise ? [data.occupational.exercise] : []
       },
       physicalExam: {
-        inspection: data.physicalExam?.inspection || '',
-        palpation: data.physicalExam?.palpation || '',
-        rangeOfMotion: data.physicalExam?.rom || ''
+        inspection: data.physicalExam?.finding || '',
+        palpation: '',
+        rangeOfMotion: ''
       },
       imagingPlan: {
         xrayViews: data.plan?.investigation ? [data.plan.investigation] : [],
@@ -109,8 +103,4 @@ JSON 형식으로 출력하세요. 필드가 없으면 빈 문자열("")로 두�
         confirmed: false
       }
     } as Partial<InitialVisitChart>; 
-  } catch (error) {
-    console.error("Error extracting initial visit info:", error);
-    return {};
-  }
 }
