@@ -29,7 +29,11 @@
     "deploy:staging": "node scripts/deploy-env.js --staging",
     "deploy:prod": "node scripts/deploy-env.js --production",
     "deploy:staging:dry-run": "node scripts/deploy-env.js --staging --dry-run",
-    "deploy:prod:dry-run": "node scripts/deploy-env.js --production --dry-run"
+    "deploy:prod:dry-run": "node scripts/deploy-env.js --production --dry-run",
+    "apps:push": "scripts\\apps-sync.bat push",
+    "apps:pull": "scripts\\apps-sync.bat pull",
+    "apps:status": "scripts\\apps-sync.bat status",
+    "apps:list": "scripts\\apps-sync.bat list"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
