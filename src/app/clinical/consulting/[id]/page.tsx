@@ -43,7 +43,8 @@ export default function ConsultingDetailPage() {
     const [saving, setSaving] = useState(false);
     const [activeField, setActiveField] = useState<'cc' | 'pe' | 'test' | 'diagnosis' | 'plan' | null>('plan');
 
-    const [activeOrderGroup, setActiveOrderGroup] = useState<'symptom' | 'diagnosis' | 'test' | 'procedure' | 'medication' | 'pt' | 'surgical'>('test');
+    const [activeOrderGroup, setActiveOrderGroup] = useState<'symptom' | 'physical_exam' | 'diagnosis' | 'test' | 'procedure' | 'medication' | 'pt' | 'surgical'>('test');
+    const [selectedPEFindings, setSelectedPEFindings] = useState<string[]>([]);
     const [activeSubGroupId, setActiveSubGroupId] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
@@ -72,6 +73,11 @@ export default function ConsultingDetailPage() {
     const [isKcdSearchOpen, setIsKcdSearchOpen] = useState(false);
     const [kcdQuery, setKcdQuery] = useState('');
     const [kcdSearchResults, setKcdSearchResults] = useState<KCDCode[]>([]);
+
+    // Context-based Diagnosis Suggestions
+    interface ContextSuggestion { code: string; ko: string; en: string; confidence: number; source: string; reason: string; }
+    interface GroupedSuggestions { symptomBased: ContextSuggestion[]; peBased: ContextSuggestion[]; testBased: ContextSuggestion[]; }
+    const [contextSuggestions, setContextSuggestions] = useState<GroupedSuggestions>({ symptomBased: [], peBased: [], testBased: [] });
 
     // --- HELPER FUNCTIONS ---
 
@@ -294,6 +300,22 @@ export default function ConsultingDetailPage() {
                     setMedicalOrders(data.orders || []);
                     setMedicalImages(data.images || []);
 
+                    // 기존 PE 데이터에서 선택된 이학검사 소견 복원
+                    if (data.physicalExam) {
+                        const peItems = (data.physicalExam as string).split(',').map((s: string) => s.trim()).filter(Boolean);
+                        const PE_LABEL_MAP: Record<string, string> = {
+                            '압통': '압통 (Tenderness)', '부종': '부종 (Swelling)', '관절변형': '관절변형 (Deformity)',
+                            '관절운동제한': '관절운동제한 (ROM limitation)', '근경직': '근경직 (Muscle Spasm)',
+                            '근력약화': '근력약화 (Muscle Weakness)', '근위축': '근위축 (Muscle Atrophy)',
+                            '염발음': '염발음 (Crepitus)', '발적': '발적 (Redness)', '열감': '열감 (Warmth)',
+                            '반상출혈': '반상출혈 (Ecchymosis)', '함요부종': '함요부종 (Pitting Edema)',
+                            '감각이상': '감각이상 (Sensory Change)', '저림': '저림 (Numbness)',
+                            '반사이상': '반사이상 (Reflex Change)', '보행이상': '보행이상 (Gait Abnormality)',
+                        };
+                        const restored = peItems.map((item: string) => PE_LABEL_MAP[item] || '').filter(Boolean);
+                        if (restored.length > 0) setSelectedPEFindings(restored);
+                    }
+
                     if (data.status === 'reception') {
                         await updateDoc(docRef, {
                             status: 'consulting',
@@ -359,6 +381,37 @@ export default function ConsultingDetailPage() {
         const timeoutId = setTimeout(search, 300);
         return () => clearTimeout(timeoutId);
     }, [formData.diagnosis, kcdQuery, activeOrderGroup]);
+
+    // 4. Context-based Diagnosis Suggestions (증상/이학검사/검사 기반 자동 추천)
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            // 최소한 증상이나 이학검사가 입력되어야 추천
+            if (!formData.cc.trim() && !formData.pe.trim() && !formData.test.trim()) {
+                setContextSuggestions({ symptomBased: [], peBased: [], testBased: [] });
+                return;
+            }
+            try {
+                const res = await fetch('/api/clinical/diagnosis/suggest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cc: formData.cc,
+                        pe: formData.pe,
+                        testOrder: formData.test,
+                        testResult: formData.testResult,
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setContextSuggestions(data);
+                }
+            } catch (e) {
+                console.error('Context Suggest Error:', e);
+            }
+        };
+        const timeoutId = setTimeout(fetchSuggestions, 500);
+        return () => clearTimeout(timeoutId);
+    }, [formData.cc, formData.pe, formData.test, formData.testResult]);
 
     if (loading) return <div className="p-20 text-center">Loading...</div>;
     if (!visit) return null;
@@ -509,11 +562,11 @@ export default function ConsultingDetailPage() {
                     <div
                         onClick={() => {
                             setActiveField('pe');
-                            setActiveOrderGroup('symptom');
+                            setActiveOrderGroup('physical_exam');
                         }}
                         className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'pe' ? 'border-amber-500 shadow-md ring-4 ring-amber-50' : 'border-slate-200 hover:border-slate-300'}`}
                     >
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'pe' ? 'text-amber-700' : 'text-slate-500'}`}>Objective (진찰소견 / P.E.)</label>
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'pe' ? 'text-amber-700' : 'text-slate-500'}`}>Objective (이학 검사)</label>
                         <textarea
                             value={formData.pe}
                             onChange={(e) => setFormData({ ...formData, pe: e.target.value })}
@@ -611,6 +664,13 @@ export default function ConsultingDetailPage() {
                             증상
                         </button>
                         <button
+                            onClick={() => { setActiveOrderGroup('physical_exam'); setActiveSubGroupId(null); }}
+                            className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'physical_exam' ? 'bg-white border-amber-600 text-amber-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}
+                        >
+                            <Stethoscope className="w-5 h-5" />
+                            이학검사
+                        </button>
+                        <button
                             onClick={() => { setActiveOrderGroup('diagnosis'); setActiveSubGroupId(null); }}
                             className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'diagnosis' ? 'bg-white border-purple-600 text-purple-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}
                         >
@@ -639,15 +699,15 @@ export default function ConsultingDetailPage() {
                     </div>
 
                     <div className="flex-1 overflow-hidden flex flex-col">
-                        {/* Search/Filter Bar for Symptoms & Diagnosis */}
-                        {(activeOrderGroup === 'symptom' || activeOrderGroup === 'diagnosis') && (
+                        {/* Search/Filter Bar for Symptoms, PE & Diagnosis */}
+                        {(activeOrderGroup === 'symptom' || activeOrderGroup === 'physical_exam' || activeOrderGroup === 'diagnosis') && (
                             <div className="p-3 border-b border-slate-100 bg-slate-50">
                                 <input
                                     type="text"
-                                    value={activeOrderGroup === 'symptom' ? formData.cc : formData.diagnosis}
+                                    value={activeOrderGroup === 'symptom' ? formData.cc : activeOrderGroup === 'physical_exam' ? formData.pe : formData.diagnosis}
                                     disabled
                                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600"
-                                    placeholder={activeOrderGroup === 'symptom' ? "입력된 증상 기반 추천..." : "입력된 진단명 기반 추천..."}
+                                    placeholder={activeOrderGroup === 'symptom' ? "입력된 증상 기반 추천..." : activeOrderGroup === 'physical_exam' ? "이학 검사 소견..." : "입력된 진단명 기반 추천..."}
                                 />
                                 <p className="text-[10px] text-slate-400 mt-1 pl-1">
                                     * 좌측 입력창에 내용을 작성하면 자동으로 필터링됩니다.
@@ -708,42 +768,240 @@ export default function ConsultingDetailPage() {
                                     </div>
                                 )}
 
-                                {/* 2. DIAGNOSIS (KCD) VIEW */}
+                                {/* 2. PHYSICAL EXAM VIEW */}
+                                {activeOrderGroup === 'physical_exam' && (() => {
+                                    const PE_FINDINGS = [
+                                        { category: '기본 소견', items: [
+                                            { id: 'tenderness', label: '압통 (Tenderness)', icon: '👆' },
+                                            { id: 'swelling', label: '부종 (Swelling)', icon: '🔴' },
+                                            { id: 'deformity', label: '관절변형 (Deformity)', icon: '🦴' },
+                                            { id: 'rom_limit', label: '관절운동제한 (ROM limitation)', icon: '🔄' },
+                                        ]},
+                                        { category: '근골격 소견', items: [
+                                            { id: 'muscle_spasm', label: '근경직 (Muscle Spasm)', icon: '💪' },
+                                            { id: 'muscle_weakness', label: '근력약화 (Muscle Weakness)', icon: '⬇️' },
+                                            { id: 'muscle_atrophy', label: '근위축 (Muscle Atrophy)', icon: '📉' },
+                                            { id: 'crepitus', label: '염발음 (Crepitus)', icon: '🔊' },
+                                        ]},
+                                        { category: '피부/혈관 소견', items: [
+                                            { id: 'redness', label: '발적 (Redness)', icon: '🟥' },
+                                            { id: 'warmth', label: '열감 (Warmth)', icon: '🌡️' },
+                                            { id: 'ecchymosis', label: '반상출혈 (Ecchymosis)', icon: '🟣' },
+                                            { id: 'edema', label: '함요부종 (Pitting Edema)', icon: '💧' },
+                                        ]},
+                                        { category: '신경학적 소견', items: [
+                                            { id: 'sensory_change', label: '감각이상 (Sensory Change)', icon: '✋' },
+                                            { id: 'numbness', label: '저림 (Numbness)', icon: '🫳' },
+                                            { id: 'reflex_change', label: '반사이상 (Reflex Change)', icon: '🔨' },
+                                            { id: 'gait_abnormal', label: '보행이상 (Gait Abnormality)', icon: '🚶' },
+                                        ]},
+                                    ];
+
+                                    const toggleFinding = (label: string) => {
+                                        setSelectedPEFindings(prev => {
+                                            const isSelected = prev.includes(label);
+                                            const updated = isSelected ? prev.filter(f => f !== label) : [...prev, label];
+                                            // P/E 필드에 선택된 소견 반영
+                                            const peText = updated.map(f => f.split(' (')[0]).join(', ');
+                                            setFormData(fd => ({ ...fd, pe: peText }));
+                                            return updated;
+                                        });
+                                    };
+
+                                    return (
+                                        <div className="space-y-4">
+                                            {/* 선택된 항목 표시 */}
+                                            {selectedPEFindings.length > 0 && (
+                                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                                    <p className="text-[10px] font-bold text-amber-600 uppercase mb-2">선택된 소견 ({selectedPEFindings.length})</p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {selectedPEFindings.map(f => (
+                                                            <button
+                                                                key={f}
+                                                                onClick={() => toggleFinding(f)}
+                                                                className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-medium flex items-center gap-1 hover:bg-amber-200 transition-colors"
+                                                            >
+                                                                {f.split(' (')[0]}
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {PE_FINDINGS.map(group => (
+                                                <div key={group.category}>
+                                                    <h4 className="text-xs font-black text-slate-400 uppercase mb-2 border-b border-slate-100 pb-1">{group.category}</h4>
+                                                    <div className="grid grid-cols-1 gap-1.5">
+                                                        {group.items.map(item => {
+                                                            const isSelected = selectedPEFindings.includes(item.label);
+                                                            return (
+                                                                <button
+                                                                    key={item.id}
+                                                                    onClick={() => toggleFinding(item.label)}
+                                                                    className={`w-full text-left p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
+                                                                        isSelected
+                                                                            ? 'border-amber-400 bg-amber-50 shadow-sm'
+                                                                            : 'border-slate-100 hover:border-amber-300 hover:bg-amber-50/50'
+                                                                    }`}
+                                                                >
+                                                                    <span className="text-lg">{item.icon}</span>
+                                                                    <span className={`text-sm font-medium ${isSelected ? 'text-amber-800' : 'text-slate-700'}`}>{item.label}</span>
+                                                                    {isSelected && (
+                                                                        <CheckCircle className="w-4 h-4 text-amber-500 ml-auto" />
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* 3. DIAGNOSIS (KCD) VIEW */}
                                 {activeOrderGroup === 'diagnosis' && (
                                     <div className="space-y-4">
+                                        {/* 직접 검색 결과 */}
                                         {(() => {
                                             const query = formData.diagnosis.split('\n').pop() || '';
                                             const cleanQuery = query.trim();
 
-                                            return (
-                                                <div>
-                                                    <div className="mb-4">
-                                                        <h4 className="text-xs font-black text-slate-400 uppercase mb-2">검색 결과</h4>
-                                                        {kcdSearchResults.length === 0 && cleanQuery && (
-                                                            <p className="text-sm text-slate-400">검색 결과가 없습니다.</p>
-                                                        )}
-                                                        {kcdSearchResults.length === 0 && !cleanQuery && (
-                                                            <p className="text-sm text-slate-400">진단명을 입력하면 검색됩니다.</p>
-                                                        )}
-                                                        <div className="space-y-1">
-                                                            {kcdSearchResults.map((item) => (
-                                                                <button
-                                                                    key={item.code}
-                                                                    onClick={() => setFormData(prev => ({ ...prev, diagnosis: (prev.diagnosis ? prev.diagnosis + '\n' : '') + `${item.ko} (${item.code})` }))}
-                                                                    className="w-full text-left p-2 hover:bg-purple-50 rounded-lg group transition-colors flex justify-between items-center"
-                                                                >
-                                                                    <div>
-                                                                        <p className="text-sm font-medium text-slate-700">{item.ko}</p>
-                                                                        <p className="text-xs text-slate-400">{item.en} <span className="text-purple-400 font-bold ml-1">{item.code}</span></p>
-                                                                    </div>
-                                                                    <Plus className="w-3 h-3 text-purple-400 opacity-0 group-hover:opacity-100" />
-                                                                </button>
-                                                            ))}
-                                                        </div>
+                                            return cleanQuery ? (
+                                                <div className="mb-2">
+                                                    <h4 className="text-xs font-black text-slate-400 uppercase mb-2 flex items-center gap-1">
+                                                        <Search className="w-3 h-3" /> 직접 검색 결과
+                                                    </h4>
+                                                    {kcdSearchResults.length === 0 && (
+                                                        <p className="text-sm text-slate-400">검색 결과가 없습니다.</p>
+                                                    )}
+                                                    <div className="space-y-1">
+                                                        {kcdSearchResults.slice(0, 8).map((item) => (
+                                                            <button
+                                                                key={`search-${item.code}`}
+                                                                onClick={() => setFormData(prev => ({ ...prev, diagnosis: (prev.diagnosis ? prev.diagnosis + '\n' : '') + `${item.ko} (${item.code})` }))}
+                                                                className="w-full text-left p-2 hover:bg-purple-50 rounded-lg group transition-colors flex justify-between items-center"
+                                                            >
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-slate-700">{item.ko}</p>
+                                                                    <p className="text-xs text-slate-400">{item.en} <span className="text-purple-400 font-bold ml-1">{item.code}</span></p>
+                                                                </div>
+                                                                <Plus className="w-3 h-3 text-purple-400 opacity-0 group-hover:opacity-100" />
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                            );
+                                            ) : null;
                                         })()}
+
+                                        {/* 증상 기반 추천 */}
+                                        {contextSuggestions.symptomBased.length > 0 && (
+                                            <div>
+                                                <h4 className="text-xs font-black text-emerald-500 uppercase mb-2 flex items-center gap-1 border-b border-emerald-100 pb-1">
+                                                    <Activity className="w-3 h-3" /> 증상 기반 추천
+                                                </h4>
+                                                <div className="space-y-1">
+                                                    {contextSuggestions.symptomBased.map((item) => (
+                                                        <button
+                                                            key={`sym-${item.code}`}
+                                                            onClick={() => setFormData(prev => ({ ...prev, diagnosis: (prev.diagnosis ? prev.diagnosis + '\n' : '') + `${item.ko} (${item.code})` }))}
+                                                            className="w-full text-left p-2.5 hover:bg-emerald-50 rounded-lg group transition-colors border border-transparent hover:border-emerald-200"
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex-1">
+                                                                    <p className="text-sm font-medium text-slate-700">{item.ko}</p>
+                                                                    <p className="text-xs text-slate-400">{item.en} <span className="text-emerald-500 font-bold ml-1">{item.code}</span></p>
+                                                                    <p className="text-[10px] text-emerald-400 mt-0.5">{item.reason}</p>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 ml-2">
+                                                                    <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${item.confidence * 100}%` }} />
+                                                                    </div>
+                                                                    <Plus className="w-3 h-3 text-emerald-400 opacity-0 group-hover:opacity-100" />
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 이학검사 기반 추천 */}
+                                        {contextSuggestions.peBased.length > 0 && (
+                                            <div>
+                                                <h4 className="text-xs font-black text-amber-500 uppercase mb-2 flex items-center gap-1 border-b border-amber-100 pb-1">
+                                                    <Stethoscope className="w-3 h-3" /> 이학검사 기반 추천
+                                                </h4>
+                                                <div className="space-y-1">
+                                                    {contextSuggestions.peBased.map((item) => (
+                                                        <button
+                                                            key={`pe-${item.code}`}
+                                                            onClick={() => setFormData(prev => ({ ...prev, diagnosis: (prev.diagnosis ? prev.diagnosis + '\n' : '') + `${item.ko} (${item.code})` }))}
+                                                            className="w-full text-left p-2.5 hover:bg-amber-50 rounded-lg group transition-colors border border-transparent hover:border-amber-200"
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex-1">
+                                                                    <p className="text-sm font-medium text-slate-700">{item.ko}</p>
+                                                                    <p className="text-xs text-slate-400">{item.en} <span className="text-amber-500 font-bold ml-1">{item.code}</span></p>
+                                                                    <p className="text-[10px] text-amber-400 mt-0.5">{item.reason}</p>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 ml-2">
+                                                                    <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${item.confidence * 100}%` }} />
+                                                                    </div>
+                                                                    <Plus className="w-3 h-3 text-amber-400 opacity-0 group-hover:opacity-100" />
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 검사 결과 기반 추천 */}
+                                        {contextSuggestions.testBased.length > 0 && (
+                                            <div>
+                                                <h4 className="text-xs font-black text-indigo-500 uppercase mb-2 flex items-center gap-1 border-b border-indigo-100 pb-1">
+                                                    <ClipboardList className="w-3 h-3" /> 검사 결과 기반 추천
+                                                </h4>
+                                                <div className="space-y-1">
+                                                    {contextSuggestions.testBased.map((item) => (
+                                                        <button
+                                                            key={`test-${item.code}`}
+                                                            onClick={() => setFormData(prev => ({ ...prev, diagnosis: (prev.diagnosis ? prev.diagnosis + '\n' : '') + `${item.ko} (${item.code})` }))}
+                                                            className="w-full text-left p-2.5 hover:bg-indigo-50 rounded-lg group transition-colors border border-transparent hover:border-indigo-200"
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex-1">
+                                                                    <p className="text-sm font-medium text-slate-700">{item.ko}</p>
+                                                                    <p className="text-xs text-slate-400">{item.en} <span className="text-indigo-500 font-bold ml-1">{item.code}</span></p>
+                                                                    <p className="text-[10px] text-indigo-400 mt-0.5">{item.reason}</p>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 ml-2">
+                                                                    <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                        <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${item.confidence * 100}%` }} />
+                                                                    </div>
+                                                                    <Plus className="w-3 h-3 text-indigo-400 opacity-0 group-hover:opacity-100" />
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 추천 없을 때 안내 */}
+                                        {contextSuggestions.symptomBased.length === 0 &&
+                                         contextSuggestions.peBased.length === 0 &&
+                                         contextSuggestions.testBased.length === 0 &&
+                                         !formData.diagnosis.trim() && (
+                                            <div className="text-center py-8 text-slate-400">
+                                                <Stethoscope className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                <p className="text-sm font-medium">증상/이학검사를 입력하면</p>
+                                                <p className="text-sm">KCD-8 진단이 자동 추천됩니다</p>
+                                                <p className="text-xs mt-2 text-slate-300">직접 진단명을 입력하여 검색할 수도 있습니다</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

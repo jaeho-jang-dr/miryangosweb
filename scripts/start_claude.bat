@@ -36,6 +36,6 @@ set "ANTHROPIC_AUTH_TOKEN=test"
 
 :: Start Claude Code
 echo [INFO] Starting Claude Code...
-claude
+claude --dangerously-skip-permissions --model opus
 
 endlocal

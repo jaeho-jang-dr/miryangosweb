@@ -77,6 +77,17 @@ export const MEDICATION_GROUPS = [
         ]
     },
     {
+        id: 'iv_inj',
+        label: '정맥 주사 (IV)',
+        items: [
+            { id: 'iv1', text: '하이코민 1A + 5% D/W 100cc iv' },
+            { id: 'iv2', text: '파노펜 1B iv' },
+            { id: 'iv3', text: '5% D/W 100cc iv' },
+            { id: 'iv4', text: '파메론 1A + 5% D/W 100cc iv' },
+            { id: 'iv5', text: '본드론 1A + 5% D/W 100cc iv' },
+        ]
+    },
+    {
         id: 'po_meds',
         label: '경구약 (PO)',
         items: [

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Visit, ClinicalStatus } from '@/types/clinical';
 import { changeVisitStatus, STATUS_LABELS } from '@/lib/workflow-engine';
 
 interface PatientStatusPopoverProps {
     visit: Visit;
     className?: string;
+    /** 현재 페이지 컨텍스트 - 해당 상태의 버튼은 숨김 */
+    currentPage?: ClinicalStatus;
 }
 
 type NavigationTarget = {
@@ -23,6 +26,7 @@ function getNavigationButtons(currentStatus: ClinicalStatus): NavigationTarget[]
             ];
         case 'consulting':
             return [
+                { status: 'consulting', label: '진료실로', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
                 { status: 'testing', label: '검사실로', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
                 { status: 'treatment', label: '치료실로', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
                 { status: 'completed', label: '수납으로', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
@@ -46,7 +50,8 @@ function getNavigationButtons(currentStatus: ClinicalStatus): NavigationTarget[]
     }
 }
 
-export default function PatientStatusBadges({ visit, className = '' }: PatientStatusPopoverProps) {
+export default function PatientStatusBadges({ visit, className = '', currentPage }: PatientStatusPopoverProps) {
+    const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -74,6 +79,25 @@ export default function PatientStatusBadges({ visit, className = '' }: PatientSt
     const handleNavigate = async (e: React.MouseEvent, newStatus: ClinicalStatus) => {
         e.stopPropagation();
         if (loading) return;
+
+        // 진료실로 → 진료 상세 페이지로 이동 (상태가 이미 consulting이면 페이지 이동만)
+        if (newStatus === 'consulting') {
+            if (visit.status !== 'consulting') {
+                setLoading(true);
+                try {
+                    await changeVisitStatus(visit.id, 'consulting');
+                } catch (error) {
+                    alert('상태 변경 실패: ' + (error as Error).message);
+                    setLoading(false);
+                    return;
+                }
+                setLoading(false);
+            }
+            setIsOpen(false);
+            router.push(`/clinical/consulting/${visit.id}`);
+            return;
+        }
+
         setLoading(true);
         try {
             await changeVisitStatus(visit.id, newStatus);
@@ -85,7 +109,8 @@ export default function PatientStatusBadges({ visit, className = '' }: PatientSt
         }
     };
 
-    const navButtons = getNavigationButtons(visit.status);
+    const navButtons = getNavigationButtons(visit.status)
+        .filter(btn => !currentPage || btn.status !== currentPage);
 
     return (
         <div

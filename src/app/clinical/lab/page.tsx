@@ -146,7 +146,7 @@ export default function LaboratoryPage() {
 
                             {/* 상태 뱃지 + 팝오버 */}
                             <div className="mb-3">
-                                <PatientStatusBadges visit={visit} />
+                                <PatientStatusBadges visit={visit} currentPage="testing" />
                             </div>
 
                             <div className="flex-1 bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
@@ -166,6 +166,7 @@ export default function LaboratoryPage() {
                                 </div>
                             )}
 
+                            {/* 검사 미완료 → 강제이동 */}
                             {visit.status === 'testing' && visit.testStatus !== 'completed' && (
                                 <button
                                     onClick={() => handleForceToConsulting(visit)}
