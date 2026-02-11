@@ -20,7 +20,7 @@ export interface NoterangResult {
   error?: string;
 }
 
-const NOTERANG_SCRIPT = path.join(process.cwd(), 'apps', 'noterang', 'run_noterang_api.py');
+const NOTERANG_SCRIPT = path.join(process.cwd(), 'apps', 'notebooklm-automation', 'run_noterang_api.py');
 const NOTERANG_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -51,7 +51,7 @@ export async function runNoterang(request: NoterangRequest): Promise<NoterangRes
 
   return new Promise((resolve, reject) => {
     const child = spawn('python', [NOTERANG_SCRIPT, ...args], {
-      cwd: path.join(process.cwd(), 'apps', 'noterang'),
+      cwd: path.join(process.cwd(), 'apps', 'notebooklm-automation'),
       env: { ...process.env },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
