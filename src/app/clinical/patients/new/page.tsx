@@ -7,6 +7,8 @@ import { db } from '@/lib/firebase-clinical';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { getAuth } from 'firebase/auth';
+import { logAudit } from '@/lib/audit-client';
 
 export default function NewPatientPage() {
     const router = useRouter();
@@ -63,8 +65,30 @@ export default function NewPatientPage() {
                 }
             }
 
+            // 전화번호 암호화 (서버사이드)
+            let phoneEncrypted = undefined;
+            let phoneMasked = undefined;
+            try {
+                const auth = getAuth();
+                const token = await auth.currentUser?.getIdToken();
+                if (token && formData.phone.trim()) {
+                    const encRes = await fetch('/api/clinical/encrypt', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ plaintext: formData.phone, fieldName: 'phone' }),
+                    });
+                    if (encRes.ok) {
+                        const encData = await encRes.json();
+                        phoneEncrypted = encData.encrypted;
+                        phoneMasked = encData.masked;
+                    }
+                }
+            } catch (encErr) {
+                console.warn('[NewPatient] 전화번호 암호화 실패 (평문 저장):', encErr);
+            }
+
             await setDoc(doc(db, 'patients', chartId), {
-                id: chartId, // Explicitly save ID in the doc as well
+                id: chartId,
                 name: formData.name,
                 birthDate: formData.birthDate,
                 gender: formData.gender,
@@ -73,9 +97,16 @@ export default function NewPatientPage() {
                 notes: formData.notes,
                 lastVisit: null,
                 createdAt: serverTimestamp(),
+                ...(phoneEncrypted && { phoneEncrypted, phoneMasked }),
+            });
+            logAudit({
+                action: 'create',
+                collection: 'patients',
+                documentId: chartId,
+                after: { name: formData.name, birthDate: formData.birthDate, gender: formData.gender },
+                description: '신규 환자 등록',
             });
 
-            // If entry successful, confirm alert not strictly needed since router pushes, but let's just push
             router.push(`/clinical/patients`);
         } catch (error) {
             console.error("Error registering patient:", error);

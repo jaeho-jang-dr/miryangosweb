@@ -150,7 +150,7 @@ export default function PatientDetailPage() {
                             <button className="text-xs text-blue-600 hover:underline">수정</button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <InfoItem icon={<Phone className="w-4 h-4" />} label="연락처" value={patient.phone} />
+                            <InfoItem icon={<Phone className="w-4 h-4" />} label="연락처" value={(patient as any).phoneMasked || patient.phone} />
                             <InfoItem icon={<MapPin className="w-4 h-4" />} label="주소" value={patient.address || '-'} />
                             <InfoItem icon={<Calendar className="w-4 h-4" />} label="최근 내원" value={patient.lastVisit ? new Date(patient.lastVisit.seconds * 1000).toLocaleDateString() : '없음'} />
 

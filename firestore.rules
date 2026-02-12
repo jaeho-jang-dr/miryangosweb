@@ -8,16 +8,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to check if user is admin or staff
-    function isAuthorizedStaff() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'staff']);
-    }
-
     // Helper function to check if user is admin only
     function isAdmin() {
       return isAuthenticated() &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper: Clinical staff (admin, manager, operator) — 의료법 제23조 역할 기반 접근통제
+    function isClinicalStaff() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'operator'];
     }
 
     // Public Content (Notices, Archives, Staff)
@@ -27,12 +27,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
-    
+
     match /articles/{document=**} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
-    
+
     match /staff/{document=**} {
       allow read: if true;
       allow write: if isAuthenticated();
@@ -46,25 +46,35 @@ service cloud.firestore {
       allow read, update, delete: if isAuthenticated();
     }
 
-    // Clinical Data (Patients, Visits, Appointments) - DEVELOPMENT MODE
-    // TODO: Re-enable strict security for production
-    // SECURITY: Protected healthcare information (PHI/EMR)
+    // Clinical Data (Patients, Visits, Appointments) — 의료법 제23조 접근통제
+    // Read/Write: Clinical staff only (admin, manager, operator)
     match /patients/{document=**} {
-      allow read, write: if true; // DEV MODE: Open access for development
+      allow read, write: if isClinicalStaff();
     }
 
     match /visits/{document=**} {
-      allow read, write: if true; // DEV MODE: Open access for development
+      allow read, write: if isClinicalStaff();
     }
 
     match /appointments/{document=**} {
-      allow read, write: if true; // DEV MODE: Open access for development
+      allow read, write: if isClinicalStaff();
     }
 
-    // Voice Charts (High Privacy) - DEVELOPMENT MODE
-    // TODO: Re-enable strict security (authenticated only + role check)
+    // Voice Charts (High Privacy) — Clinical staff only
     match /charts/{document=**} {
-      allow read, write: if true; // DEV MODE: Set to 'true' temporarily for easy testing without auth
+      allow read, write: if isClinicalStaff();
+    }
+
+    // Signing Keys — Admin SDK only (server manages keys)
+    match /signing_keys/{document=**} {
+      allow read, write: if false;  // Only Admin SDK can manage signing keys
+    }
+
+    // Audit Logs — Write: Admin SDK only (server-side), Read: Admin/Manager
+    match /audit_logs/{document=**} {
+      allow write: if false;  // Only Admin SDK can write (bypasses rules)
+      allow read: if isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
     }
 
     // Users Collection (Added for Admin Dashboard)
@@ -75,7 +85,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
     }
-    
+
     // Settings (Clinic Info)
     // Read: Public
     // Write: Authenticated Only (Admin)

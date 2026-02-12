@@ -7,6 +7,7 @@ import { Search, UserPlus, Clock, Calendar, User, ChevronRight, Stethoscope, Ale
 import Link from 'next/link';
 import { Patient, Visit } from '@/types/clinical';
 import { changeVisitStatus } from '@/lib/workflow-engine';
+import { logAudit } from '@/lib/audit-client';
 import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 import { startOfDay, subDays, format, addDays, startOfDay as startOfDayFns, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -190,7 +191,7 @@ export default function ReceptionPage() {
             const recentSnap = await getDocs(recentQ);
             const visitType = recentSnap.empty ? 'new' : 'return';
 
-            await addDoc(collection(db, 'visits'), {
+            const visitRef = await addDoc(collection(db, 'visits'), {
                 patientId: patient.id,
                 patientName: patient.name,
                 status: 'reception',
@@ -198,6 +199,13 @@ export default function ReceptionPage() {
                 date: serverTimestamp(),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
+            });
+            logAudit({
+                action: 'create',
+                collection: 'visits',
+                documentId: visitRef.id,
+                after: { patientId: patient.id, patientName: patient.name, type: visitType, status: 'reception' },
+                description: `접수 (${visitType === 'new' ? '초진' : '재진'})`,
             });
             setSearchTerm(''); setSearchResults([]);
         } catch (e) { alert("접수 오류"); }
@@ -221,6 +229,13 @@ export default function ReceptionPage() {
                 status: 'paid',
                 statusChangedAt: serverTimestamp(),
                 paidAt: serverTimestamp()
+            });
+            logAudit({
+                action: 'status_change',
+                collection: 'visits',
+                documentId: selectedVisit.id,
+                after: { status: 'paid' },
+                description: '수납 완료',
             });
             // 수납 완료 → 다음 예약 확인 모달로 전환
             setPaidVisitForAppointment(selectedVisit);

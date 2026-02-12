@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
 import { useAdminRole } from '@/hooks/useAdminRole';
-import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare, Activity, Building, Hospital } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Users, Calendar, Settings, LogOut, FileText, User as UserIcon, Stethoscope, MessageSquare, Activity, Building, Hospital, Shield } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function AdminLayout({
@@ -65,6 +65,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     <NavItem href="/admin/articles" label="자료실 관리" icon={<FileText className="h-4 w-4" />} active={pathname.startsWith('/admin/articles')} />
 
                     <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+                        <NavItem href="/admin/audit-logs" label="감사 로그" icon={<Shield className="h-4 w-4" />} active={pathname.startsWith('/admin/audit-logs')} />
                         <NavItem href="/admin/basic" label="기초 자료 관리" icon={<Building className="h-4 w-4" />} active={pathname === '/admin/basic'} />
                         <NavItem href="/admin/basic/director-profile" label="원장 프로필 관리" icon={<UserIcon className="h-4 w-4" />} active={pathname.startsWith('/admin/basic/director-profile')} />
                         <NavItem href="/admin/settings" label="설정" icon={<Settings className="h-4 w-4" />} active={pathname.startsWith('/admin/settings')} />

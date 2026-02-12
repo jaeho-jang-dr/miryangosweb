@@ -127,7 +127,7 @@ export default function PatientsPage() {
                                         {patient.birthDate}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600">
-                                        {patient.phone}
+                                        {(patient as any).phoneMasked || patient.phone}
                                     </td>
                                     <td className="px-6 py-4 text-slate-500">
                                         {patient.lastVisit ? new Date(patient.lastVisit.seconds * 1000).toLocaleDateString() : '-'}

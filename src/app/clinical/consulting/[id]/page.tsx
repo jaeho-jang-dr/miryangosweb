@@ -13,6 +13,8 @@ import { detectXrayCommand, buildXrayOrderText, XRAY_BODY_PARTS, getBodyPartsByR
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import ImageUpload from '@/components/image-upload';
 import { determineNextStatus, STATUS_LABELS } from '@/lib/workflow-engine';
+import { logAudit } from '@/lib/audit-client';
+import { signVisit } from '@/lib/signature-client';
 
 import PrescriptionModule from '@/components/clinical/PrescriptionModule';
 
@@ -192,8 +194,20 @@ export default function ConsultingDetailPage() {
             }
 
             await updateDoc(docRef, updates);
+            logAudit({
+                action: complete ? 'status_change' : 'update',
+                collection: 'visits',
+                documentId: visitId,
+                after: updates as Record<string, unknown>,
+                description: complete ? `진료 완료 → ${updates.status}` : '차트 저장',
+            });
 
             if (complete) {
+                // 진료 완료 시 전자서명 (비동기, 실패해도 진행)
+                signVisit(visitId).then(result => {
+                    if (!result.signed) console.warn('[전자서명] 서명 실패:', result.error);
+                });
+
                 const destLabel = updates.status === 'testing' ? '검사실' :
                     updates.status === 'treatment' ? '치료실' : STATUS_LABELS[updates.status as keyof typeof STATUS_LABELS];
                 alert(`${destLabel}로 이동되었습니다.`);
@@ -230,6 +244,13 @@ export default function ConsultingDetailPage() {
                 updatedAt: serverTimestamp(),
             });
 
+            logAudit({
+                action: 'create',
+                collection: 'visits',
+                documentId: newVisitRef.id,
+                after: { patientId: visit.patientId, patientName: visit.patientName, type: 'new', parentVisitId: visitId },
+                description: '초진추가 생성',
+            });
             router.push(`/clinical/consulting/${newVisitRef.id}`);
         } catch (e) {
             console.error('초진추가 오류:', e);

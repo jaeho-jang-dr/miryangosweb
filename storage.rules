@@ -1,15 +1,14 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Voice Charts (High Privacy) - DEVELOPMENT MODE
-    // TODO: Re-enable strict security (authenticated only)
+    // Voice Charts (High Privacy) — Authenticated users only
     match /voice-charts/{patientId}/{fileName} {
-      allow read, write: if true; // DEV MODE: Set to 'true' temporarily
+      allow read, write: if request.auth != null;
     }
 
-    // Default: Allow read/write for now (Dev Mode)
+    // Default: Authenticated users only
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
   }
 }

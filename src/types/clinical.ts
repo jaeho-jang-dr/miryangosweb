@@ -1,12 +1,13 @@
 
 import { Timestamp } from 'firebase/firestore';
+import type { EncryptedField, DigitalSignature } from './security';
 
 export type ClinicalStatus = 'reception' | 'consulting' | 'testing' | 'treatment' | 'completed' | 'paid';
 
 export interface Patient {
     id: string;
     name: string;
-    rrn: string; // Keep this secure in backend if possible, but for dev we store as is
+    rrn: string; // Plaintext (legacy) — will be migrated to rrnEncrypted
     gender: 'male' | 'female';
     birthDate: string; // YYYY-MM-DD
     phone: string;
@@ -14,6 +15,12 @@ export interface Patient {
     memo?: string; // Critical alert like "Penicillin Allergy"
     lastVisit?: Timestamp; // Firestore Timestamp
     createdAt: Timestamp;
+
+    // Security fields (Phase 1)
+    rrnEncrypted?: EncryptedField;  // AES-256-GCM encrypted RRN
+    rrnMasked?: string;             // e.g. "900101-1******"
+    phoneEncrypted?: EncryptedField;
+    phoneMasked?: string;           // e.g. "010-****-5678"
 }
 
 export interface Visit {
@@ -52,6 +59,9 @@ export interface Visit {
 
     createdAt: Timestamp;
     updatedAt: Timestamp;
+
+    // Security fields (Phase 1)
+    signature?: DigitalSignature;   // Phase 2: Electronic signature on completion
 }
 
 export interface MedicalDocument {

@@ -15,6 +15,7 @@ import type { DiarizedSegment } from '@/lib/medical/speaker-diarization';
 import { db, storage } from '@/lib/firebase-clinical';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { logAudit } from '@/lib/audit-client';
 
 // Types for API responses
 interface AnalysisResponse {
@@ -388,6 +389,13 @@ export default function VoiceChartPage() {
                 }
 
                 await updateDoc(visitRef, visitUpdate);
+                logAudit({
+                    action: 'update',
+                    collection: 'visits',
+                    documentId: visitIdParam,
+                    after: visitUpdate as Record<string, unknown>,
+                    description: '음성차트 저장',
+                });
                 console.log('[VoiceChart] Visit 업데이트 완료:', visitIdParam);
 
                 setSaveStatus('completed');
@@ -412,6 +420,12 @@ export default function VoiceChartPage() {
                 };
 
                 const newDocRef = await addDoc(collection(db, 'charts'), chartData);
+                logAudit({
+                    action: 'create',
+                    collection: 'charts',
+                    documentId: newDocRef.id,
+                    description: '독립 음성차트 생성',
+                });
                 console.log('[VoiceChart] 차트 저장 완료:', newDocRef.id);
 
                 setSaveStatus('completed');
