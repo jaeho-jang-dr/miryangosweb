@@ -486,11 +486,11 @@ class NoterangPipeline:
         return pdf_url, thumb_url
 
     def copy_to_webapp(self, pdf_path: Path, thumbnail: bytes = None) -> Tuple[str, Optional[str]]:
-        """[Fallback] PDF 파일과 썸네일을 public/uploads 에 복사"""
+        """[Fallback - 사용 지양] 로컬 저장은 다른 컴퓨터에서 접근 불가.
+        Firebase Storage 업로드 실패 시에만 사용."""
         import uuid
-        
-        # 절대 경로로 확실하게 수정
-        ACTUAL_UPLOADS_DIR = Path("d:/Entertainments/DevEnvironment/miryangosweb/public/uploads")
+
+        ACTUAL_UPLOADS_DIR = UPLOADS_DIR
         ACTUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -502,7 +502,9 @@ class NoterangPipeline:
         pdf_dest = ACTUAL_UPLOADS_DIR / pdf_name
         shutil.copy2(str(pdf_path), str(pdf_dest))
         pdf_url = f"/uploads/{pdf_name}"
-        print(f"  [Fallback] PDF 복사: {pdf_dest}")
+        print(f"  ⚠️ [Fallback 로컬] PDF 복사: {pdf_dest}")
+        print(f"  ⚠️ 로컬 저장은 다른 컴퓨터에서 접근 불가합니다!")
+        print(f"  ⚠️ Firebase 서비스 계정을 설정하세요: FIREBASE_SERVICE_ACCOUNT_PATH 환경변수")
 
         # 썸네일 저장
         thumb_url = None
@@ -511,7 +513,6 @@ class NoterangPipeline:
             thumb_dest = ACTUAL_UPLOADS_DIR / thumb_name
             thumb_dest.write_bytes(thumbnail)
             thumb_url = f"/uploads/{thumb_name}"
-            print(f"  [Fallback] 썸네일 저장: {thumb_dest}")
 
         return pdf_url, thumb_url
 
@@ -565,6 +566,16 @@ class NoterangPipeline:
 
         # 슬라이드 제목들로 요약 구성
         titles = analysis.get("titles", [])
+
+        # PyMuPDF 제목 추출 실패 시 → OCR content에서 [슬라이드 N] 패턴으로 폴백
+        if not titles:
+            full_content_for_titles = analysis.get("content", "")
+            import re as _re
+            _matches = _re.findall(
+                r'\[슬라이드\s*\d+\]\s*\n(.+?)(?:\n|$)', full_content_for_titles
+            )
+            titles = [m.strip() for m in _matches if len(m.strip()) >= 2]
+
         if titles:
             title_summary = " / ".join(titles[:6])
             summary = f"{self.title} - {title_summary}"
@@ -572,6 +583,12 @@ class NoterangPipeline:
                 summary += f" 외 {len(titles) - 6}장"
         else:
             summary = f"{self.title}에 대해 알기 쉽게 정리한 슬라이드 자료입니다."
+
+        # summary_text 재생성 (titles로부터)
+        if titles and not summary_text:
+            summary_text = "\n".join(
+                f"{i}. {t[:60]}" for i, t in enumerate(titles, 1)
+            )
 
         # 본문: 첫 페이지 이미지 + 슬라이드 목차 + 전체 텍스트
         content_parts = []

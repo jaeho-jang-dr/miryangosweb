@@ -33,6 +33,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 UPLOAD_SCRIPT = os.path.join(SCRIPT_DIR, "upload_article.mjs")
 TEMP_DIR = os.path.join(PROJECT_ROOT, "temp")
+UPLOADS_DIR = os.path.join(PROJECT_ROOT, "public", "uploads")
 
 
 def step(num, total, msg, end=""):
@@ -278,6 +279,113 @@ def run_analyze_file(file_path):
         return None
 
 
+# ── 8.5 썸네일 생성 + Firebase Storage 업로드 + content 포맷 ──
+def _upload_thumb_to_firebase(png_bytes, title):
+    """썸네일을 Firebase Storage에 업로드하고 URL 반환"""
+    try:
+        import firebase_admin
+        from firebase_admin import storage
+
+        if not firebase_admin._apps:
+            sa_paths = [
+                os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH"),
+                os.path.join(os.path.expanduser("~"), "Downloads",
+                             "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json"),
+                os.path.join(PROJECT_ROOT, "firebase-service-account.json"),
+            ]
+            cred = None
+            for sa_path in sa_paths:
+                if sa_path and os.path.exists(sa_path):
+                    cred = firebase_admin.credentials.Certificate(sa_path)
+                    break
+
+            if cred:
+                firebase_admin.initialize_app(cred, {
+                    'storageBucket': 'miryangosweb.firebasestorage.app'
+                })
+            else:
+                firebase_admin.initialize_app(options={
+                    'projectId': 'miryangosweb',
+                    'storageBucket': 'miryangosweb.firebasestorage.app',
+                })
+
+        import uuid
+        bucket = storage.bucket()
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        uid = uuid.uuid4().hex[:8]
+        safe_title = title.replace(" ", "_").replace("/", "-").replace(":", "")
+        storage_path = f"articles/{ts}_{uid}_{safe_title}_thumb.png"
+
+        blob = bucket.blob(storage_path)
+        blob.upload_from_string(png_bytes, content_type='image/png')
+        encoded = storage_path.replace('/', '%2F')
+        url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded}?alt=media"
+        return url
+    except Exception as e:
+        print(f"  [경고] Firebase 썸네일 업로드 실패: {e}")
+        return None
+
+
+def generate_thumbnail_and_format_content(file_path, analysis, title_override=None):
+    """
+    자료실 content 포맷 규칙 적용:
+      1. 첫 슬라이드 이미지: ![제목](firebase_url) - Firebase Storage 업로드
+      2. [슬라이드 목차]: 번호 매긴 슬라이드 제목 리스트
+      3. [전체 내용]: 슬라이드별 텍스트
+
+    Returns: (formatted_content, thumb_url)
+    """
+    from analyze_pdf import generate_pdf_thumbnail
+
+    title = title_override or analysis.get("title", "")
+    content_parts = []
+    thumb_url = None
+
+    # 1. 첫 슬라이드 썸네일 생성 → Firebase Storage 업로드
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == ".pdf":
+        png_bytes = generate_pdf_thumbnail(file_path)
+        if png_bytes:
+            # Firebase Storage에 업로드 시도
+            thumb_url = _upload_thumb_to_firebase(png_bytes, title)
+
+            # Firebase 실패 시 로컬 폴백 (경고 출력)
+            if not thumb_url:
+                import uuid
+                os.makedirs(UPLOADS_DIR, exist_ok=True)
+                ts = time.strftime("%Y%m%d_%H%M%S")
+                uid = uuid.uuid4().hex[:8]
+                safe_title = title.replace(" ", "_").replace("/", "-")
+                thumb_name = f"noterang_{ts}_{uid}_{safe_title}_thumb.png"
+                thumb_path = os.path.join(UPLOADS_DIR, thumb_name)
+                with open(thumb_path, "wb") as f:
+                    f.write(png_bytes)
+                thumb_url = f"/uploads/{thumb_name}"
+                print(f"  ⚠️ 썸네일 로컬 저장됨 (다른 컴퓨터에서 안 보임)")
+
+            content_parts.append(f"![{title}]({thumb_url})\n")
+
+    # 2. 슬라이드 목차
+    slide_titles = analysis.get("slideTitles", [])
+    if slide_titles:
+        toc_lines = [f"{i}. {t[:60]}" for i, t in enumerate(slide_titles, 1)]
+        content_parts.append(f"\n[슬라이드 목차]\n" + "\n".join(toc_lines) + "\n")
+
+    # 3. 전체 내용
+    raw_content = analysis.get("content", "")
+    if raw_content:
+        # ## 내용\n\n 접두사 제거 (이전 포맷)
+        clean = raw_content
+        if clean.startswith("## 내용\n\n"):
+            clean = clean[len("## 내용\n\n"):]
+        if len(clean) > 8000:
+            clean = clean[:8000] + "\n\n... (이하 생략)"
+        content_parts.append(f"\n[전체 내용]\n{clean}")
+
+    formatted = "\n".join(content_parts) if content_parts else raw_content
+    return formatted, thumb_url
+
+
 # ── 9. Firebase 업로드 ──────────────────────────────────────
 def upload_to_firebase(file_path, analysis):
     """node upload_article.mjs 호출"""
@@ -389,8 +497,21 @@ def main():
             "tags": ["자동등록"],
             "summary": "자동 등록된 자료입니다.",
             "content": "## 내용\n\n자동 등록된 자료입니다. 파일을 확인해주세요.",
+            "slideTitles": [],
             "analyzedBy": "기본값",
         }
+
+    # Step 8.5: 썸네일 생성 + content 포맷 (이미지 + 목차 + 전체내용)
+    step(8, total, "썸네일 생성 + content 포맷...")
+    title_for_content = args.topic or analysis.get("title", "")
+    formatted_content, thumb_url = generate_thumbnail_and_format_content(
+        file_path, analysis, title_override=title_for_content
+    )
+    analysis["content"] = formatted_content
+    if thumb_url:
+        step_ok(f"썸네일: {thumb_url}")
+    else:
+        step_ok("썸네일 없음 (PyMuPDF 미설치 또는 PDF 아님)")
 
     # Step 9: Firebase 업로드
     step(9, total, "웹사이트 등록 중...")

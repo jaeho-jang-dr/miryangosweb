@@ -13,9 +13,14 @@ analyze_pdf.py - 독립형 PDF/PPTX 분석 모듈 (Google Vision OCR)
     #     "tags": [...],
     #     "summary": "...",
     #     "content": "...",
+    #     "slideTitles": [...],
     #     "analyzedBy": "Vision OCR" | "PDF 텍스트 추출" | "PPTX 텍스트 추출",
     #     "pageCount": 10,
     # }
+
+    # 썸네일 생성 (첫 슬라이드 PNG)
+    from analyze_pdf import generate_pdf_thumbnail
+    png_bytes = generate_pdf_thumbnail("path/to/file.pdf")
 
 CLI:
     python analyze_pdf.py "path/to/file.pdf"
@@ -24,8 +29,13 @@ CLI:
     GOOGLE_VISION_API_KEY  - Google Vision API 키 (이미지 PDF일 때 필요)
 
 의존성:
-    pip install pdfplumber python-pptx pdf2image Pillow requests
+    pip install pdfplumber python-pptx pdf2image Pillow requests PyMuPDF
     + Ghostscript 설치 필요 (이미지 PDF → OCR 시)
+
+자료실 content 포맷 규칙:
+    1. 첫 번째 슬라이드 이미지 (markdown): ![제목](thumb_url)
+    2. [슬라이드 목차] - 번호 매긴 슬라이드 제목 리스트
+    3. [전체 내용] - 슬라이드별 텍스트
 """
 
 import base64
@@ -34,6 +44,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 import requests
 
@@ -67,6 +78,58 @@ GENERAL_KEYWORDS = [
 ]
 
 MEDICAL_KEYWORDS = list({kw for keywords in BODY_PARTS.values() for kw in keywords} | set(GENERAL_KEYWORDS))
+
+
+# ── PDF 썸네일 생성 + 슬라이드 제목 추출 (PyMuPDF) ─────────────
+def generate_pdf_thumbnail(file_path: str, page_num: int = 0, scale: float = 1.5) -> bytes | None:
+    """PDF 첫 페이지 썸네일 이미지(PNG) 생성. PyMuPDF(fitz) 사용."""
+    try:
+        import fitz
+        doc = fitz.open(file_path)
+        if len(doc) == 0:
+            doc.close()
+            return None
+        page = doc[page_num]
+        mat = fitz.Matrix(scale, scale)
+        pix = page.get_pixmap(matrix=mat)
+        png_bytes = pix.tobytes("png")
+        doc.close()
+        return png_bytes
+    except ImportError:
+        # PyMuPDF 미설치 → 건너뜀
+        return None
+    except Exception:
+        return None
+
+
+def extract_pdf_slide_titles(file_path: str) -> list[str]:
+    """PDF 각 페이지에서 가장 큰 글씨(제목)를 추출. PyMuPDF(fitz) 사용."""
+    try:
+        import fitz
+        doc = fitz.open(file_path)
+        titles = []
+        for page in doc:
+            blocks = page.get_text("dict", flags=0)
+            best_text = ""
+            best_size = 0
+            for block in blocks.get("blocks", []):
+                if block.get("type") != 0:
+                    continue
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        text = span.get("text", "").strip()
+                        size = span.get("size", 0)
+                        if text and size > best_size and len(text) > 1:
+                            best_size = size
+                            best_text = text
+            if best_text:
+                titles.append(best_text)
+        doc.close()
+        return titles
+    except ImportError:
+        return []
+    except Exception:
+        return []
 
 
 # ── Google Vision OCR ───────────────────────────────────────
@@ -338,12 +401,18 @@ def analyze_file(file_path: str) -> dict:
 
     parsed = parse_extracted_text(text, file_name)
 
+    # PDF 슬라이드 제목 추출 (PyMuPDF 가능할 때)
+    slide_titles = []
+    if ext == ".pdf":
+        slide_titles = extract_pdf_slide_titles(file_path)
+
     return {
         "title": parsed["title"],
         "category": "disease",
         "tags": parsed["tags"],
         "summary": parsed["summary"],
         "content": parsed["content"],
+        "slideTitles": slide_titles,
         "analyzedBy": method,
         "pageCount": page_count if ext != ".pptx" else 0,
     }
