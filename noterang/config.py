@@ -22,8 +22,8 @@ class NoterangConfig:
     """노트랑 설정"""
 
     # 기본 경로
-    download_dir: Path = field(default_factory=lambda: Path("G:/내 드라이브/notebooklm"))
-    auth_dir: Path = field(default_factory=lambda: Path.home() / ".notebooklm-mcp-cli")
+    download_dir: Path = field(default_factory=lambda: Path(os.environ.get('NOTEBOOKLM_DOWNLOAD_DIR', "G:/내 드라이브/notebooklm")))
+    auth_dir: Path = field(default_factory=lambda: Path(os.environ.get('NOTEBOOKLM_AUTH_DIR', str(Path.home() / ".notebooklm-mcp-cli"))))
 
     # API 키
     apify_api_key: str = ""

@@ -60,9 +60,10 @@ from noterang.config import get_config
 from noterang.prompts import SlidePrompts
 
 # ─── 설정 ───────────────────────────────────────────
-WEBAPP_DIR = Path("D:/Projects/miryangosweb")
+WEBAPP_DIR = Path(__file__).parent.parent.parent
 UPLOADS_DIR = WEBAPP_DIR / "public" / "uploads"
 FIREBASE_PROJECT_ID = "miryangosweb"
+STORAGE_BUCKET = "miryangosweb.firebasestorage.app"
 
 # 부위별 키워드 (body-parts.ts 와 동일)
 BODY_PARTS = [
@@ -405,31 +406,112 @@ class NoterangPipeline:
             analyzer.close()
 
     # ─── Step 3: PDF + 썸네일을 웹앱에 복사 ────────────────
-    def copy_to_webapp(self, pdf_path: Path, thumbnail: bytes = None) -> Tuple[str, Optional[str]]:
-        """PDF 파일과 썸네일을 public/uploads 에 복사"""
-        import uuid
+    async def upload_to_firebase(self, pdf_path: Path, thumbnail: bytes = None) -> Tuple[str, Optional[str]]:
+        """PDF 파일과 썸네일을 Firebase Storage에 직접 업로드"""
+        try:
+            import firebase_admin
+            from firebase_admin import storage
+        except ImportError:
+            print("  firebase-admin 미설치. pip install firebase-admin")
+            return self.copy_to_webapp(pdf_path, thumbnail)
 
-        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        # Firebase Admin 초기화
+        if not firebase_admin._apps:
+            try:
+                # 1. 환경 변수에서 경로 가져오기
+                # 2. Downloads 폴더 (사용자 이름 동적 처리)
+                # 3. 프로젝트 루트
+                service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+                if service_account_path:
+                    service_account_path = Path(service_account_path)
+                
+                if not service_account_path or not service_account_path.exists():
+                    # 사용자 홈 디렉토리 기준으로 Downloads 폴더 시도
+                    service_account_path = Path.home() / "Downloads" / "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json"
+                
+                if not service_account_path.exists():
+                    # 프로젝트 루트 시도
+                    service_account_path = WEBAPP_DIR / "firebase-service-account.json"
+
+                if service_account_path.exists():
+                    print(f"  서비스 계정 사용: {service_account_path}")
+                    cred = firebase_admin.credentials.Certificate(str(service_account_path))
+                    firebase_admin.initialize_app(cred, {
+                        'storageBucket': STORAGE_BUCKET
+                    })
+                else:
+                    print("  ⚠️ 서비스 계정 파일을 찾을 수 없습니다. ADC(Application Default Credentials)를 시도합니다.")
+                    firebase_admin.initialize_app(options={
+                        'projectId': FIREBASE_PROJECT_ID,
+                        'storageBucket': STORAGE_BUCKET
+                    })
+                print("  Firebase Storage 초기화 완료")
+            except Exception as e:
+                print(f"  Firebase 초기화 실패: {e}")
+                return self.copy_to_webapp(pdf_path, thumbnail)
+
+        bucket = storage.bucket()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        safe_title = self.title.replace(" ", "_").replace("/", "-")
+
+        # PDF 업로드
+        pdf_name = f"articles/{timestamp}_{unique_id}_{safe_title}.pdf"
+        blob = bucket.blob(pdf_name)
+        blob.upload_from_filename(str(pdf_path))
+        
+        # Public URL (Firebase Storage Download URL format)
+        # gsutil/admin SDK에서는 get_download_url이 없으므로 직접 구성하거나 make_public 사용
+        # 여기서는 클라이언트 사이드에서 처리하기 쉽도록 public access 부여 (보안 규칙에 따라 다름)
+        # blob.make_public()
+        # pdf_url = blob.public_url
+        
+        # 대신, 프로젝트 내부에서 사용하는 URL 패턴 (Storage 관점)
+        # 웹앱에서 getDownloadURL로 가져올 수 있도록 경로만 반환하거나 
+        # https://firebasestorage.googleapis.com/... 형식을 사용
+        # firebase-admin-python에서는 아래와 같이 서명된 URL을 생성하거나 public_url을 사용할 수 있음
+        pdf_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{pdf_name.replace('/', '%2F')}?alt=media"
+        print(f"  PDF 업로드 성공: {pdf_url}")
+
+        # 썸네일 업로드
+        thumb_url = None
+        if thumbnail:
+            thumb_name = f"articles/{timestamp}_{unique_id}_{safe_title}_thumb.png"
+            thumb_blob = bucket.blob(thumb_name)
+            thumb_blob.upload_from_string(thumbnail, content_type='image/png')
+            thumb_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{thumb_name.replace('/', '%2F')}?alt=media"
+            print(f"  썸네일 업로드 성공: {thumb_url}")
+
+        return pdf_url, thumb_url
+
+    def copy_to_webapp(self, pdf_path: Path, thumbnail: bytes = None) -> Tuple[str, Optional[str]]:
+        """[Fallback] PDF 파일과 썸네일을 public/uploads 에 복사"""
+        import uuid
+        
+        # 절대 경로로 확실하게 수정
+        ACTUAL_UPLOADS_DIR = Path("d:/Entertainments/DevEnvironment/miryangosweb/public/uploads")
+        ACTUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = uuid.uuid4().hex[:8]
         safe_title = self.title.replace(" ", "_").replace("/", "-")
 
-        # PDF 복사 (UUID로 파일명 충돌 방지)
+        # PDF 복사
         pdf_name = f"noterang_{timestamp}_{unique_id}_{safe_title}.pdf"
-        pdf_dest = UPLOADS_DIR / pdf_name
+        pdf_dest = ACTUAL_UPLOADS_DIR / pdf_name
         shutil.copy2(str(pdf_path), str(pdf_dest))
         pdf_url = f"/uploads/{pdf_name}"
-        print(f"  PDF 복사: {pdf_dest}")
+        print(f"  [Fallback] PDF 복사: {pdf_dest}")
 
         # 썸네일 저장
         thumb_url = None
         if thumbnail:
             thumb_name = f"noterang_{timestamp}_{unique_id}_{safe_title}_thumb.png"
-            thumb_dest = UPLOADS_DIR / thumb_name
+            thumb_dest = ACTUAL_UPLOADS_DIR / thumb_name
             thumb_dest.write_bytes(thumbnail)
             thumb_url = f"/uploads/{thumb_name}"
-            print(f"  썸네일 저장: {thumb_dest}")
+            print(f"  [Fallback] 썸네일 저장: {thumb_dest}")
 
         return pdf_url, thumb_url
 
@@ -449,13 +531,29 @@ class NoterangPipeline:
             print("  firebase-admin 미설치. pip install firebase-admin")
             return None
 
-        # Firebase Admin 초기화 (ADC 사용)
+        # STORAGE_BUCKET 사용을 위해 초기화 로직 수정
         if not firebase_admin._apps:
             try:
-                firebase_admin.initialize_app(options={
-                    'projectId': FIREBASE_PROJECT_ID,
-                })
-                print("  Firebase Admin 초기화 완료")
+                service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+                if service_account_path:
+                    service_account_path = Path(service_account_path)
+                
+                if not service_account_path or not service_account_path.exists():
+                    service_account_path = Path.home() / "Downloads" / "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json"
+                
+                if not service_account_path.exists():
+                    service_account_path = WEBAPP_DIR / "firebase-service-account.json"
+
+                if service_account_path.exists():
+                    cred = firebase_admin.credentials.Certificate(str(service_account_path))
+                    firebase_admin.initialize_app(cred, {
+                        'storageBucket': STORAGE_BUCKET
+                    })
+                else:
+                    firebase_admin.initialize_app(options={
+                        'projectId': FIREBASE_PROJECT_ID,
+                        'storageBucket': STORAGE_BUCKET
+                    })
             except Exception as e:
                 print(f"  Firebase 초기화 실패: {e}")
                 return None
@@ -556,9 +654,9 @@ class NoterangPipeline:
         print("\n[2/4] PDF 슬라이드 분석...")
         analysis = self.analyze_pdf(pdf_path)
 
-        # Step 3: 파일 복사
-        print("\n[3/4] 웹앱에 파일 복사...")
-        pdf_url, thumb_url = self.copy_to_webapp(
+        # Step 3: 파일 업로드 (Firebase Storage)
+        print("\n[3/4] Firebase Storage에 파일 업로드...")
+        pdf_url, thumb_url = await self.upload_to_firebase(
             pdf_path, analysis.get("thumbnail")
         )
 
