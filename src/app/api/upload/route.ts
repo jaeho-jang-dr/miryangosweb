@@ -1,9 +1,30 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { initializeApp, getApps } from "firebase/app";
+
+// Force Node.js runtime for robust file handling
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+function getFirebaseApp() {
+    const apps = getApps();
+    if (apps.length > 0) return apps[0];
+    return initializeApp(firebaseConfig);
+}
 
 export async function POST(req: Request) {
     try {
+        console.log('[Upload] Starting Firebase Storage upload...');
+
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
 
@@ -11,38 +32,45 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "No file" }, { status: 400 });
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        console.log(`[Upload] Processing: ${file.name} (${file.size} bytes, ${file.type})`);
 
-        // Create uploads directory if it doesn't exist
-        const uploadDir = path.join(process.cwd(), "public", "uploads");
-        try {
-            await mkdir(uploadDir, { recursive: true });
-        } catch (e) {
-            // Ignore error if directory already exists
-        }
+        // Initialize Firebase Storage
+        const app = getFirebaseApp();
+        const storage = getStorage(app);
 
-        // Generate safe filename
+        // Generate safe filename with timestamp
         const safeName = file.name.replace(/[^\w.\-() ]/g, "_");
-        const filename = `${Date.now()}-${safeName}`;
-        const filePath = path.join(uploadDir, filename);
+        const filename = `uploads/${Date.now()}-${safeName}`;
+        const storageRef = ref(storage, filename);
 
-        // Write file to public/uploads
-        await writeFile(filePath, buffer);
+        // Convert file to buffer
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = new Uint8Array(arrayBuffer);
 
-        // Return the public URL
-        const url = `/uploads/${filename}`;
+        // Upload to Firebase Storage
+        const snapshot = await uploadBytes(storageRef, buffer, {
+            contentType: file.type,
+            customMetadata: {
+                originalName: file.name,
+                uploadedAt: new Date().toISOString(),
+            }
+        });
+
+        // Get download URL
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
+        console.log(`[Upload] Success: ${downloadURL}`);
 
         return NextResponse.json({
             success: true,
-            url: url,
+            url: downloadURL,
             name: safeName,
             type: file.type,
             size: file.size,
         });
 
     } catch (e: any) {
-        console.error("Server Upload Error:", e);
+        console.error("[Upload] Firebase Storage Error:", e);
         return NextResponse.json(
             { success: false, error: e?.message ?? "Upload error" },
             { status: 500 }

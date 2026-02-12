@@ -8,7 +8,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Change to project directory
-$projectPath = "D:\Entertainments\DevEnvironment\miryangosweb"
+$projectPath = $PSScriptRoot
 Set-Location $projectPath
 Write-Host "[1/4] Changed to project directory" -ForegroundColor Green
 Write-Host "      $projectPath" -ForegroundColor Gray

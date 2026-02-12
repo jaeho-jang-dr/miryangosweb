@@ -10,7 +10,8 @@ echo ========================================
 echo.
 
 REM 1. Change to project directory
-cd /d "D:\Entertainments\DevEnvironment\miryangosweb"
+cd /d "%~dp0"
+set "projectPath=%~dp0"
 echo [1/4] Changed to project directory: %CD%
 
 REM 2. Check if antigravity-claude-proxy is running
@@ -42,7 +43,7 @@ echo  Claude CLI Ready
 echo ========================================
 echo.
 echo Project: Miryang Orthopedic Web
-echo Path: D:\Entertainments\DevEnvironment\miryangosweb
+echo Path: %~dp0
 echo Proxy: http://localhost:9097
 echo.
 echo Starting Claude...

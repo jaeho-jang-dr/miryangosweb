@@ -1,0 +1,24 @@
+╔════════════════════════════════════════╗
+║   Antigravity Proxy Account Manager    ║
+║   Use --no-browser for headless mode   ║
+╚════════════════════════════════════════╝
+
+📋 No-browser mode: You will manually paste the authorization code.
+
+
+1 account(s) saved:
+  1. drjang00@gmail.com
+
+(a)dd new, (r)emove existing, (f)resh start, or (e)xit? [a/r/f/e]: 
+Adding to existing accounts.
+
+=== Add Google Account (No-Browser Mode) ===
+
+Copy the following URL and open it in a browser on another device:
+
+   https://accounts.google.com/o/oauth2/v2/auth?client_id=1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A51121%2Foauth-callback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcclog+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fexperimentsandconfigs&access_type=offline&prompt=consent&code_challenge=xSySuv5ov7gimhSdfT8vd_zhlBj6RRE7Af973KsrN48&code_challenge_method=S256&state=a0d1bb67efb4a7dd002ff14a88656d55
+
+After signing in, you will be redirected to a localhost URL.
+Copy the ENTIRE redirect URL or just the authorization code.
+
+Paste the callback URL or authorization code: 

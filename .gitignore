@@ -53,25 +53,21 @@ firebase-service-account.json
 !.claude/README.md
 CLAUDE_SETUP_GUIDE.md
 
-# Firebase logs
-.firebase/logs/
-
-# Development and test files
-auth_info.txt
-auth_output_*.txt
-gemini.bat
+# Firebase logs and config
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
 
 # Noterang (NotebookLM Automation)
-apps/noterang/__pycache__/
-apps/noterang/noterang/__pycache__/
-apps/noterang/webapp/__pycache__/
-apps/noterang/jpdf/__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
 apps/noterang/*.png
 apps/noterang/CCimages/
-*.pyc
-
-# Claude temporary files
-tmpclaude-*
+apps/noterang/downloads/
+apps/noterang/browser_profile*/
+noterang_config.json
 
 # Local temporary files and artifacts
 temp/
@@ -80,6 +76,14 @@ temp/
 nul
 **/nul
 .git_backup
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
 
 
 

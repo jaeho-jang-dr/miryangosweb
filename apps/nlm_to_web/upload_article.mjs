@@ -15,7 +15,7 @@
  * stdout: JSON { docId, url }
  */
 
-import { readFileSync } from "fs";
+import fs, { readFileSync } from "fs";
 import { basename, resolve } from "path";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -51,13 +51,36 @@ if (!args.file) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, "..", "..");
-const serviceAccountPath = join(projectRoot, "firebase-service-account.json");
 
 let serviceAccount;
+let serviceAccountPath;
+
+// 서비스 계정 검색 순서:
+// 1. 환경 변수 (FIREBASE_SERVICE_ACCOUNT_PATH)
+// 2. Downloads 폴더
+// 3. 프로젝트 루트
+const saEnv = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+const saDownloads = join(process.env.USERPROFILE || process.env.HOME, "Downloads", "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json");
+const saRoot = join(projectRoot, "firebase-service-account.json");
+
+if (saEnv && fs.existsSync(saEnv)) {
+  serviceAccountPath = saEnv;
+} else if (fs.existsSync(saDownloads)) {
+  serviceAccountPath = saDownloads;
+} else if (fs.existsSync(saRoot)) {
+  serviceAccountPath = saRoot;
+}
+
+if (!serviceAccountPath) {
+  console.error("Error: Firebase service account file not found.");
+  process.exit(1);
+}
+
 try {
   serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf-8"));
+  console.error(`Using service account: ${serviceAccountPath}`);
 } catch (e) {
-  console.error(`Error: firebase-service-account.json not found at ${serviceAccountPath}`);
+  console.error(`Error: Failed to parse service account at ${serviceAccountPath}`);
   process.exit(1);
 }
 
