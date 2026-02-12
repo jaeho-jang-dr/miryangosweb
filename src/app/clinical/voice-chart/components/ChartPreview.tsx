@@ -192,16 +192,97 @@ function InitialChartView({ chart, onChange }: { chart: InitialVisitChart, onCha
     );
 }
 
-function SoapNoteView({}: { chart: SoapNote, onChange?: (c: SoapNote) => void }) {
-    // Similarly implement editable fields for SOAP
-    // Simplified for brevity, focused on Initial Chart first
-    // You can expand this if needed
+function SoapNoteView({ chart, onChange }: { chart: SoapNote, onChange?: (c: SoapNote) => void }) {
+    const updateField = (path: string[], value: string | number) => {
+        if (!onChange) return;
+        const newChart = JSON.parse(JSON.stringify(chart));
+        let current = newChart;
+        for (let i = 0; i < path.length - 1; i++) {
+            current = current[path[i]];
+        }
+        current[path[path.length - 1]] = value;
+        onChange(newChart);
+    };
+
     return (
-        <div className="text-sm text-slate-500 text-center italic">
-            SOAP 노트 편집 기능은 준비 중입니다.
+        <div className="space-y-6">
+            <div className="space-y-4">
+                <h4 className="text-sm font-bold text-slate-400 border-b border-slate-100 pb-1 uppercase tracking-widest">S: Subjective</h4>
+                <EditableSection
+                    icon="🎯"
+                    title="증상 (Symptoms)"
+                    value={chart.subjective.symptoms.join(', ')}
+                    onChange={(v) => {
+                        const symptoms = v.split(',').map(s => s.trim()).filter(Boolean);
+                        const newChart = { ...chart, subjective: { ...chart.subjective, symptoms } };
+                        onChange?.(newChart);
+                    }}
+                    status={chart.subjective.symptoms.length ? 'complete' : 'pending'}
+                />
+                <EditableSection
+                    icon="🔄"
+                    title="이전 방문 이후 변화"
+                    value={chart.subjective.changesSinceLastVisit || ''}
+                    onChange={(v) => updateField(['subjective', 'changesSinceLastVisit'], v)}
+                    status={chart.subjective.changesSinceLastVisit ? 'complete' : 'pending'}
+                />
+                <EditableSection
+                    icon="⚡"
+                    title="통증 정도 (0-10)"
+                    value={chart.subjective.painLevel?.toString() || ''}
+                    onChange={(v) => updateField(['subjective', 'painLevel'], parseInt(v) || 0)}
+                    status={chart.subjective.painLevel !== undefined ? 'complete' : 'pending'}
+                />
+            </div>
+
+            <div className="space-y-4">
+                <h4 className="text-sm font-bold text-slate-400 border-b border-slate-100 pb-1 uppercase tracking-widest">O: Objective</h4>
+                <EditableSection
+                    icon="🤲"
+                    title="이학적 소견"
+                    value={chart.objective.physicalFindings.join(', ')}
+                    onChange={(v) => {
+                        const findings = v.split(',').map(s => s.trim()).filter(Boolean);
+                        const newChart = { ...chart, objective: { ...chart.objective, physicalFindings: findings } };
+                        onChange?.(newChart);
+                    }}
+                    status={chart.objective.physicalFindings.length ? 'complete' : 'pending'}
+                />
+            </div>
+
+            <div className="space-y-4">
+                <h4 className="text-sm font-bold text-slate-400 border-b border-slate-100 pb-1 uppercase tracking-widest">A: Assessment</h4>
+                <EditableSection
+                    icon="🩺"
+                    title="진단 (Diagnosis)"
+                    value={chart.assessment.diagnosis.join(', ')}
+                    onChange={(v) => {
+                        const dx = v.split(',').map(s => s.trim()).filter(Boolean);
+                        const newChart = { ...chart, assessment: { ...chart.assessment, diagnosis: dx } };
+                        onChange?.(newChart);
+                    }}
+                    status={chart.assessment.diagnosis.length ? 'complete' : 'pending'}
+                />
+            </div>
+
+            <div className="space-y-4">
+                <h4 className="text-sm font-bold text-slate-400 border-b border-slate-100 pb-1 uppercase tracking-widest">P: Plan</h4>
+                <EditableSection
+                    icon="📋"
+                    title="치료 계획"
+                    value={chart.plan.medications?.join(', ') || chart.plan.physicalTherapy?.join(', ') || ''}
+                    onChange={(v) => {
+                        const plan = v.split(',').map(s => s.trim()).filter(Boolean);
+                        const newChart = { ...chart, plan: { ...chart.plan, medications: plan } };
+                        onChange?.(newChart);
+                    }}
+                    status={chart.plan.medications?.length || chart.plan.physicalTherapy?.length ? 'complete' : 'pending'}
+                />
+            </div>
         </div>
-    ); 
+    );
 }
+
 
 function EditableSection({
     icon,
@@ -219,53 +300,60 @@ function EditableSection({
     const statusConfig = {
         complete: {
             badge: '✅',
-            badgeColor: 'bg-green-100 text-green-700',
-            borderColor: 'border-green-200'
+            badgeColor: 'bg-emerald-100 text-emerald-700',
+            borderColor: 'border-emerald-100 bg-white',
+            label: '작성됨'
         },
         partial: {
             badge: '⏳',
-            badgeColor: 'bg-yellow-100 text-yellow-700',
-            borderColor: 'border-yellow-200'
+            badgeColor: 'bg-amber-100 text-amber-700',
+            borderColor: 'border-amber-100 bg-amber-50/30',
+            label: '부분 작성'
         },
         pending: {
-            badge: '⬜',
-            badgeColor: 'bg-slate-100 text-slate-500',
-            borderColor: 'border-slate-200'
+            badge: '⚪',
+            badgeColor: 'bg-slate-100 text-slate-400',
+            borderColor: 'border-slate-100 bg-slate-50/30',
+            label: '대기 중'
         }
     };
 
     const config = statusConfig[status];
 
     return (
-        <div className={`p-4 border ${config.borderColor} rounded-lg transition-colors hover:border-blue-300`}>
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-lg">{icon}</span>
-                    <span className="font-semibold text-slate-700">{title}</span>
+        <div className={`group p-4 border rounded-2xl transition-all duration-300 hover:shadow-md hover:border-emerald-200 ${config.borderColor}`}>
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-lg group-hover:bg-emerald-100 group-hover:scale-110 transition-all duration-300">
+                        {icon}
+                    </div>
+                    <span className="font-bold text-slate-700 tracking-tight">{title}</span>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded ${config.badgeColor}`}>
-                    {config.badge}
-                </span>
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${config.badgeColor}`}>
+                    <span>{config.badge}</span>
+                    <span>{config.label}</span>
+                </div>
             </div>
             
-            <div className="pl-7">
+            <div className="pl-0">
                 {onChange ? (
                     <textarea 
-                        className="w-full p-2 text-sm text-slate-700 border border-slate-200 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50 focus:bg-white"
+                        className="w-full px-3 py-2.5 text-sm text-slate-700 border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none resize-none bg-white transition-all placeholder:text-slate-300"
                         rows={value && value.length > 50 ? 3 : 2}
                         value={value || ''}
                         onChange={(e) => onChange(e.target.value)}
-                        placeholder="내용을 입력하세요..."
+                        placeholder={`${title}을(를) 입력하세요...`}
                     />
                 ) : (
-                    <div className="text-sm text-slate-600">
-                         {value || <span className="text-slate-400 italic">대기 중...</span>}
+                    <div className="px-3 py-2 text-sm text-slate-600 leading-relaxed font-medium">
+                         {value || <span className="text-slate-300 italic font-normal">데이터를 기다리는 중...</span>}
                     </div>
                 )}
             </div>
         </div>
     );
 }
+
 
 function ChartSectionSkeleton() {
     return (

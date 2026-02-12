@@ -1,32 +1,17 @@
 import { NextResponse } from "next/server";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { initializeApp, getApps } from "firebase/app";
+import { adminStorage } from "@/lib/firebase-admin";
 
 // Force Node.js runtime for robust file handling
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-function getFirebaseApp() {
-    const apps = getApps();
-    if (apps.length > 0) return apps[0];
-    return initializeApp(firebaseConfig);
-}
-
 export async function POST(req: Request) {
     try {
-        console.log('[Upload] Starting Firebase Storage upload...');
+        console.log('[Upload] Starting Firebase Storage upload (Admin SDK)...');
 
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
+        const clientPath = formData.get("path") as string | null;
 
         if (!file) {
             return NextResponse.json({ success: false, error: "No file" }, { status: 400 });
@@ -34,37 +19,56 @@ export async function POST(req: Request) {
 
         console.log(`[Upload] Processing: ${file.name} (${file.size} bytes, ${file.type})`);
 
-        // Initialize Firebase Storage
-        const app = getFirebaseApp();
-        const storage = getStorage(app);
+        // Initialize Admin Storage
+        const storage = adminStorage();
+        const bucket = storage.bucket();
 
-        // Generate safe filename with timestamp
-        const safeName = file.name.replace(/[^\w.\-() ]/g, "_");
-        const filename = `uploads/${Date.now()}-${safeName}`;
-        const storageRef = ref(storage, filename);
+        // Check if bucket is configured
+        if (!bucket.name) {
+             throw new Error("Storage bucket not configured. Check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.");
+        }
+
+        // Determine filename
+        // Priority: Client provided path > Generated filename
+        let filename: string;
+        if (clientPath) {
+            filename = clientPath;
+        } else {
+            const safeName = file.name.replace(/[^\w.\-() ]/g, "_");
+            filename = `uploads/${Date.now()}-${safeName}`;
+        }
+
+        const fileRef = bucket.file(filename);
 
         // Convert file to buffer
         const arrayBuffer = await file.arrayBuffer();
-        const buffer = new Uint8Array(arrayBuffer);
+        const buffer = Buffer.from(arrayBuffer);
 
         // Upload to Firebase Storage
-        const snapshot = await uploadBytes(storageRef, buffer, {
+        await fileRef.save(buffer, {
             contentType: file.type,
-            customMetadata: {
-                originalName: file.name,
-                uploadedAt: new Date().toISOString(),
+            metadata: {
+                metadata: {
+                   originalName: file.name,
+                   uploadedAt: new Date().toISOString(),
+                }
             }
         });
 
-        // Get download URL
-        const downloadURL = await getDownloadURL(snapshot.ref);
+        // Make the file public
+        await fileRef.makePublic();
 
-        console.log(`[Upload] Success: ${downloadURL}`);
+        // Construct public URL
+        // Format: https://storage.googleapis.com/BUCKET_NAME/FILE_PATH
+        // Note: encodeURI needed for filenames with spaces or special chars if not handled by bucket/browser
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+        
+        console.log(`[Upload] Success: ${publicUrl}`);
 
         return NextResponse.json({
             success: true,
-            url: downloadURL,
-            name: safeName,
+            url: publicUrl,
+            name: filename,
             type: file.type,
             size: file.size,
         });

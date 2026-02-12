@@ -26,7 +26,8 @@ export interface WorkflowToast {
     timestamp: number;
 }
 
-export function useWorkflowEngine() {
+export function useWorkflowEngine(options: { enabled?: boolean } = { enabled: true }) {
+    const { enabled = true } = options;
     const [activeVisits, setActiveVisits] = useState<Visit[]>([]);
     const [toasts, setToasts] = useState<WorkflowToast[]>([]);
     const previousVisitsRef = useRef<Map<string, ClinicalStatus>>(new Map());
@@ -110,6 +111,8 @@ export function useWorkflowEngine() {
 
     // ─── Firestore 구독: 활성 visit 감시 ──────────────────
     useEffect(() => {
+        if (!enabled) return;
+
         // testing, treatment 상태의 visit만 감시 (자동 전환 대상)
         const q = query(
             collection(db, 'visits'),
@@ -145,10 +148,12 @@ export function useWorkflowEngine() {
         });
 
         return () => unsubscribe();
-    }, [applyTransition]);
+    }, [applyTransition, enabled]);
 
     // ─── 타이머: 주기적 타임아웃 체크 ─────────────────────
     useEffect(() => {
+        if (!enabled) return;
+
         const intervalMs = WORKFLOW_CONFIG.checkIntervalSeconds * 1000;
 
         const timer = setInterval(() => {
@@ -163,7 +168,7 @@ export function useWorkflowEngine() {
         }, intervalMs);
 
         return () => clearInterval(timer);
-    }, [activeVisits, applyTransition]);
+    }, [activeVisits, applyTransition, enabled]);
 
     return {
         activeVisits,

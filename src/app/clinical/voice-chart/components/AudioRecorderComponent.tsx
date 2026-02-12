@@ -116,104 +116,105 @@ export function AudioRecorderComponent({
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-            {/* 녹음 상태 표시 */}
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+            {/* Top Bar with Status and Progress */}
+            <div className={`px-6 py-4 flex items-center justify-between transition-colors duration-500 ${
+                recordingState.isRecording ? 'bg-rose-50/50' : 'bg-white'
+            }`}>
                 <div className="flex items-center gap-3">
-                    {recordingState.isRecording && (
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                            <span className="text-red-600 font-semibold">녹음 중</span>
-                        </div>
-                    )}
-                    {recordingState.isPaused && (
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                            <span className="text-yellow-600 font-semibold">일시정지</span>
-                        </div>
-                    )}
-                    {!recordingState.isRecording && !recordingState.isPaused && (
-                        <span className="text-slate-400">대기 중</span>
-                    )}
+                    <div className={`relative flex items-center justify-center ${recordingState.isRecording ? 'animate-pulse' : ''}`}>
+                        <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            recordingState.isRecording ? 'bg-rose-500' : recordingState.isPaused ? 'bg-amber-500' : 'bg-slate-300'
+                        }`} />
+                        {recordingState.isRecording && (
+                            <div className="absolute w-3 h-3 bg-rose-500 rounded-full animate-ping opacity-75" />
+                        )}
+                    </div>
+                    <span className={`text-sm font-bold uppercase tracking-widest ${
+                        recordingState.isRecording ? 'text-rose-600' : recordingState.isPaused ? 'text-amber-600' : 'text-slate-400'
+                    }`}>
+                        {recordingState.isRecording ? 'Recording Live' : recordingState.isPaused ? 'Recording Paused' : 'Ready to Start'}
+                    </span>
                 </div>
-
-                <div className="text-2xl font-mono font-bold text-slate-700">
-                    {formatDuration(recordingState.duration)}
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">Duration</span>
+                        <div className="text-3xl font-black font-mono text-slate-800 tabular-nums">
+                            {formatDuration(recordingState.duration)}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* 에러 메시지 */}
+            {/* Error Message */}
             {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-600">{error}</p>
+                <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <span className="text-lg">⚠️</span>
+                    <p className="text-xs text-rose-600 font-bold">{error}</p>
                 </div>
             )}
 
-            {/* 컨트롤 버튼 */}
-            <div className="flex gap-2">
-                {!recordingState.isRecording && !recordingState.isPaused && (
-                    <button
-                        onClick={handleStart}
-                        className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                    >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                        </svg>
-                        녹음 시작
-                    </button>
-                )}
-
-                {recordingState.isRecording && (
-                    <>
+            {/* Controls Area */}
+            <div className="p-6">
+                <div className="flex items-stretch gap-4">
+                    {!recordingState.isRecording && !recordingState.isPaused ? (
                         <button
-                            onClick={handlePause}
-                            className="flex-1 px-4 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                            onClick={handleStart}
+                            className="flex-1 group relative overflow-hidden px-8 py-5 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-rose-200 active:scale-[0.98]"
                         >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            일시정지
+                            <div className="relative z-10 flex items-center justify-center gap-3 text-lg">
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                                진료 시작하기
+                            </div>
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                         </button>
-                        <button
-                            onClick={handleStop}
-                            className="flex-1 px-4 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
-                            </svg>
-                            정지
-                        </button>
-                    </>
-                )}
-
-                {recordingState.isPaused && (
-                    <>
-                        <button
-                            onClick={handleResume}
-                            className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                            </svg>
-                            재개
-                        </button>
-                        <button
-                            onClick={handleStop}
-                            className="flex-1 px-4 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
-                            </svg>
-                            정지
-                        </button>
-                    </>
-                )}
+                    ) : (
+                        <div className="flex-1 flex gap-3">
+                            {recordingState.isRecording ? (
+                                <button
+                                    onClick={handlePause}
+                                    className="flex-1 px-8 py-5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-amber-200 active:scale-[0.98] flex items-center justify-center gap-3"
+                                >
+                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    잠시 멈춤
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleResume}
+                                    className="flex-1 px-8 py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-3"
+                                >
+                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                    </svg>
+                                    다시 시작
+                                </button>
+                            )}
+                            <button
+                                onClick={handleStop}
+                                className="px-10 py-5 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl font-bold transition-all shadow-lg shadow-slate-200 active:scale-[0.98] flex items-center justify-center gap-3"
+                            >
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                                </svg>
+                                정지 및 완료
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* 도움말 */}
-            <div className="mt-4 text-xs text-slate-500">
-                💡 마이크 권한이 필요합니다. 브라우저에서 마이크 접근을 허용해주세요.
+            {/* Hint Footer */}
+            <div className="px-6 py-3 bg-slate-50 flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-white border border-slate-200 flex items-center justify-center text-[10px]">💡</div>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                    Tip: 마이크 접근을 허용하면 자동으로 상담 내용이 텍스트로 전환됩니다.
+                </p>
             </div>
         </div>
     );
 }
+

@@ -88,17 +88,10 @@ export function getFirebaseInstance(type: FirebaseAppType = 'default'): Firebase
             break;
 
         case 'clinical':
-            // Clinical용 - 현재는 default와 동일하지만 향후 분리 가능
-            // NOTE: 향후 별도 Firebase 프로젝트로 분리 시
-            // NEXT_PUBLIC_CLINICAL_FIREBASE_* 환경 변수 사용 예정
-            const clinicalApp = getApps().find(a => a.name === '[DEFAULT]');
-            if (clinicalApp) {
-                app = clinicalApp;
-            } else {
-                app = initializeApp(firebaseConfig);
-            }
-            db = getFirestore(app);
-            break;
+            // Clinical용 - Public과 Auth 상태를 공유하기 위해 동일한 인스턴스 사용
+            // NOTE: 서로 다른 App 인스턴스를 사용하면 Auth 토큰이 공유되지 않아
+            // 'Missing or insufficient permissions' 에러가 발생함
+            return getFirebaseInstance('public');
 
         case 'default':
         default:

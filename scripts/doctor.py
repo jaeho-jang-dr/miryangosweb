@@ -79,7 +79,7 @@ def main():
     apps_dir = project_root / "apps"
     if apps_dir.exists():
         print(f"✅ Apps directory: Found")
-        for app in ["noterang", "notebooklm-automation"]:
+        for app in ["noterang", "notebooklm-automation", "nlm_to_web", "jpdf"]:
             if (apps_dir / app).exists():
                 print(f"   - {app}: Found")
             else:

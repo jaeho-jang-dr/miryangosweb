@@ -172,7 +172,7 @@ export default function VoiceChartPage() {
             }
 
             setAnalysisStatus('success');
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('[AI분석] 에러:', error);
             setAnalysisStatus('error');
             alert('AI 분석 중 오류가 발생했습니다. 차트를 수동으로 편집해주세요.');
@@ -180,6 +180,7 @@ export default function VoiceChartPage() {
             setIsAnalyzing(false);
         }
     }, [transcriptSegments, visitType, patientId, formatTranscriptForAI]);
+
 
     // ── 실시간 자동 분석 (30초마다, realtime 모드 = API 1회) ──
     const runRealtimeAnalysis = useCallback(async () => {
@@ -460,69 +461,68 @@ export default function VoiceChartPage() {
     const hasTranscript = transcriptSegments.filter(s => s.isFinal).length > 0;
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen bg-[#F8FAFC] p-4 lg:p-8">
             <div className="max-w-7xl mx-auto">
-                {/* 헤더 */}
-                <div className="mb-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Link
-                                href={visitIdParam ? `/clinical/consulting/${visitIdParam}` : '/clinical'}
-                                className="text-slate-600 hover:text-slate-900 transition-colors"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                                </svg>
-                            </Link>
-                            <div>
-                                <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                                    🎙️ 음성 인식 진료 차트
-                                    {patientNameParam && (
-                                        <span className="text-lg font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
-                                            {patientNameParam}
-                                        </span>
-                                    )}
-                                </h1>
-                                <p className="text-slate-600 mt-1">
-                                    대화를 녹음하고, AI 분석 또는 수동으로 차트를 작성합니다
-                                </p>
+                {/* Header Section */}
+                <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div className="flex items-start gap-5">
+                        <Link
+                            href={visitIdParam ? `/clinical/consulting/${visitIdParam}` : '/clinical'}
+                            className="mt-1 w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:shadow-md transition-all duration-300 group"
+                        >
+                            <svg className="w-6 h-6 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </Link>
+                        <div>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h1 className="text-4xl font-black text-slate-900 tracking-tight">AI Voice Chart</h1>
+                                <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+                                <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-black uppercase tracking-widest rounded-full border border-indigo-100">Pro Version</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <p className="text-slate-500 font-medium">실시간 음성 인식을 통한 최적화된 EMR 차팅 시스템</p>
+                                {patientNameParam && (
+                                    <span className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-bold rounded-lg border border-emerald-100">
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                                        {patientNameParam} 환자 진료 중
+                                    </span>
+                                )}
                             </div>
                         </div>
+                    </div>
 
-                        {/* 방문 유형 선택 */}
-                        <div className="flex gap-2 bg-white rounded-lg p-1 border border-slate-200">
-                            <button
-                                onClick={() => setVisitType('initial')}
-                                className={`px-4 py-2 rounded-md font-semibold transition-colors ${
-                                    visitType === 'initial'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                }`}
-                            >
-                                초진
-                            </button>
-                            <button
-                                onClick={() => setVisitType('followup')}
-                                className={`px-4 py-2 rounded-md font-semibold transition-colors ${
-                                    visitType === 'followup'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                }`}
-                            >
-                                재진 (SOAP)
-                            </button>
-                        </div>
+                    {/* Visit Type Switcher */}
+                    <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 overflow-hidden self-start md:self-auto">
+                        <button
+                            onClick={() => setVisitType('initial')}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                                visitType === 'initial'
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            <span>📝</span> 초진 기록
+                        </button>
+                        <button
+                            onClick={() => setVisitType('followup')}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                                visitType === 'followup'
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                            }`}
+                        >
+                            <span>🔄</span> 재진 (SOAP)
+                        </button>
                     </div>
                 </div>
 
-                {/* 메인 컨텐츠 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* 왼쪽: 녹음 및 대화 내용 */}
-                    <div className="space-y-6">
+                {/* Main Content Grid */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+                    {/* Left: Input & Transcript (5 cols) */}
+                    <div className="xl:col-span-12 lg:xl:col-span-5 space-y-8">
                         <AudioRecorderComponent
-                            onRecordingComplete={(blob: Blob) => {
-                                handleRecordingComplete(blob);
-                            }}
+                            onRecordingComplete={handleRecordingComplete}
                             onRecordingStateChange={handleStateChange}
                             onAudioChunk={handleAudioChunk}
                         />
@@ -533,107 +533,128 @@ export default function VoiceChartPage() {
                             isAnalyzing={isAnalyzing}
                         />
 
-                        {/* 녹음 중 자동 분석 상태 */}
+                        {/* Status Bar */}
                         {recordingState.isRecording && (
-                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"/>
-                                    <span className="text-sm text-purple-700">
-                                        30초마다 AI 자동 분석 중
-                                    </span>
+                            <div className="bg-white rounded-2xl border border-indigo-100 p-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Auto Analysis</p>
+                                        <p className="text-sm font-bold text-slate-700">30초 주기 실시간 데이터 동기화 활성화</p>
+                                    </div>
                                 </div>
-                                <span className="text-xs text-purple-500">
-                                    분석 횟수: {autoAnalyzeCount}회
-                                </span>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Cycles</p>
+                                    <p className="text-lg font-black text-indigo-600">{autoAnalyzeCount}</p>
+                                </div>
                             </div>
                         )}
 
-                        {/* AI 분석 버튼 (녹음 완료 후 표시) */}
+                        {/* Final AI Action */}
                         {hasTranscript && !recordingState.isRecording && (
-                            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={handleAIAnalyze}
-                                        disabled={isAnalyzing}
-                                        className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        {isAnalyzing ? (
-                                            <>
-                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                                                AI 분석 중...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                                </svg>
-                                                AI 자동 분석 (히스토리 분할)
-                                            </>
-                                        )}
-                                    </button>
+                            <div className="bg-white rounded-3xl p-6 border border-indigo-100 shadow-xl shadow-indigo-100/20 space-y-4">
+                                <div className="flex items-center gap-3 pb-4 border-b border-slate-50">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">✨</div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 tracking-tight">AI 정밀 분석 (Beta)</h4>
+                                        <p className="text-xs text-slate-400 font-medium">영상 검사 및 예상 진단명을 포함한 종합 레포트 생성</p>
+                                    </div>
                                 </div>
-                                {analysisStatus === 'success' && (
-                                    <p className="text-sm text-green-600 mt-2 text-center">AI 분석 완료 - 각 항목이 자동으로 채워졌습니다</p>
-                                )}
-                                {analysisStatus === 'error' && (
-                                    <p className="text-sm text-orange-600 mt-2 text-center">AI 분석 실패 - 아래 차트를 수동으로 편집하세요</p>
-                                )}
-                                <p className="text-xs text-slate-400 mt-2 text-center">
-                                    AI 없이도 아래 차트에서 직접 수정/입력할 수 있습니다
-                                </p>
+                                
+                                <button
+                                    onClick={handleAIAnalyze}
+                                    disabled={isAnalyzing}
+                                    className="w-full group relative overflow-hidden px-6 py-4 bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 text-white rounded-2xl font-black transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-slate-200"
+                                >
+                                    {isAnalyzing ? (
+                                        <>
+                                            <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"/>
+                                            AI 정밀 분석 중...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5 text-indigo-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            AI 종합 차트 생성하기
+                                        </>
+                                    )}
+                                </button>
+                                
+                                <div className="flex items-center justify-center gap-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                    <span>Google Gemini Pro 1.5</span>
+                                    <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                    <span>Diarization v2</span>
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    {/* 오른쪽: 차트 미리보기 */}
-                    <div className="space-y-6">
+                    {/* Right: Preview & Controls (7 cols) */}
+                    <div className="xl:col-span-12 lg:xl:col-span-7 space-y-6">
                         <ChartPreview
                             chart={chart}
                             isGenerating={isAnalyzing}
                             onChartChange={setChart}
                         />
 
-                        {/* 액션 버튼 */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleSaveChart}
-                                disabled={!chart || isAnalyzing || saveStatus === 'uploading' || saveStatus === 'saving'}
-                                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                            >
-                                {saveStatus === 'uploading' ? (
-                                    <>
-                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                                        음성 업로드 중...
-                                    </>
-                                ) : saveStatus === 'saving' ? (
-                                    <>
-                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                                        저장 중...
-                                    </>
-                                ) : (
-                                    visitIdParam ? '환자 기록에 저장' : '차트 저장'
-                                )}
-                            </button>
-                            <button
-                                onClick={handleReset}
-                                className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-semibold transition-colors"
-                            >
-                                초기화
-                            </button>
+                        {/* Save Actions Panel */}
+                        <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-indigo-900/10 flex flex-col md:flex-row items-center justify-between gap-6 transition-all animate-in fade-in slide-in-from-right-4 duration-500">
+                            <div className="flex items-center gap-5">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner ${
+                                    chart ? 'bg-indigo-500/20 text-indigo-400' : 'bg-white/5 text-white/20'
+                                }`}>
+                                    {saveStatus === 'completed' ? '🎉' : '💾'}
+                                </div>
+                                <div>
+                                    <h4 className="text-xl font-black tracking-tight mb-1">진료 기록 저장이 준비되었습니다</h4>
+                                    <p className="text-indigo-200/50 text-sm font-medium">검토 후 차트를 저장하면 환자의 타임라인에 즉시 반영됩니다</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <button
+                                    onClick={handleReset}
+                                    className="flex-1 md:flex-none px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all border border-white/10"
+                                >
+                                    초기화
+                                </button>
+                                <button
+                                    onClick={handleSaveChart}
+                                    disabled={!chart || isAnalyzing || saveStatus === 'uploading' || saveStatus === 'saving'}
+                                    className="flex-[2] md:flex-none px-10 py-4 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3 group active:scale-[0.98]"
+                                >
+                                    {saveStatus === 'uploading' ? '데이터 전송 중...' : saveStatus === 'saving' ? '저장 처리 중...' : (
+                                        <>
+                                            {visitIdParam ? '환자 기록 저장 완료' : '차트 영구 저장'}
+                                            <svg className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                            </svg>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* 사용 안내 */}
-                <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-900 mb-2">💡 사용 방법</h4>
-                    <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                        <li><strong>녹음</strong> — 녹음 시작 버튼으로 진료 대화를 녹음합니다</li>
-                        <li><strong>자동 분석</strong> — 녹음 중 30초마다 AI가 자동으로 차트를 분석합니다</li>
-                        <li><strong>추가 분석</strong> — 녹음 완료 후 &quot;AI 자동 분석&quot; 버튼으로 최종 분석 (X-ray, 진단 포함)</li>
-                        <li><strong>수동 편집</strong> — AI 없이도 우측 차트에서 직접 입력/수정 가능합니다</li>
-                        <li><strong>저장</strong> — 차트 저장 버튼으로 Firestore에 저장합니다</li>
-                    </ol>
+                        {/* Guide Card */}
+                        <div className="bg-indigo-50/50 rounded-2xl border border-indigo-100/50 p-6 flex gap-4">
+                            <div className="text-2xl pt-1">💡</div>
+                            <div className="space-y-3">
+                                <h4 className="font-black text-indigo-900 tracking-tight">Smart Charting Tip</h4>
+                                <ul className="text-sm text-indigo-800/70 font-bold space-y-2 list-none">
+                                    <li className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 bg-indigo-300 rounded-full"></span>
+                                        실시간 대화 도중에도 오른쪽 차트 항목을 직접 클릭하여 수정할 수 있습니다.
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 bg-indigo-300 rounded-full"></span>
+                                        AI 분석은 대화의 맥락을 파악하여 적절한 상병 코드와 X-ray 뷰를 추천합니다.
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                 </div>
             </div>
         </div>

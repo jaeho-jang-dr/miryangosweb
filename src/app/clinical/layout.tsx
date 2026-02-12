@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context';
 import { useAdminRole } from '@/hooks/useAdminRole';
-import { Activity, Users, FileText, Settings, LogOut, Search, ClipboardList, Stethoscope, Syringe, Menu, X, Hospital, ShieldAlert } from 'lucide-react';
+import { Activity, Settings, LogOut, Search, Menu, X, Hospital, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useWorkflowEngine } from '@/hooks/useWorkflowEngine';
@@ -32,8 +32,11 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
 
-    // 워크플로우 엔진: 전체 clinical 영역에서 환자 자동 전환 감시
-    const { toasts, removeToast } = useWorkflowEngine();
+    // 인증 가드: 임상 스태프(admin/manager/operator)만 접근 허용
+    const isClinicalStaff = isAdmin || isManager || isOperator;
+
+    // 워크플로우 엔진: 전체 clinical 영역에서 환자 자동 전환 감시 (로딩 완료 후 권한이 있을 때만 활성화)
+    const { toasts, removeToast } = useWorkflowEngine({ enabled: !roleLoading && isClinicalStaff });
 
     // 세션 타임아웃: 30분 비활동 시 자동 로그아웃 (5분 전 경고)
     const { showWarning, remainingSeconds, dismissWarning } = useSessionTimeout(
@@ -42,8 +45,13 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
         5 * 60 * 1000,  // 5분 전 경고
     );
 
-    // 인증 가드: 임상 스태프(admin/manager/operator)만 접근 허용
-    const isClinicalStaff = isAdmin || isManager || isOperator;
+    React.useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 10);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     if (roleLoading) {
         return (
@@ -77,14 +85,6 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
         );
     }
-
-    React.useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 10);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     return (
         <div className="relative min-h-screen bg-slate-50 overflow-hidden font-sans selection:bg-emerald-100 selection:text-emerald-900">
