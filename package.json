@@ -30,10 +30,12 @@
     "deploy:prod": "node scripts/deploy-env.js --production",
     "deploy:staging:dry-run": "node scripts/deploy-env.js --staging --dry-run",
     "deploy:prod:dry-run": "node scripts/deploy-env.js --production --dry-run",
-    "apps:push": "scripts\\apps-sync.bat push",
-    "apps:pull": "scripts\\apps-sync.bat pull",
-    "apps:status": "scripts\\apps-sync.bat status",
-    "apps:list": "scripts\\apps-sync.bat list"
+    "sync": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 status",
+    "sync:push": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 push",
+    "sync:pull": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 pull",
+    "sync:push:all": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 push -All",
+    "sync:setup": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 setup",
+    "sync:dry": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 push -DryRun"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -49,6 +51,7 @@
     "clsx": "^2.1.1",
     "csv-parse": "^6.1.0",
     "date-fns": "^4.1.0",
+    "fast-xml-parser": "^5.3.5",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^12.24.7",

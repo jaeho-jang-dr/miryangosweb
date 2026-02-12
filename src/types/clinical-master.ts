@@ -30,6 +30,13 @@ export interface MedicalStandardMaster {
     unit?: string;          // 단위 (Tab, Vial, Amp, ml, g)
     route?: 'PO' | 'IM' | 'IV' | 'SC' | 'TOPICAL'; // 투여 경로
 
+    // --- HIRA 비급여 가격 정보 ---
+    hiraAvgAmt?: number;      // HIRA 전국 평균가
+    hiraMinAmt?: number;      // HIRA 전국 최저가
+    hiraMaxAmt?: number;      // HIRA 전국 최고가
+    hiraMdnAmt?: number;      // HIRA 전국 중앙값
+    hiraUpdatedAt?: Date;     // HIRA 데이터 조회 시점
+
     // --- 관리 정보 ---
     isActive: boolean;      // 사용 여부 (삭제 대신 비활성화)
     updatedAt: any;         // 최종 수정일
