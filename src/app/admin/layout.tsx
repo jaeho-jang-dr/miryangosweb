@@ -66,6 +66,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                             <Link href="/clinical" target="_blank" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-emerald-600 hover:text-emerald-700 transition-colors" title="진료실 바로가기">
                                 <Stethoscope className="w-5 h-5" />
                             </Link>
+                            <a href={process.env.NEXT_PUBLIC_EMR_URL || 'https://miryangosemr.web.app'} target="_blank" rel="noopener noreferrer" className="px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 transition-colors" title="EMR 앱 바로가기">
+                                EMR
+                            </a>
                         </div>
                     )}
 

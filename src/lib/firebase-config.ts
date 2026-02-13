@@ -96,10 +96,11 @@ export function getFirebaseInstance(type: FirebaseAppType = 'default'): Firebase
         case 'default':
         default:
             // 기본 앱 - 가장 단순한 설정
-            if (!getApps().length) {
-                app = initializeApp(firebaseConfig);
+            const existingDefaultApp = getApps().find(a => a.name === '[DEFAULT]');
+            if (existingDefaultApp) {
+                app = existingDefaultApp;
             } else {
-                app = getApp();
+                app = initializeApp(firebaseConfig);
             }
             db = getFirestore(app);
             break;
