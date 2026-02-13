@@ -26,8 +26,11 @@ export interface WorkflowToast {
     timestamp: number;
 }
 
-export function useWorkflowEngine(options: { enabled?: boolean } = { enabled: true }) {
-    const { enabled = true } = options;
+export function useWorkflowEngine(options: {
+    enabled?: boolean;
+    onTransition?: (from: ClinicalStatus, to: ClinicalStatus, visitId: string, patientName: string) => void;
+} = { enabled: true }) {
+    const { enabled = true, onTransition } = options;
     const [activeVisits, setActiveVisits] = useState<Visit[]>([]);
     const [toasts, setToasts] = useState<WorkflowToast[]>([]);
     const previousVisitsRef = useRef<Map<string, ClinicalStatus>>(new Map());
@@ -93,12 +96,17 @@ export function useWorkflowEngine(options: { enabled?: boolean } = { enabled: tr
                 : 'success';
 
             addToast(getTransitionMessage(result), toastType);
+
+            // Fire onTransition callback if provided
+            if (onTransition) {
+                try { onTransition(visit.status, newStatus, visit.id, visit.patientName); } catch {}
+            }
         } catch (error) {
             console.error('[Workflow] Transition failed:', visit.id, error);
         } finally {
             processingRef.current.delete(visit.id);
         }
-    }, [addToast]);
+    }, [addToast, onTransition]);
 
     // ─── Toast 타이머 cleanup ─────────────────────────────
     useEffect(() => {

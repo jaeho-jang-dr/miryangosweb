@@ -112,16 +112,16 @@ export interface HiraFetchOptions {
 /**
  * HIRA API 호출 (XML → JSON 파싱 → 타입화된 결과 반환)
  */
-export async function hiraFetch<T>(
+export async function hiraFetch<T, P extends HiraRequestBase = HiraRequestBase>(
   baseUrl: string,
   endpoint: string,
-  params: HiraRequestBase & Record<string, unknown> = {},
+  params: P = {} as P,
   options: HiraFetchOptions = {},
 ): Promise<HiraParsedResult<T>> {
   const { cacheTtl = DEFAULT_CACHE_TTL, maxRetries = 1 } = options;
 
   // 캐시 확인
-  const cacheKey = getCacheKey(baseUrl, endpoint, params);
+  const cacheKey = getCacheKey(baseUrl, endpoint, params as unknown as Record<string, unknown>);
   if (cacheTtl > 0) {
     const cached = getFromCache<HiraParsedResult<T>>(cacheKey);
     if (cached) {
@@ -135,12 +135,12 @@ export async function hiraFetch<T>(
 
   // 요청 파라미터 구성
   const key = getApiKey();
-  const requestParams: Record<string, unknown> = {
+  const requestParams = {
     serviceKey: key,
     pageNo: params.pageNo ?? 1,
     numOfRows: params.numOfRows ?? 10,
     ...params,
-  };
+  } as unknown as Record<string, unknown>;
   // serviceKey는 위에서 설정했으므로 중복 제거
   delete requestParams.serviceKey;
   requestParams.serviceKey = key;
@@ -227,7 +227,7 @@ function parseHiraXml<T>(xmlData: string, endpoint: string): HiraParsedResult<T>
 
     // items 추출
     let items: T[] = [];
-    if (body.items && body.items !== '') {
+    if (body.items) {
       const rawItems = body.items.item;
       items = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
     }

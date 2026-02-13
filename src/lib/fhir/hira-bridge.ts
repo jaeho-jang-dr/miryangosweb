@@ -58,18 +58,16 @@ export function extractMedicationsFromRequests(
   requests: FhirMedicationRequest[],
 ): EmrIngredientEntry[] {
   return requests
-    .map(mr => {
+    .map((mr): EmrIngredientEntry | null => {
       const concept = mr.medicationCodeableConcept;
       const name = concept?.text
         || concept?.coding?.[0]?.display
         || concept?.coding?.[0]?.code;
       if (!name) return null;
-      return {
-        name,
-        code: concept?.coding?.[0]?.code !== name
-          ? concept?.coding?.[0]?.code
-          : undefined,
-      };
+      const code = concept?.coding?.[0]?.code !== name
+        ? concept?.coding?.[0]?.code
+        : undefined;
+      return code ? { name, code } : { name };
     })
     .filter((m): m is EmrIngredientEntry => m !== null);
 }
@@ -111,7 +109,7 @@ export async function searchPharmacyOrganizations(params: {
     // 영업시간을 meta.extension에 추가 (FHIR extension 패턴)
     const hours = extractBusinessHours(pharmacy);
     if (hours.length > 0) {
-      (org as Record<string, unknown>).extension = [{
+      (org as unknown as Record<string, unknown>).extension = [{
         url: 'urn:miryang-ortho:pharmacy-hours',
         valueString: JSON.stringify(hours),
       }];

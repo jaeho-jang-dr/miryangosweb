@@ -14,6 +14,10 @@ export function useSessionTimeout(
   onTimeout: () => void,
   timeoutMs: number = 30 * 60 * 1000,  // 30분
   warningMs: number = 5 * 60 * 1000,   // 5분 전 경고
+  options?: {
+    /** Callback for session validation check (every 60s). Return false to force logout. */
+    validateSession?: () => Promise<boolean>;
+  },
 ) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,6 +60,20 @@ export function useSessionTimeout(
   const dismissWarning = useCallback(() => {
     resetTimer(); // User activity — reset everything
   }, [resetTimer]);
+
+  // Session validation check (every 60s) — concurrent session detection
+  useEffect(() => {
+    if (!options?.validateSession) return;
+    const validate = options.validateSession;
+    const interval = setInterval(async () => {
+      const valid = await validate();
+      if (!valid) {
+        clearTimers();
+        onTimeout();
+      }
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [options?.validateSession, onTimeout, clearTimers]);
 
   useEffect(() => {
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];

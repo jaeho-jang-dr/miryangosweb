@@ -92,3 +92,36 @@ export interface MedicalOrder {
     performerId?: string; // Who did it
     createdAt: Timestamp;
 }
+
+// ─── Chart Version (Phase 5) ────────────────────────────────
+
+export interface ChartVersion {
+    id: string;
+    visitId: string;
+    savedBy: string;       // userId
+    savedByName?: string;  // display name
+    savedAt: Timestamp;
+    snapshot: {
+        chiefComplaint?: string;
+        physicalExam?: string;
+        testOrder?: string;
+        testResult?: string;
+        diagnosis?: string;
+        treatmentNote?: string;
+        orders?: MedicalOrder[];
+        images?: string[];
+    };
+}
+
+// ─── Treatment Execution (Phase 2 Enhancement) ──────────────
+
+export interface TreatmentExecution {
+    id: string;
+    modality: string;      // e.g. '핫팩 20분', '간섭파치료(ICT) 15분'
+    status: 'pending' | 'in_progress' | 'completed';
+    startedAt?: Timestamp;
+    completedAt?: Timestamp;
+    performerId?: string;
+    performerName?: string;
+    durationMinutes?: number; // Expected duration parsed from modality name
+}

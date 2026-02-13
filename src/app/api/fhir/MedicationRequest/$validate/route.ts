@@ -100,8 +100,8 @@ export async function POST(req: NextRequest) {
     const outcome = await validatePrescriptionDur({ medications, patientAge, isPregnant });
 
     const drugNames = medications.map(m => m.name).join(', ');
-    const errorCount = outcome.issue.filter(i => i.severity === 'error').length;
-    const warningCount = outcome.issue.filter(i => i.severity === 'warning').length;
+    const errorCount = outcome.issue.filter((i: { severity: string }) => i.severity === 'error').length;
+    const warningCount = outcome.issue.filter((i: { severity: string }) => i.severity === 'warning').length;
 
     await writeAuditLog({
       action: 'read',

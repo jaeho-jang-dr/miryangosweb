@@ -386,8 +386,8 @@ function countOpenNow(pharmacies: PharmacyDetailInfo[]): number {
 
   let count = 0;
   for (const p of pharmacies) {
-    const openStr = (p as Record<string, unknown>)[fields.start] as string | undefined;
-    const closeStr = (p as Record<string, unknown>)[fields.close] as string | undefined;
+    const openStr = (p as unknown as Record<string, unknown>)[fields.start] as string | undefined;
+    const closeStr = (p as unknown as Record<string, unknown>)[fields.close] as string | undefined;
     if (!openStr || !closeStr) continue;
     const open = parseInt(openStr, 10);
     const close = parseInt(closeStr, 10);

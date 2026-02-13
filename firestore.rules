@@ -100,6 +100,41 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // === EMR Collections (miryangosemr) ===
+
+    // Billing Records — Clinical staff only
+    match /billing/{document=**} {
+      allow read, write: if isClinicalStaff();
+    }
+
+    // HIRA Claims — Clinical staff only
+    match /claims/{document=**} {
+      allow read, write: if isClinicalStaff();
+    }
+
+    // Fee Schedule (Master Data) — Read: Clinical staff, Write: Admin/Manager
+    match /fee_schedule/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
+    }
+
+    // Prescriptions — Clinical staff only
+    match /prescriptions/{document=**} {
+      allow read, write: if isClinicalStaff();
+    }
+
+    // Statistics (Daily/Monthly) — Read: Clinical staff, Write: Admin SDK
+    match /statistics_daily/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if false;  // Admin SDK only
+    }
+
+    match /statistics_monthly/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if false;  // Admin SDK only
+    }
+
     // Default: Deny everything else
     match /{document=**} {
       allow read, write: if false;

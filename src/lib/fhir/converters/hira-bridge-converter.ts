@@ -263,8 +263,8 @@ export function extractBusinessHours(pharmacy: PharmacyDetailInfo): Record<strin
   const hours: Record<string, string>[] = [];
 
   for (let i = 1; i <= 8; i++) {
-    const start = (pharmacy as Record<string, unknown>)[`dutyTime${i}s`] as string | undefined;
-    const close = (pharmacy as Record<string, unknown>)[`dutyTime${i}c`] as string | undefined;
+    const start = (pharmacy as unknown as Record<string, unknown>)[`dutyTime${i}s`] as string | undefined;
+    const close = (pharmacy as unknown as Record<string, unknown>)[`dutyTime${i}c`] as string | undefined;
     if (start && close) {
       hours.push({
         day: dayNames[i],

@@ -4,6 +4,13 @@
     "staging": "miryangosweb",
     "development": "miryangosweb"
   },
-  "targets": {},
+  "targets": {
+    "miryangosweb": {
+      "hosting": {
+        "main": ["miryangosweb"],
+        "emr": ["miryangosemr"]
+      }
+    }
+  },
   "etags": {}
 }

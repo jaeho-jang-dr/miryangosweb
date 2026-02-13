@@ -35,7 +35,11 @@
     "sync:pull": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 pull",
     "sync:push:all": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 push -All",
     "sync:setup": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 setup",
-    "sync:dry": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 push -DryRun"
+    "sync:dry": "powershell -ExecutionPolicy Bypass -File scripts/smart-sync.ps1 push -DryRun",
+    "emr:dev": "cd apps/miryangosemr && npm run dev",
+    "emr:build": "cd apps/miryangosemr && npm run build",
+    "emr:start": "cd apps/miryangosemr && npm run start",
+    "deploy:emr": "cd apps/miryangosemr && npm run build && cd ../.. && firebase deploy --only hosting:emr"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
