@@ -314,25 +314,29 @@ function VoiceChartPageContent() {
             let audioUrl = null;
 
             if (recordedBlob) {
-                const timestamp = Date.now();
-                const storageRef = ref(storage, `voice-charts/${patientId}/${timestamp}.webm`);
-                const metadata = {
-                    contentType: 'audio/webm',
-                    customMetadata: { patientId, visitType }
-                };
+                try {
+                    const timestamp = Date.now();
+                    const storageRef = ref(storage, `voice-charts/${patientId}/${timestamp}.webm`);
+                    const metadata = {
+                        contentType: 'audio/webm',
+                        customMetadata: { patientId, visitType }
+                    };
 
-                let uploadSuccess = false;
-                let retryCount = 0;
-                while (!uploadSuccess && retryCount < 3) {
-                    try {
-                        const snapshot = await uploadBytes(storageRef, recordedBlob, metadata);
-                        audioUrl = await getDownloadURL(snapshot.ref);
-                        uploadSuccess = true;
-                    } catch (e) {
-                        retryCount++;
-                        if (retryCount >= 3) throw e;
-                        await new Promise(r => setTimeout(r, 1000));
+                    let uploadSuccess = false;
+                    let retryCount = 0;
+                    while (!uploadSuccess && retryCount < 3) {
+                        try {
+                            const snapshot = await uploadBytes(storageRef, recordedBlob, metadata);
+                            audioUrl = await getDownloadURL(snapshot.ref);
+                            uploadSuccess = true;
+                        } catch (e) {
+                            retryCount++;
+                            if (retryCount >= 3) throw e;
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
                     }
+                } catch (uploadErr) {
+                    console.warn('오디오 업로드 실패 (차트 데이터는 계속 저장됩니다):', uploadErr);
                 }
             }
 

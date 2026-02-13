@@ -86,7 +86,7 @@ export interface MedicalDocument {
 export interface MedicalOrder {
     id: string;
     visitId: string;
-    type: 'medication' | 'injection' | 'test' | 'procedure';
+    type: 'medication' | 'injection' | 'test' | 'procedure' | 'pt' | 'surgical';
     name: string;
     status: 'ordered' | 'completed' | 'cancelled';
     performerId?: string; // Who did it

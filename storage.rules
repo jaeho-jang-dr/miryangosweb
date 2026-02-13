@@ -1,9 +1,9 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Voice Charts (High Privacy) — Authenticated users only
+    // Voice Charts — TODO: 개발 완료 후 request.auth != null 로 복원
     match /voice-charts/{patientId}/{fileName} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
 
     // Uploads (General files) — Authenticated users only
