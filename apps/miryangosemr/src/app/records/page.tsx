@@ -40,7 +40,7 @@ function RecordsPageContent() {
             const q = query(
                 collection(db, 'patients'),
                 where('name', '>=', term),
-                where('name', '<=', term + '\uf8ff'),
+                where('name', '<=', term + ''),
                 limit(10)
             );
 

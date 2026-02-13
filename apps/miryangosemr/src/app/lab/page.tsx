@@ -105,12 +105,12 @@ function LaboratoryPageContent() {
     };
 
     const handleForceToConsulting = async (visit: Visit) => {
-        if (!confirm(`${visit.patientName}\uB2D8\uC744 \uACB0\uACFC \uC785\uB825 \uC5C6\uC774 \uC9C4\uB8CC\uC2E4\uB85C \uC774\uB3D9\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n(\uB098\uC911\uC5D0 \uACB0\uACFC\uB97C \uC785\uB825\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4)`)) return;
+        if (!confirm(`${visit.patientName}님을 결과 입력 없이 진료실로 이동하시겠습니까?\n(나중에 결과를 입력할 수 있습니다)`)) return;
         try {
             await changeVisitStatus(visit.id, 'consulting');
         } catch (e) {
             console.error(e);
-            alert('\uC774\uB3D9 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
+            alert('이동 중 오류가 발생했습니다.');
         }
     };
 
@@ -128,15 +128,15 @@ function LaboratoryPageContent() {
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
                     <FlaskConical className="w-8 h-8 text-indigo-600" />
-                    \uAC80\uC0AC\uC2E4 (Laboratory)
+                    검사실 (Laboratory)
                 </h1>
-                <p className="text-slate-500 mt-2">\uAC80\uC0AC \uB300\uAE30 \uBC0F \uC9C4\uD589 \uC911\uC778 \uD658\uC790 \uBAA9\uB85D\uC785\uB2C8\uB2E4.</p>
+                <p className="text-slate-500 mt-2">검사 대기 및 진행 중인 환자 목록입니다.</p>
             </div>
 
             {visits.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-white rounded-3xl border border-slate-200 shadow-sm p-12">
                     <TestTube2 className="w-16 h-16 mb-4 opacity-50" />
-                    <p className="text-lg">\uB300\uAE30 \uC911\uC778 \uAC80\uC0AC \uD658\uC790\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</p>
+                    <p className="text-lg">대기 중인 검사 환자가 없습니다.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-6">
@@ -147,17 +147,17 @@ function LaboratoryPageContent() {
                                     <div className="flex items-center gap-2 mb-1">
                                         <h3 className="text-lg font-bold text-slate-800">{visit.patientName}</h3>
                                         {visit.testStatus === 'completed' ? (
-                                            <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-700">\uAC80\uC0AC\uC644\uB8CC</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-700">검사완료</span>
                                         ) : (
-                                            <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">\uAC80\uC0AC\uB300\uAE30</span>
+                                            <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700">검사대기</span>
                                         )}
                                     </div>
                                     <p className="text-xs text-slate-500">
-                                        {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} \uC811\uC218
+                                        {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 접수
                                     </p>
                                 </div>
-                                <button onClick={() => openResultModal(visit)} className={`p-2 rounded-full transition-colors ${visit.testStatus === 'completed' ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`} title="\uACB0\uACFC \uC785\uB825">
-                                    {visit.testStatus === 'completed' ? <FileText className="w-6 h-6" /> : <div className="flex items-center gap-1 px-2 font-bold"><TestTube2 className="w-4 h-4" /> \uACB0\uACFC\uC785\uB825</div>}
+                                <button onClick={() => openResultModal(visit)} className={`p-2 rounded-full transition-colors ${visit.testStatus === 'completed' ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`} title="결과 입력">
+                                    {visit.testStatus === 'completed' ? <FileText className="w-6 h-6" /> : <div className="flex items-center gap-1 px-2 font-bold"><TestTube2 className="w-4 h-4" /> 결과입력</div>}
                                 </button>
                             </div>
                             <div className="mb-3"><PatientStatusBadges visit={visit} currentPage="testing" /></div>
@@ -173,7 +173,7 @@ function LaboratoryPageContent() {
                             )}
                             {visit.status === 'testing' && visit.testStatus !== 'completed' && (
                                 <button onClick={() => handleForceToConsulting(visit)} className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors">
-                                    <ArrowRight className="w-4 h-4" /> \uC9C4\uB8CC\uC2E4\uB85C \uAC15\uC81C\uC774\uB3D9
+                                    <ArrowRight className="w-4 h-4" /> 진료실로 강제이동
                                 </button>
                             )}
                         </div>
@@ -187,7 +187,7 @@ function LaboratoryPageContent() {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedVisit(null)}>
                     <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><TestTube2 className="w-5 h-5 text-indigo-600" />\uAC80\uC0AC \uACB0\uACFC \uC785\uB825 ({selectedVisit.patientName})</h3>
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><TestTube2 className="w-5 h-5 text-indigo-600" />검사 결과 입력 ({selectedVisit.patientName})</h3>
                             <button onClick={() => setSelectedVisit(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
                         </div>
                         <div className="p-6 overflow-y-auto flex-1">
@@ -196,11 +196,11 @@ function LaboratoryPageContent() {
                                 <p className="text-slate-800 font-medium">{selectedVisit.testOrder}</p>
                             </div>
                             <div className="flex items-center justify-between mb-2">
-                                <label className="text-sm font-bold text-slate-700">\uAC80\uC0AC \uACB0\uACFC / \uD310\uB3C5 \uC18C\uACAC</label>
+                                <label className="text-sm font-bold text-slate-700">검사 결과 / 판독 소견</label>
                                 {voiceSupported && (
                                     <button onClick={() => toggleVoice()} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold transition-all ${isListening ? 'bg-red-500 text-white shadow-lg shadow-red-200 animate-pulse' : 'bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700'}`}>
                                         {isListening ? <Square className="w-3.5 h-3.5 fill-current" /> : <Mic className="w-3.5 h-3.5" />}
-                                        {isListening ? '\uC74C\uC131 \uC911\uC9C0' : '\uC74C\uC131 \uC785\uB825'}
+                                        {isListening ? '음성 중지' : '음성 입력'}
                                     </button>
                                 )}
                             </div>
@@ -236,8 +236,8 @@ function LaboratoryPageContent() {
                             </div>
                         </div>
                         <div className="p-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">
-                            <button onClick={() => handleSaveResult(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">\uC784\uC2DC \uC800\uC7A5</button>
-                            <button onClick={() => handleSaveResult(true)} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> \uACB0\uACFC \uC644\uB8CC</button>
+                            <button onClick={() => handleSaveResult(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">임시 저장</button>
+                            <button onClick={() => handleSaveResult(true)} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> 결과 완료</button>
                         </div>
                     </div>
                 </div>

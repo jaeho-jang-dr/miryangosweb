@@ -290,7 +290,7 @@ function ConsultingDetailPageContent() {
 
     const handleAddInitialVisit = async () => {
         if (!visit) return;
-        if (!confirm('\uC0C8 \uBD80\uC704\uC5D0 \uB300\uD55C \uCD08\uC9C4\uC744 \uCD94\uAC00\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uD604\uC7AC \uCC28\uD2B8\uB97C \uC790\uB3D9 \uC800\uC7A5 \uD6C4 \uC0C8 \uCD08\uC9C4 \uCC28\uD2B8\uB97C \uC0DD\uC131\uD569\uB2C8\uB2E4.')) return;
+        if (!confirm('새 부위에 대한 초진을 추가하시겠습니까?\n현재 차트를 자동 저장 후 새 초진 차트를 생성합니다.')) return;
 
         try {
             await handleSave(false);
@@ -312,12 +312,12 @@ function ConsultingDetailPageContent() {
                 collection: 'visits',
                 documentId: newVisitRef.id,
                 after: { patientId: visit.patientId, patientName: visit.patientName, type: 'new', parentVisitId: visitId },
-                description: '\uCD08\uC9C4\uCD94\uAC00 \uC0DD\uC131',
+                description: '초진추가 생성',
             });
             router.push(`/consulting/${newVisitRef.id}`);
         } catch (e) {
-            console.error('\uCD08\uC9C4\uCD94\uAC00 \uC624\uB958:', e);
-            alert('\uCD08\uC9C4 \uCD94\uAC00 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.');
+            console.error('초진추가 오류:', e);
+            alert('초진 추가 중 오류가 발생했습니다.');
         }
     };
 
@@ -384,13 +384,13 @@ function ConsultingDetailPageContent() {
                     if (data.physicalExam) {
                         const peItems = (data.physicalExam as string).split(',').map((s: string) => s.trim()).filter(Boolean);
                         const PE_LABEL_MAP: Record<string, string> = {
-                            '\uC555\uD1B5': '\uC555\uD1B5 (Tenderness)', '\uBD80\uC885': '\uBD80\uC885 (Swelling)', '\uAD00\uC808\uBCC0\uD615': '\uAD00\uC808\uBCC0\uD615 (Deformity)',
-                            '\uAD00\uC808\uC6B4\uB3D9\uC81C\uD55C': '\uAD00\uC808\uC6B4\uB3D9\uC81C\uD55C (ROM limitation)', '\uADFC\uACBD\uC9C1': '\uADFC\uACBD\uC9C1 (Muscle Spasm)',
-                            '\uADFC\uB825\uC57D\uD654': '\uADFC\uB825\uC57D\uD654 (Muscle Weakness)', '\uADFC\uC704\uCD95': '\uADFC\uC704\uCD95 (Muscle Atrophy)',
-                            '\uC5FC\uBC1C\uC74C': '\uC5FC\uBC1C\uC74C (Crepitus)', '\uBC1C\uC801': '\uBC1C\uC801 (Redness)', '\uC5F4\uAC10': '\uC5F4\uAC10 (Warmth)',
-                            '\uBC18\uC0C1\uCD9C\uD608': '\uBC18\uC0C1\uCD9C\uD608 (Ecchymosis)', '\uD568\uC694\uBD80\uC885': '\uD568\uC694\uBD80\uC885 (Pitting Edema)',
-                            '\uAC10\uAC01\uC774\uC0C1': '\uAC10\uAC01\uC774\uC0C1 (Sensory Change)', '\uC800\uB9BC': '\uC800\uB9BC (Numbness)',
-                            '\uBC18\uC0AC\uC774\uC0C1': '\uBC18\uC0AC\uC774\uC0C1 (Reflex Change)', '\uBCF4\uD589\uC774\uC0C1': '\uBCF4\uD589\uC774\uC0C1 (Gait Abnormality)',
+                            '압통': '압통 (Tenderness)', '부종': '부종 (Swelling)', '관절변형': '관절변형 (Deformity)',
+                            '관절운동제한': '관절운동제한 (ROM limitation)', '근경직': '근경직 (Muscle Spasm)',
+                            '근력약화': '근력약화 (Muscle Weakness)', '근위축': '근위축 (Muscle Atrophy)',
+                            '염발음': '염발음 (Crepitus)', '발적': '발적 (Redness)', '열감': '열감 (Warmth)',
+                            '반상출혈': '반상출혈 (Ecchymosis)', '함요부종': '함요부종 (Pitting Edema)',
+                            '감각이상': '감각이상 (Sensory Change)', '저림': '저림 (Numbness)',
+                            '반사이상': '반사이상 (Reflex Change)', '보행이상': '보행이상 (Gait Abnormality)',
                         };
                         const restored = peItems.map((item: string) => PE_LABEL_MAP[item] || '').filter(Boolean);
                         if (restored.length > 0) setSelectedPEFindings(restored);
@@ -404,7 +404,7 @@ function ConsultingDetailPageContent() {
                         });
                     }
                 } else {
-                    alert("\uC874\uC7AC\uD558\uC9C0 \uC54A\uB294 \uCC28\uD2B8\uC785\uB2C8\uB2E4.");
+                    alert("존재하지 않는 차트입니다.");
                     router.push('/consulting');
                 }
             } catch (e) {
@@ -548,19 +548,19 @@ function ConsultingDetailPageContent() {
                         <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             {visit.patientName}
                             <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                {visit.parentVisitId ? '\uCD08\uC9C4\uCD94\uAC00' : visit.type === 'new' ? '\uC2E0\uD658' : '\uC7AC\uC9C4'}
+                                {visit.parentVisitId ? '초진추가' : visit.type === 'new' ? '신환' : '재진'}
                             </span>
                             {visit.type === 'return' && !visit.parentVisitId && (
                                 <button
                                     onClick={handleAddInitialVisit}
                                     className="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full transition-colors flex items-center gap-1"
                                 >
-                                    <UserPlus className="w-3 h-3" /> \uCD08\uC9C4\uCD94\uAC00
+                                    <UserPlus className="w-3 h-3" /> 초진추가
                                 </button>
                             )}
                         </h1>
                         <p className="text-xs text-slate-500">
-                            \uC811\uC218: {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            접수: {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                     </div>
                 </div>
@@ -569,7 +569,7 @@ function ConsultingDetailPageContent() {
                     <div className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${isListening ? 'border-red-500 bg-red-50' : 'border-slate-200 bg-slate-50'}`}>
                         <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
                         <span className="text-sm font-medium text-slate-700">
-                            {isListening ? 'Listening...' : '\uB9C8\uC774\uD06C \uB300\uAE30'}
+                            {isListening ? 'Listening...' : '마이크 대기'}
                         </span>
                     </div>
 
@@ -586,11 +586,11 @@ function ConsultingDetailPageContent() {
                         onClick={() => router.push(`/voice-chart?visitId=${visitId}&patientName=${encodeURIComponent(visit.patientName)}`)}
                         className="flex items-center gap-2 px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 text-white font-medium shadow-md"
                     >
-                        <Mic className="w-4 h-4" /> \uC74C\uC131\uC9C4\uB8CC
+                        <Mic className="w-4 h-4" /> 음성진료
                     </button>
 
                     <button onClick={() => handleSave(false)} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-medium">
-                        <Save className="w-4 h-4" /> \uC800\uC7A5
+                        <Save className="w-4 h-4" /> 저장
                     </button>
                     <button onClick={handleCompleteClick} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-emerald-600 rounded-lg hover:bg-emerald-700 text-white font-bold shadow-md">
                         <CheckCircle className="w-4 h-4" />
@@ -685,7 +685,7 @@ function ConsultingDetailPageContent() {
                             <div className="flex items-center gap-3">
                                 <Activity className="w-6 h-6" />
                                 <div>
-                                    <p className="font-bold">\uC74C\uC131\uC5D0\uC11C {detectedOrders.length}\uAC1C\uC758 \uC624\uB354\uB97C \uAC10\uC9C0\uD588\uC2B5\uB2C8\uB2E4.</p>
+                                    <p className="font-bold">음성에서 {detectedOrders.length}개의 오더를 감지했습니다.</p>
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {detectedOrders.map(o => (
                                             <span key={o.id} className="text-xs bg-white/20 px-2 py-0.5 rounded-full">{o.text}</span>
@@ -701,7 +701,7 @@ function ConsultingDetailPageContent() {
                                     }}
                                     className="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-50 transition-colors"
                                 >
-                                    \uBAA8\uB450 \uCD94\uAC00
+                                    모두 추가
                                 </button>
                                 <button onClick={() => setDetectedOrders([])} className="p-2 hover:bg-white/10 rounded-lg">
                                     <X className="w-5 h-5" />
@@ -712,20 +712,20 @@ function ConsultingDetailPageContent() {
 
                     {/* CC Section */}
                     <div onClick={() => { setActiveField('cc'); setActiveOrderGroup('symptom'); }} className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text relative ${activeField === 'cc' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'cc' ? 'text-emerald-700' : 'text-slate-500'}`}>Subjective (C.C / \uC99D\uC0C1)</label>
-                        <textarea value={formData.cc} onChange={(e) => setFormData({ ...formData, cc: e.target.value })} placeholder="\uD658\uC790\uC758 \uC99D\uC0C1\uC744 \uC785\uB825\uD558\uC138\uC694..." className="w-full min-h-[100px] text-lg resize-none outline-none placeholder:text-slate-300 bg-transparent" />
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'cc' ? 'text-emerald-700' : 'text-slate-500'}`}>Subjective (C.C / 증상)</label>
+                        <textarea value={formData.cc} onChange={(e) => setFormData({ ...formData, cc: e.target.value })} placeholder="환자의 증상을 입력하세요..." className="w-full min-h-[100px] text-lg resize-none outline-none placeholder:text-slate-300 bg-transparent" />
                     </div>
 
                     {/* P/E Section */}
                     <div onClick={() => { setActiveField('pe'); setActiveOrderGroup('physical_exam'); }} className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'pe' ? 'border-amber-500 shadow-md ring-4 ring-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'pe' ? 'text-amber-700' : 'text-slate-500'}`}>Objective (\uC774\uD559 \uAC80\uC0AC)</label>
-                        <textarea value={formData.pe} onChange={(e) => setFormData({ ...formData, pe: e.target.value })} placeholder="\uC774\uD559\uC801 \uAC80\uC0AC \uC18C\uACAC\uC744 \uC785\uB825\uD558\uC138\uC694... (\uC608: ROM \uC81C\uD55C, \uC555\uD1B5, \uBD80\uC885 \uB4F1)" className="w-full min-h-[80px] text-lg resize-none outline-none placeholder:text-slate-300 bg-transparent" />
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'pe' ? 'text-amber-700' : 'text-slate-500'}`}>Objective (이학 검사)</label>
+                        <textarea value={formData.pe} onChange={(e) => setFormData({ ...formData, pe: e.target.value })} placeholder="이학적 검사 소견을 입력하세요... (예: ROM 제한, 압통, 부종 등)" className="w-full min-h-[80px] text-lg resize-none outline-none placeholder:text-slate-300 bg-transparent" />
                     </div>
 
                     {/* Test Section */}
                     <div onClick={() => { setActiveField('test'); setActiveOrderGroup('test'); }} className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text ${activeField === 'test' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'test' ? 'text-emerald-700' : 'text-slate-500'}`}>Objective (\uAC80\uC0AC \uC624\uB354)</label>
-                        <textarea value={formData.test} onChange={(e) => setFormData({ ...formData, test: e.target.value })} placeholder="\uAC80\uC0AC \uC624\uB354..." className="w-full min-h-[60px] text-lg resize-none outline-none bg-transparent" />
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'test' ? 'text-emerald-700' : 'text-slate-500'}`}>Objective (검사 오더)</label>
+                        <textarea value={formData.test} onChange={(e) => setFormData({ ...formData, test: e.target.value })} placeholder="검사 오더..." className="w-full min-h-[60px] text-lg resize-none outline-none bg-transparent" />
                         {medicalOrders.some(o => o.type === 'test') && (
                             <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-lg">
                                 {medicalOrders.filter(o => o.type === 'test').map(order => (
@@ -741,15 +741,15 @@ function ConsultingDetailPageContent() {
                     {/* Diagnosis Section */}
                     <div onClick={() => { setActiveField('diagnosis'); setActiveOrderGroup('diagnosis'); }} className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text relative ${activeField === 'diagnosis' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
                         <div className="flex justify-between items-center mb-2">
-                            <label className={`block text-sm font-bold uppercase tracking-wider ${activeField === 'diagnosis' ? 'text-emerald-700' : 'text-slate-500'}`}>Assessment (\uC9C4\uB2E8)</label>
-                            <button onClick={(e) => { e.stopPropagation(); setIsKcdSearchOpen(true); }} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-1"><Search className="w-3 h-3" /> \uC0C1\uBCD1\uAC80\uC0C9</button>
+                            <label className={`block text-sm font-bold uppercase tracking-wider ${activeField === 'diagnosis' ? 'text-emerald-700' : 'text-slate-500'}`}>Assessment (진단)</label>
+                            <button onClick={(e) => { e.stopPropagation(); setIsKcdSearchOpen(true); }} className="text-xs bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-1"><Search className="w-3 h-3" /> 상병검색</button>
                         </div>
                         <textarea value={formData.diagnosis} onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })} className="w-full min-h-[80px] text-lg resize-none outline-none bg-transparent" />
                     </div>
 
                     {/* Plan Section */}
                     <div onClick={() => { setActiveField('plan'); if (!['procedure', 'medication', 'pt', 'surgical'].includes(activeOrderGroup)) { setActiveOrderGroup('procedure'); } }} className={`bg-white rounded-xl border-2 p-6 transition-all cursor-text flex-1 ${activeField === 'plan' ? 'border-emerald-500 shadow-md ring-4 ring-emerald-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'plan' ? 'text-emerald-700' : 'text-slate-500'}`}>Plan (\uCE58\uB8CC \uBC0F \uCC98\uBC29)</label>
+                        <label className={`block text-sm font-bold uppercase tracking-wider mb-2 ${activeField === 'plan' ? 'text-emerald-700' : 'text-slate-500'}`}>Plan (치료 및 처방)</label>
                         <textarea value={formData.plan} onChange={(e) => setFormData({ ...formData, plan: e.target.value })} className="w-full h-full min-h-[150px] text-lg resize-none outline-none bg-transparent" />
                         {medicalOrders.some(o => o.type !== 'test') && (
                             <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-lg">
@@ -768,15 +768,15 @@ function ConsultingDetailPageContent() {
                 {/* Right Column: Assistant - simplified for migration */}
                 <div className="w-[480px] border-l border-slate-200 bg-white hidden xl:flex flex-col shadow-inner">
                     <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto no-scrollbar">
-                        <button onClick={() => { setActiveOrderGroup('symptom'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'symptom' ? 'bg-white border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Activity className="w-5 h-5" />\uC99D\uC0C1</button>
-                        <button onClick={() => { setActiveOrderGroup('physical_exam'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'physical_exam' ? 'bg-white border-amber-600 text-amber-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Stethoscope className="w-5 h-5" />\uC774\uD559\uAC80\uC0AC</button>
-                        <button onClick={() => { setActiveOrderGroup('diagnosis'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'diagnosis' ? 'bg-white border-purple-600 text-purple-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Search className="w-5 h-5" />\uC9C4\uB2E8</button>
+                        <button onClick={() => { setActiveOrderGroup('symptom'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'symptom' ? 'bg-white border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Activity className="w-5 h-5" />증상</button>
+                        <button onClick={() => { setActiveOrderGroup('physical_exam'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'physical_exam' ? 'bg-white border-amber-600 text-amber-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Stethoscope className="w-5 h-5" />이학검사</button>
+                        <button onClick={() => { setActiveOrderGroup('diagnosis'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'diagnosis' ? 'bg-white border-purple-600 text-purple-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Search className="w-5 h-5" />진단</button>
                         {([
-                            { id: 'test' as const, label: '\uAC80\uC0AC', icon: ClipboardList, color: 'text-indigo-600' },
-                            { id: 'procedure' as const, label: '\uD2B9\uC218\uCE58\uB8CC', icon: Activity, color: 'text-rose-600' },
-                            { id: 'medication' as const, label: '\uC57D\uBB3C', icon: Pill, color: 'text-blue-600' },
-                            { id: 'pt' as const, label: '\uBB3C\uB9AC\uCE58\uB8CC', icon: Activity, color: 'text-teal-600' },
-                            { id: 'surgical' as const, label: '\uCC98\uCE58/\uC218\uC220', icon: Stethoscope, color: 'text-slate-700' },
+                            { id: 'test' as const, label: '검사', icon: ClipboardList, color: 'text-indigo-600' },
+                            { id: 'procedure' as const, label: '특수치료', icon: Activity, color: 'text-rose-600' },
+                            { id: 'medication' as const, label: '약물', icon: Pill, color: 'text-blue-600' },
+                            { id: 'pt' as const, label: '물리치료', icon: Activity, color: 'text-teal-600' },
+                            { id: 'surgical' as const, label: '처치/수술', icon: Stethoscope, color: 'text-slate-700' },
                         ]).map((group) => (
                             <button key={group.id} onClick={() => { setActiveOrderGroup(group.id); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === group.id ? `bg-white border-blue-600 ${group.color}` : 'border-transparent text-slate-400 hover:bg-white/50'}`}>
                                 <group.icon className="w-5 h-5" />{group.label}
@@ -784,7 +784,7 @@ function ConsultingDetailPageContent() {
                         ))}
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 bg-white">
-                        <div className="text-center text-slate-400 text-sm py-10">\uC624\uB354 \uD328\uB110 - \uC88C\uCE21\uC758 \uD544\uB4DC\uB97C \uD074\uB9AD\uD558\uC5EC \uC5F0\uB3D9\uB41C \uC624\uB354 \uD56D\uBAA9\uC744 \uD655\uC778\uD558\uC138\uC694.</div>
+                        <div className="text-center text-slate-400 text-sm py-10">오더 패널 - 좌측의 필드를 클릭하여 연동된 오더 항목을 확인하세요.</div>
                     </div>
                 </div>
             </div>
@@ -794,11 +794,11 @@ function ConsultingDetailPageContent() {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setIsKcdSearchOpen(false)}>
                     <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-slate-800">\uC0C1\uBCD1\uCF54\uB4DC \uAC80\uC0C9</h3>
+                            <h3 className="font-bold text-slate-800">상병코드 검색</h3>
                             <button onClick={() => setIsKcdSearchOpen(false)}><X className="w-5 h-5" /></button>
                         </div>
                         <div className="p-4">
-                            <input type="text" placeholder="\uBCD1\uBA85 \uB610\uB294 \uCF54\uB4DC \uAC80\uC0C9..." className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-emerald-500" autoFocus value={kcdQuery} onChange={(e) => setKcdQuery(e.target.value)} />
+                            <input type="text" placeholder="병명 또는 코드 검색..." className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:border-emerald-500" autoFocus value={kcdQuery} onChange={(e) => setKcdQuery(e.target.value)} />
                         </div>
                     </div>
                 </div>
@@ -908,14 +908,14 @@ function XrayPopup({ bodyPart, side, onSideChange, onSelectView, onClose }: Xray
                     <div className="flex justify-between items-center">
                         <div>
                             <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><ClipboardList className="w-5 h-5 text-indigo-600" />{bodyPart.nameKo} X-ray</h3>
-                            <p className="text-sm text-slate-500 mt-0.5">{bodyPart.nameEn} -- \uCD2C\uC601 \uC635\uC158\uC744 \uC120\uD0DD\uD558\uC138\uC694</p>
+                            <p className="text-sm text-slate-500 mt-0.5">{bodyPart.nameEn} -- 촬영 옵션을 선택하세요</p>
                         </div>
                         <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
                     </div>
                     {bodyPart.sided && (
                         <div className="flex gap-2 mt-3">
                             {(['Lt', 'Rt', 'Both'] as const).map(s => (
-                                <button key={s} onClick={() => onSideChange(s)} className={`flex-1 py-2 text-sm font-bold rounded-lg border-2 transition-all ${side === s ? 'border-indigo-500 bg-indigo-500 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`}>{s === 'Lt' ? 'Lt (\uC88C)' : s === 'Rt' ? 'Rt (\uC6B0)' : 'Both (\uC591\uCE21)'}</button>
+                                <button key={s} onClick={() => onSideChange(s)} className={`flex-1 py-2 text-sm font-bold rounded-lg border-2 transition-all ${side === s ? 'border-indigo-500 bg-indigo-500 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`}>{s === 'Lt' ? 'Lt (좌)' : s === 'Rt' ? 'Rt (우)' : 'Both (양측)'}</button>
                             ))}
                         </div>
                     )}
@@ -926,7 +926,7 @@ function XrayPopup({ bodyPart, side, onSideChange, onSelectView, onClose }: Xray
                             const sidePrefix = side && bodyPart.sided ? `${side} ` : '';
                             const fullText = `${sidePrefix}${bodyPart.nameEn} ${option.label}`;
                             return (
-                                <button key={option.id} onClick={() => { if (bodyPart.sided && !side) { alert('\uC88C/\uC6B0/\uC591\uCE21\uC744 \uBA3C\uC800 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.'); return; } onSelectView(fullText); }} className="w-full text-left p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group flex items-center justify-between">
+                                <button key={option.id} onClick={() => { if (bodyPart.sided && !side) { alert('좌/우/양측을 먼저 선택해주세요.'); return; } onSelectView(fullText); }} className="w-full text-left p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group flex items-center justify-between">
                                     <div><p className="font-bold text-slate-700 group-hover:text-indigo-700 text-sm">{sidePrefix}{bodyPart.nameEn} {option.label}</p></div>
                                     <Plus className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
                                 </button>
@@ -935,7 +935,7 @@ function XrayPopup({ bodyPart, side, onSideChange, onSelectView, onClose }: Xray
                     </div>
                 </div>
                 <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
-                    <button onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 font-medium">\uCDE8\uC18C</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 font-medium">취소</button>
                 </div>
             </div>
         </div>
