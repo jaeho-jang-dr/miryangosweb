@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 import path from 'node:path';
 
+// Convert Windows paths to POSIX for Turbopack compatibility
+const toPosix = (p: string) => p.split(path.sep).join('/');
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   typescript: { ignoreBuildErrors: false },
@@ -19,8 +22,10 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ['react-markdown'],
   turbopack: {
-    root: path.resolve(__dirname, '../..'),
+    root: toPosix(path.resolve(__dirname, '../..')),
     resolveAlias: {
+      // NOTE: Firebase absolute-path aliases are only in the webpack section below.
+      // Turbopack on Windows does not support absolute-path resolve aliases.
       // Shared root src alias
       '@shared': '../../src',
       '@shared/*': '../../src/*',
@@ -73,6 +78,26 @@ const nextConfig: NextConfig = {
       '@/types/clinical-master': '../../src/types/clinical-master',
       '@/types/public-schemas': '../../src/types/public-schemas',
     },
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Force ALL firebase SDK imports to resolve from EMR's node_modules (single instance)
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'firebase/app': path.resolve(__dirname, 'node_modules/firebase/app'),
+        'firebase/auth': path.resolve(__dirname, 'node_modules/firebase/auth'),
+        'firebase/firestore': path.resolve(__dirname, 'node_modules/firebase/firestore'),
+        'firebase/storage': path.resolve(__dirname, 'node_modules/firebase/storage'),
+        '@firebase/app': path.resolve(__dirname, 'node_modules/@firebase/app'),
+        '@firebase/auth': path.resolve(__dirname, 'node_modules/@firebase/auth'),
+        '@firebase/firestore': path.resolve(__dirname, 'node_modules/@firebase/firestore'),
+        '@firebase/storage': path.resolve(__dirname, 'node_modules/@firebase/storage'),
+        '@firebase/component': path.resolve(__dirname, 'node_modules/@firebase/component'),
+        '@firebase/util': path.resolve(__dirname, 'node_modules/@firebase/util'),
+        '@firebase/logger': path.resolve(__dirname, 'node_modules/@firebase/logger'),
+      };
+    }
+    return config;
   },
   async headers() {
     return [

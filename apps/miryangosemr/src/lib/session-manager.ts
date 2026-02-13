@@ -7,7 +7,7 @@
  */
 
 import { doc, setDoc, getDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 
 const SESSION_COLLECTION = 'sessions';
 

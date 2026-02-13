@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, limit, Timestamp, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Search, UserPlus, Clock, Calendar, User, ChevronRight, Stethoscope, AlertCircle, CheckCircle, CalendarCheck, Plus, Phone, FileText, CalendarDays, Printer, FileDown, ShieldCheck, X } from 'lucide-react';
 import Link from 'next/link';
 import { Patient, Visit } from '@shared/types/clinical';

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { FeeScheduleItem } from '@/types/billing';
 import EMRLayout from '@/components/layout/EMRLayout';
 import { Badge } from '@/components/ui/badge';

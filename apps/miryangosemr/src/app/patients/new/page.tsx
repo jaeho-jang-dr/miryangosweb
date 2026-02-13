@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, UserPlus } from 'lucide-react';
 import Link from 'next/link';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Search, FileText, User, Calendar, Clock, ChevronRight, Activity, AlertCircle } from 'lucide-react';
 import { Patient, Visit } from '@shared/types/clinical';
 import { format } from 'date-fns';

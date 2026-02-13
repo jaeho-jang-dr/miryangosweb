@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Calendar, Clock, User, Phone, FileText, Plus, Edit2, Trash2, Check, X, CalendarDays } from 'lucide-react';
 import { format, addDays, startOfDay, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';

@@ -1,5 +1,5 @@
 import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { DailyStatistics, MonthlyStatistics, StatisticsQuery } from '@/types/statistics';
 import { Visit } from '@shared/types/clinical';
 import { BillingRecord } from '@/types/billing';

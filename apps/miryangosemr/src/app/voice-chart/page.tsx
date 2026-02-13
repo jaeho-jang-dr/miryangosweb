@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AudioRecorderComponent } from './components/AudioRecorderComponent';
 import { LiveTranscript } from './components/LiveTranscript';
@@ -12,7 +12,7 @@ import type { SoapNote } from '@shared/lib/medical/templates/soap-note-template'
 import { createEmptyInitialChart } from '@shared/lib/medical/templates/initial-visit-template';
 import Link from 'next/link';
 import type { DiarizedSegment } from '@shared/lib/medical/speaker-diarization';
-import { db, storage } from '@shared/lib/firebase-clinical';
+import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { logAudit } from '@shared/lib/audit-client';
@@ -32,7 +32,9 @@ interface AnalysisResponse {
 export default function VoiceChartPage() {
     return (
         <EMRLayout>
-            <VoiceChartPageContent />
+            <Suspense fallback={<div className="p-12 text-center"><div className="w-8 h-8 animate-spin mx-auto border-4 border-emerald-600 border-t-transparent rounded-full" /></div>}>
+                <VoiceChartPageContent />
+            </Suspense>
         </EMRLayout>
     );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Users, Clock, Calendar, Activity, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 import { startOfDay, subDays } from 'date-fns';

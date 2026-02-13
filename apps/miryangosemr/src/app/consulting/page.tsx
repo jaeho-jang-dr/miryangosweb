@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Visit } from '@shared/types/clinical';
 import { useRouter } from 'next/navigation';
 import { Clock, User, ChevronRight, Activity, Calendar, Mic } from 'lucide-react';

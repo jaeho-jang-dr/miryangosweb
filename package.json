@@ -56,7 +56,7 @@
     "csv-parse": "^6.1.0",
     "date-fns": "^4.1.0",
     "fast-xml-parser": "^5.3.5",
-    "firebase": "^12.7.0",
+    "firebase": "^12.9.0",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^12.24.7",
     "gm": "^1.25.1",

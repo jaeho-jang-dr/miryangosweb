@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, getDocs, where, limit } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Plus, Search, User, Phone, MapPin, Calendar, MoreHorizontal, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';

@@ -2,21 +2,13 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@shared/lib/firebase-public';
 
+// TODO: 개발 완료 후 인증 로직 복원
 export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/login');
-      }
-    });
-    return () => unsubscribe();
+    router.replace('/dashboard');
   }, [router]);
 
   return (

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, query, where, writeBatch } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Loader2, CheckCircle, Trash2, Database } from 'lucide-react';
 import EMRLayout from '@/components/layout/EMRLayout';
 

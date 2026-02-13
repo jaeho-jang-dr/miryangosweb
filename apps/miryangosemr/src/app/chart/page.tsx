@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Patient } from '@shared/types/clinical';
 import EMRLayout from '@/components/layout/EMRLayout';
 import { Search, FileText, ArrowRight } from 'lucide-react';

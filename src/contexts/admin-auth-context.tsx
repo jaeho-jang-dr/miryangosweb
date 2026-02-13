@@ -3,7 +3,6 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { useRouter, usePathname } from 'next/navigation';
 import { auth } from '@/lib/firebase-public';
 import { Loader2 } from 'lucide-react';
 
@@ -24,33 +23,19 @@ export const useAdminAuth = () => useContext(AdminAuthContext);
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const router = useRouter();
-    const pathname = usePathname();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (authUser) => {
             setUser(authUser);
             setLoading(false);
-
-            // Redirect logic
-            const isLoginPage = pathname === '/admin/login';
-
-            if (!loading) {
-                if (!authUser && !isLoginPage) {
-                    router.push('/admin/login');
-                } else if (authUser && isLoginPage) {
-                    router.push('/admin');
-                }
-            }
         });
 
         return () => unsubscribe();
-    }, [pathname, router, loading]);
+    }, []);
 
     const signOut = async () => {
         try {
             await firebaseSignOut(auth);
-            router.push('/admin/login');
         } catch (error) {
             console.error('Logout error:', error);
         }

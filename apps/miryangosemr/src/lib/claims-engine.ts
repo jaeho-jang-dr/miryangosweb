@@ -1,5 +1,5 @@
 import { collection, addDoc, updateDoc, doc, getDocs, query, where, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { HIRAClaim, HIRAClaimItem, ClaimStatus } from '@/types/claims';
 import { BillingRecord } from '@/types/billing';
 

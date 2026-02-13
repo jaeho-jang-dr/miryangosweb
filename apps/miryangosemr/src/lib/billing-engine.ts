@@ -1,5 +1,5 @@
 import { collection, addDoc, updateDoc, doc, getDocs, query, where, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { BillingRecord, BillingItem, InsuranceType, COPAY_RATES, FeeScheduleItem } from '@/types/billing';
 
 /**

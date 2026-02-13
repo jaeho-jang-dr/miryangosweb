@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, Timestamp, query, where, orderBy, onSnapshot, limit, getDocs } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Visit, MedicalOrder, Patient, ChartVersion } from '@shared/types/clinical';
 import { getAuth } from 'firebase/auth';
 import { Mic, ArrowLeft, Save, Square, CheckCircle, Search, X, Stethoscope, ClipboardList, Activity, Pill, Plus, UserPlus, History, Clock } from 'lucide-react';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Visit } from '@shared/types/clinical';
 import { FlaskConical, CheckCircle2, TestTube2, FileText, X, Mic, Square, ArrowRight, CheckCircle } from 'lucide-react';
 import { useVoiceDictation } from '@shared/hooks/useVoiceDictation';

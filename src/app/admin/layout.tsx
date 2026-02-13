@@ -31,6 +31,20 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         return <>{children}</>;
     }
 
+    // Redirect to login if not authenticated
+    if (!user) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+                <div className="text-center space-y-4">
+                    <p className="text-slate-500">로그인이 필요합니다.</p>
+                    <Link href="/admin/login" className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                        로그인 페이지로 이동
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
             {/* Sidebar */}

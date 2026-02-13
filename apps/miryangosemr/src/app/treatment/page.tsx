@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { startOfDay, subDays } from 'date-fns';
 import { Visit, TreatmentExecution } from '@shared/types/clinical';
 import { useVoiceDictation } from '@shared/hooks/useVoiceDictation';

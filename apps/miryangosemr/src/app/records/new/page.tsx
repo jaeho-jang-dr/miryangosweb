@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2, FileText, User, Calendar } from 'lucide-react';
 import EMRLayout from '@/components/layout/EMRLayout';
@@ -18,7 +18,9 @@ interface Patient {
 export default function NewRecordPage() {
     return (
         <EMRLayout>
-            <NewRecordPageContent />
+            <Suspense fallback={<div className="p-12 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600" /></div>}>
+                <NewRecordPageContent />
+            </Suspense>
         </EMRLayout>
     );
 }

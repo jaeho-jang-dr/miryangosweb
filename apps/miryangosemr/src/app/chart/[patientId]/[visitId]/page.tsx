@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import { Patient, Visit } from '@shared/types/clinical';
 import EMRLayout from '@/components/layout/EMRLayout';
 import { Badge } from '@/components/ui/badge';

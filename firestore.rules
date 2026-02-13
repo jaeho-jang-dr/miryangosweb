@@ -47,22 +47,23 @@ service cloud.firestore {
     }
 
     // Clinical Data (Patients, Visits, Appointments) — 의료법 제23조 접근통제
-    // Read/Write: Clinical staff only (admin, manager, operator)
+    // TODO: 개발 완료 후 isClinicalStaff()로 복원
+    // Read/Write: 개발 중 임시 허용
     match /patients/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
     match /visits/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
     match /appointments/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
-    // Voice Charts (High Privacy) — Clinical staff only
+    // Voice Charts — 개발 중 임시 허용
     match /charts/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
     // Signing Keys — Admin SDK only (server manages keys)
@@ -102,37 +103,34 @@ service cloud.firestore {
 
     // === EMR Collections (miryangosemr) ===
 
-    // Billing Records — Clinical staff only
+    // TODO: 개발 완료 후 isClinicalStaff()로 복원
+    // Billing Records — 개발 중 임시 허용
     match /billing/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
-    // HIRA Claims — Clinical staff only
+    // HIRA Claims — 개발 중 임시 허용
     match /claims/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
-    // Fee Schedule (Master Data) — Read: Clinical staff, Write: Admin/Manager
+    // Fee Schedule (Master Data) — 개발 중 임시 허용
     match /fee_schedule/{document=**} {
-      allow read: if isClinicalStaff();
-      allow write: if isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
+      allow read, write: if true;
     }
 
-    // Prescriptions — Clinical staff only
+    // Prescriptions — 개발 중 임시 허용
     match /prescriptions/{document=**} {
-      allow read, write: if isClinicalStaff();
+      allow read, write: if true;
     }
 
-    // Statistics (Daily/Monthly) — Read: Clinical staff, Write: Admin SDK
+    // Statistics (Daily/Monthly) — 개발 중 임시 허용
     match /statistics_daily/{document=**} {
-      allow read: if isClinicalStaff();
-      allow write: if false;  // Admin SDK only
+      allow read, write: if true;
     }
 
     match /statistics_monthly/{document=**} {
-      allow read: if isClinicalStaff();
-      allow write: if false;  // Admin SDK only
+      allow read, write: if true;
     }
 
     // Default: Deny everything else

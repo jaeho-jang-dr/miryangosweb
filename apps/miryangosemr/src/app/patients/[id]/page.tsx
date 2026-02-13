@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { db } from '@shared/lib/firebase-clinical';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Plus, Clock, Stethoscope, Loader2 } from 'lucide-react';
 import EMRLayout from '@/components/layout/EMRLayout';

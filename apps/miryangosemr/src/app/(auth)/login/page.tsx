@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@shared/lib/firebase-public';
+import { auth } from '@/lib/firebase';
 import { logAudit } from '@shared/lib/audit-client';
 import { Activity, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
 
@@ -29,18 +29,23 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (err: unknown) {
-      const message = (err as Error).message;
+      const firebaseErr = err as { code?: string; message?: string };
+      const message = firebaseErr.message || 'Unknown error';
+      const code = firebaseErr.code || '';
+      console.error('[Login Error]', code, message);
       logAudit({
         action: 'login',
         collection: 'auth',
         documentId: email,
         description: `로그인 실패: ${email}`,
-        metadata: { error: message },
+        metadata: { error: message, code },
       });
-      if (message.includes('user-not-found') || message.includes('wrong-password') || message.includes('invalid-credential')) {
+      if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) {
         setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else if (code.includes('too-many-requests')) {
+        setError('로그인 시도가 너무 많습니다. 잠시 후 다시 시도하세요.');
       } else {
-        setError('로그인 중 오류가 발생했습니다.');
+        setError(`로그인 오류: ${code || message}`);
       }
     } finally {
       setLoading(false);

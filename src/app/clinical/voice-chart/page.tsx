@@ -591,6 +591,7 @@ export default function VoiceChartPage() {
                             </div>
                         )}
                     </div>
+                    </div>
 
                     {/* Right: Preview & Controls (7 cols) */}
                     <div className="xl:col-span-12 lg:xl:col-span-7 space-y-6">

@@ -125,9 +125,9 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
                             <Link href="/admin" target="_blank" className="relative px-2 py-2 text-xl hover:scale-110 transition-transform" title="CMS 대시보드 바로가기">
                                 🦄
                             </Link>
-                            <a href={process.env.NEXT_PUBLIC_EMR_URL || 'http://localhost:3002'} target="_blank" rel="noopener noreferrer" className="relative px-2 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-full hover:bg-emerald-100 transition-colors" title="EMR 시스템 바로가기">
+                            <Link href="/clinical" className="relative px-2 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-full hover:bg-emerald-100 transition-colors" title="EMR 대시보드">
                                 EMR
-                            </a>
+                            </Link>
                         </div>
                     </div>
 
