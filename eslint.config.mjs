@@ -13,6 +13,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "antigravity-claude-proxy/**",
+    // Sub-app build artifacts
+    "apps/**/.next/**",
+    "apps/**/node_modules/**",
   ]),
 ]);
 

@@ -10,7 +10,7 @@ test.describe('EMR Navigation & Auth', () => {
     await page.goto('/dashboard');
     // Should redirect to login or show login UI
     await expect(
-      page.locator('text=로그인').or(page.locator('input[type="email"]')).or(page.locator('text=Google'))
+      page.getByRole('textbox', { name: 'doctor@miryang.hospital' })
     ).toBeVisible({ timeout: 10000 });
   });
 

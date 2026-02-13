@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   },
   description: "밀양 정형외과 통합 EMR 시스템 — 접수, 진료, 처방, 청구, 통계",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
