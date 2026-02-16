@@ -3,26 +3,50 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is authenticated
+    // ─── Helper Functions ───
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if user is admin only
+    function hasUserDoc() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
     function isAdmin() {
       return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        (!hasUserDoc() || getUserRole() == 'admin');
     }
 
-    // Helper: Clinical staff (admin, manager, operator) — 의료법 제23조 역할 기반 접근통제
+    // 의료법 제23조 역할 기반 접근통제 — EMR 임상 스태프
+    // users 문서가 없는 경우(신규 사용자) 인증만 되면 허용
     function isClinicalStaff() {
       return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'operator'];
+        (!hasUserDoc() || getUserRole() in ['admin', 'doctor', 'nurse', 'receptionist', 'billing']);
     }
 
-    // Public Content (Notices, Archives, Staff)
-    // Read: Public
-    // Write: Authenticated Only (Admin)
+    function isDoctor() {
+      return isAuthenticated() &&
+        (!hasUserDoc() || getUserRole() in ['admin', 'doctor']);
+    }
+
+    function isBillingStaff() {
+      return isAuthenticated() &&
+        (!hasUserDoc() || getUserRole() in ['admin', 'billing', 'receptionist']);
+    }
+
+    function isNurseOrAbove() {
+      return isAuthenticated() &&
+        (!hasUserDoc() || getUserRole() in ['admin', 'doctor', 'nurse']);
+    }
+
+    // ─── Public Content (Website) ───
+
     match /notices/{document=**} {
       allow read: if true;
       allow write: if isAuthenticated();
@@ -38,54 +62,93 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
-    // Inquiries
-    // Create: Public
-    // Read/Update/Delete: Authenticated Only (Admin)
     match /inquiries/{document=**} {
       allow create: if true;
       allow read, update, delete: if isAuthenticated();
     }
 
-    // Clinical Data (Patients, Visits, Appointments) — 의료법 제23조 접근통제
-    // TODO: 개발 완료 후 isClinicalStaff()로 복원
-    // Read/Write: 개발 중 임시 허용
+    // ─── EMR Clinical Data ───
+
     match /patients/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isClinicalStaff();
     }
 
     match /visits/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isClinicalStaff();
     }
 
     match /appointments/{document=**} {
-      allow read, write: if true;
+      allow read, write: if isClinicalStaff();
     }
 
-    // Voice Charts — 개발 중 임시 허용
     match /charts/{document=**} {
-      allow read, write: if true;
+      allow read: if isClinicalStaff();
+      allow write: if isNurseOrAbove();
     }
 
-    // Signing Keys — Admin SDK only (server manages keys)
-    match /signing_keys/{document=**} {
-      allow read, write: if false;  // Only Admin SDK can manage signing keys
+    // ─── EMR Billing & Claims ───
+
+    match /billing/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isBillingStaff();
     }
 
-    // Audit Logs — Write: Admin SDK only (server-side), Read: Admin/Manager
-    match /audit_logs/{document=**} {
-      allow write: if false;  // Only Admin SDK can write (bypasses rules)
-      allow read: if isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'];
+    match /claims/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isBillingStaff();
     }
 
-    // Backup Metadata — Write: Admin SDK only (server-side), Read: Admin only
-    match /backup_metadata/{document=**} {
-      allow write: if false;  // Only Admin SDK can write (bypasses rules)
-      allow read: if isAdmin();
+    match /prescriptions/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isDoctor();
     }
 
-    // Users Collection (Added for Admin Dashboard)
-    // Users can read their own data, Admin can manage all users
+    // ─── EMR Master Data ───
+
+    match /fee_schedule/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isAdmin();
+    }
+
+    match /fee_schedule_items/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isAdmin();
+    }
+
+    match /bundle_prescriptions/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isAdmin();
+    }
+
+    match /doctors/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isAdmin();
+    }
+
+    // ─── EMR Inpatient ───
+
+    match /admissions/{document=**} {
+      allow read, write: if isClinicalStaff();
+    }
+
+    match /rooms/{document=**} {
+      allow read: if isClinicalStaff();
+      allow write: if isAdmin();
+    }
+
+    // ─── EMR Statistics ───
+
+    match /statistics_daily/{document=**} {
+      allow read, write: if isClinicalStaff();
+    }
+
+    match /statistics_monthly/{document=**} {
+      allow read, write: if isClinicalStaff();
+    }
+
+    // ─── System ───
+
+    // 사용자 — 본인 읽기/쓰기, 관리자 전체
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuthenticated();
@@ -93,47 +156,45 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Settings (Clinic Info)
-    // Read: Public
-    // Write: Authenticated Only (Admin)
+    // 설정 — 누구나 읽기, 인증된 사용자 쓰기
     match /settings/{document=**} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
 
-    // === EMR Collections (miryangosemr) ===
-
-    // TODO: 개발 완료 후 isClinicalStaff()로 복원
-    // Billing Records — 개발 중 임시 허용
-    match /billing/{document=**} {
-      allow read, write: if true;
+    // 세션 — 본인 관리
+    match /sessions/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // HIRA Claims — 개발 중 임시 허용
-    match /claims/{document=**} {
-      allow read, write: if true;
+    // 백업 로그
+    match /backup_logs/{document=**} {
+      allow read, write: if isAuthenticated();
     }
 
-    // Fee Schedule (Master Data) — 개발 중 임시 허용
-    match /fee_schedule/{document=**} {
-      allow read, write: if true;
+    // 서명키 — Admin SDK only
+    match /signing_keys/{document=**} {
+      allow read, write: if false;
     }
 
-    // Prescriptions — 개발 중 임시 허용
-    match /prescriptions/{document=**} {
-      allow read, write: if true;
+    // 감사 로그 — 인증 사용자 쓰기, 관리자 읽기
+    match /audit_logs/{document=**} {
+      allow write: if isAuthenticated();
+      allow read: if isAdmin();
     }
 
-    // Statistics (Daily/Monthly) — 개발 중 임시 허용
-    match /statistics_daily/{document=**} {
-      allow read, write: if true;
+    // 백업 메타 — Admin only
+    match /backup_metadata/{document=**} {
+      allow write: if false;
+      allow read: if isAdmin();
     }
 
-    match /statistics_monthly/{document=**} {
-      allow read, write: if true;
+    // 제증명
+    match /certificates/{document=**} {
+      allow read, write: if isClinicalStaff();
     }
 
-    // Default: Deny everything else
+    // Default: Deny
     match /{document=**} {
       allow read, write: if false;
     }

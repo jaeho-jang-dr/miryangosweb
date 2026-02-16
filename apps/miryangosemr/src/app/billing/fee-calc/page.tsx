@@ -3,14 +3,21 @@
 import React, { useState } from 'react';
 import EMRLayout from '@/components/layout/EMRLayout';
 import { calculateCopay, formatKRW } from '@/lib/fee-calculator';
-import { InsuranceType, COPAY_RATES } from '@/types/billing';
+import { resolve3TierPrice, feeItemToBillingItem } from '@/lib/fee-engine';
+import { InsuranceType, COPAY_RATES, BillingItem } from '@/types/billing';
+import { FeeScheduleItemFull } from '@/types/fee-schedule';
 import { Badge } from '@/components/ui/badge';
-import { Calculator, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Calculator, Plus, Trash2, ArrowLeft, Search } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const FeeScheduleSearch = dynamic(() => import('@/components/clinical/FeeScheduleSearch'), { ssr: false });
+const BundlePrescriptionPicker = dynamic(() => import('@/components/clinical/BundlePrescriptionPicker'), { ssr: false });
 
 interface CalcItem {
   id: string;
   name: string;
+  code: string;
   basePrice: number;
   quantity: number;
   isInsuranceCovered: boolean;
@@ -23,6 +30,9 @@ export default function FeeCalcPage() {
 function FeeCalcContent() {
   const [insuranceType, setInsuranceType] = useState<InsuranceType>('nhis');
   const [items, setItems] = useState<CalcItem[]>([]);
+  const [mode, setMode] = useState<'search' | 'manual'>('search');
+
+  // Manual entry state
   const [newName, setNewName] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newQty, setNewQty] = useState('1');
@@ -33,11 +43,37 @@ function FeeCalcContent() {
     setItems(prev => [...prev, {
       id: crypto.randomUUID(),
       name: newName,
+      code: '-',
       basePrice: parseInt(newPrice),
       quantity: parseInt(newQty) || 1,
       isInsuranceCovered: newCovered,
     }]);
     setNewName(''); setNewPrice(''); setNewQty('1');
+  };
+
+  const handleFeeItemSelect = (item: FeeScheduleItemFull) => {
+    const price = resolve3TierPrice(item);
+    const covered = item.cFlag === 1 || item.cFlag === 7;
+    setItems(prev => [...prev, {
+      id: crypto.randomUUID(),
+      name: item.name,
+      code: item.prescriptionCode,
+      basePrice: price,
+      quantity: item.defaultQuantity || 1,
+      isInsuranceCovered: covered,
+    }]);
+  };
+
+  const handleBundleSelect = async (bundle: { items: { prescriptionCode: string; name: string; quantity: number }[] }) => {
+    const newItems: CalcItem[] = bundle.items.map(bi => ({
+      id: crypto.randomUUID(),
+      name: bi.name,
+      code: bi.prescriptionCode,
+      basePrice: 0, // Price will need fee lookup
+      quantity: bi.quantity,
+      isInsuranceCovered: true,
+    }));
+    setItems(prev => [...prev, ...newItems]);
   };
 
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
@@ -48,12 +84,12 @@ function FeeCalcContent() {
   }, { total: 0, copay: 0, insurance: 0 });
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/billing" className="p-2 hover:bg-slate-100 rounded-lg"><ArrowLeft className="w-5 h-5 text-slate-500" /></Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">진료비 계산기</h1>
-          <p className="text-sm text-slate-500">수가 항목을 입력하여 본인부담금을 계산합니다.</p>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><Calculator className="w-6 h-6 text-emerald-600" /> 진료비 계산기</h1>
+          <p className="text-sm text-slate-500">수가 항목을 검색하거나 입력하여 본인부담금을 계산합니다.</p>
         </div>
       </div>
 
@@ -72,20 +108,40 @@ function FeeCalcContent() {
         </div>
       </div>
 
-      {/* Add Item */}
+      {/* Add Item — Mode Tabs */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <h3 className="font-bold text-slate-800 mb-3">항목 추가</h3>
-        <div className="grid grid-cols-5 gap-2">
-          <input placeholder="항목명" value={newName} onChange={e => setNewName(e.target.value)} className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg" />
-          <input placeholder="단가" type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg" />
-          <input placeholder="수량" type="number" value={newQty} onChange={e => setNewQty(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg" />
-          <button onClick={addItem} className="bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 text-sm font-medium">
-            <Plus className="w-4 h-4" /> 추가
-          </button>
+        <div className="flex items-center gap-3 mb-4">
+          <h3 className="font-bold text-slate-800">항목 추가</h3>
+          <div className="flex gap-1 ml-auto">
+            <button onClick={() => setMode('search')} className={`px-3 py-1 text-xs rounded-md border ${mode === 'search' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200'}`}>
+              <Search className="w-3 h-3 inline mr-1" />수가 검색
+            </button>
+            <button onClick={() => setMode('manual')} className={`px-3 py-1 text-xs rounded-md border ${mode === 'manual' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200'}`}>
+              직접 입력
+            </button>
+          </div>
         </div>
-        <label className="flex items-center gap-2 mt-2 text-sm text-slate-600">
-          <input type="checkbox" checked={newCovered} onChange={e => setNewCovered(e.target.checked)} className="rounded" /> 급여 항목
-        </label>
+
+        {mode === 'search' ? (
+          <div className="space-y-3">
+            <FeeScheduleSearch onSelect={handleFeeItemSelect} placeholder="수가코드 또는 처방명으로 검색..." />
+            <BundlePrescriptionPicker onSelectBundle={handleBundleSelect} />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-5 gap-2">
+              <input placeholder="항목명" value={newName} onChange={e => setNewName(e.target.value)} className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg" />
+              <input placeholder="단가" type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg" />
+              <input placeholder="수량" type="number" value={newQty} onChange={e => setNewQty(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-lg" />
+              <button onClick={addItem} className="bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 text-sm font-medium">
+                <Plus className="w-4 h-4" /> 추가
+              </button>
+            </div>
+            <label className="flex items-center gap-2 mt-2 text-sm text-slate-600">
+              <input type="checkbox" checked={newCovered} onChange={e => setNewCovered(e.target.checked)} className="rounded" /> 급여 항목
+            </label>
+          </>
+        )}
       </div>
 
       {/* Items Table */}
@@ -93,6 +149,7 @@ function FeeCalcContent() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b"><tr>
+              <th className="px-4 py-3 text-left font-medium text-slate-500">코드</th>
               <th className="px-4 py-3 text-left font-medium text-slate-500">항목</th>
               <th className="px-4 py-3 text-right font-medium text-slate-500">단가</th>
               <th className="px-4 py-3 text-right font-medium text-slate-500">수량</th>
@@ -105,6 +162,7 @@ function FeeCalcContent() {
                 const calc = calculateCopay(item.basePrice, item.quantity, insuranceType, item.isInsuranceCovered);
                 return (
                   <tr key={item.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-mono text-xs text-blue-600">{item.code}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                     <td className="px-4 py-3 text-right">{formatKRW(item.basePrice)}</td>
                     <td className="px-4 py-3 text-right">{item.quantity}</td>

@@ -4,19 +4,25 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search, LogOut, Hospital, Settings, ExternalLink } from 'lucide-react';
 import { User } from 'firebase/auth';
+import { ROLE_LABELS, UserRole } from '@/lib/auth-context';
 import clsx from 'clsx';
 
 interface TopBarProps {
   user: User | null;
   sidebarCollapsed: boolean;
   onSignOut: () => void;
+  userName?: string;
+  userRole?: UserRole;
 }
 
 const WEBSITE_URL = process.env.NEXT_PUBLIC_WEBSITE_URL || 'http://localhost:3001';
 
-export default function TopBar({ user, sidebarCollapsed, onSignOut }: TopBarProps) {
+export default function TopBar({ user, sidebarCollapsed, onSignOut, userName, userRole }: TopBarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const displayName = userName || user?.email?.split('@')[0] || 'Staff';
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <header
@@ -76,17 +82,28 @@ export default function TopBar({ user, sidebarCollapsed, onSignOut }: TopBarProp
             className="flex items-center gap-2 p-1 pr-2 rounded-lg hover:bg-slate-50 transition-colors"
           >
             <div className="h-7 w-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold">
-              Dr
+              {initials}
             </div>
-            <span className="text-sm font-medium text-slate-600 hidden lg:block max-w-[100px] truncate">
-              {user?.email?.split('@')[0] || 'Staff'}
-            </span>
+            <div className="hidden lg:block text-left">
+              <span className="text-sm font-medium text-slate-600 block max-w-[100px] truncate leading-tight">
+                {displayName}
+              </span>
+              {userRole && (
+                <span className="text-[10px] text-slate-400 leading-tight">{ROLE_LABELS[userRole]}</span>
+              )}
+            </div>
           </button>
 
           {showUserMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
               <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-200 p-1 z-50">
+                {user && (
+                  <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                    <p className="text-xs font-medium text-slate-600 truncate">{user.email}</p>
+                    {userRole && <p className="text-[10px] text-slate-400">{ROLE_LABELS[userRole]}</p>}
+                  </div>
+                )}
                 <Link
                   href="/setup"
                   onClick={() => setShowUserMenu(false)}

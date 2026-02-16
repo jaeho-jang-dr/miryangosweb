@@ -2,14 +2,20 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 
-// TODO: 개발 완료 후 인증 로직 복원
 export default function RootPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    router.replace('/dashboard');
-  }, [router]);
+    if (loading) return;
+    if (user) {
+      router.replace('/dashboard');
+    } else {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">

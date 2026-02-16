@@ -45,6 +45,19 @@ const cleanTags = (tags: string[] | undefined): string[] => {
         .filter((tag, index, self) => self.indexOf(tag) === index); // 중복 제거
 };
 
+// summary 에러 메시지 필터링
+const cleanSummary = (summary: string | undefined): string => {
+    if (!summary) return '';
+    // 파이프라인 에러 메시지가 포함된 경우 제거
+    if (summary.includes('자동 분석에 실패') || summary.includes('"type":"error"') || summary.includes('api_error')) {
+        // 에러 메시지 앞의 정상 텍스트만 추출
+        const errorIdx = summary.indexOf('자동 분석에 실패');
+        if (errorIdx > 0) return summary.substring(0, errorIdx).trim();
+        return '';
+    }
+    return summary;
+};
+
 export default function ArchivesPage() {
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
@@ -280,7 +293,7 @@ export default function ArchivesPage() {
                                                                 {article.title}
                                                             </h2>
                                                             <p className="text-slate-600 mb-4 line-clamp-2">
-                                                                {article.summary}
+                                                                {cleanSummary(article.summary)}
                                                             </p>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {cleanTags(article.tags).slice(0, 5).map(tag => (
@@ -329,7 +342,7 @@ export default function ArchivesPage() {
                                                                         </span>
                                                                     </div>
                                                                     <p className="text-slate-600 mb-4 line-clamp-3 flex-1">
-                                                                        {article.summary}
+                                                                        {cleanSummary(article.summary)}
                                                                     </p>
                                                                     <div className="flex flex-wrap gap-2">
                                                                         {cleanTags(article.tags).slice(0, 4).map(tag => (

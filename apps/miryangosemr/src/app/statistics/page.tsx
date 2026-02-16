@@ -35,7 +35,7 @@ function StatisticsContent() {
         <p className="text-sm text-slate-500">병원 운영 통계를 확인합니다.</p>
       </div>
 
-      {/* Quick Links */}
+      {/* Quick Links - Time-based */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Link href="/statistics/daily" className="bg-white rounded-xl border border-slate-200 p-4 hover:bg-slate-50 transition-colors flex items-center justify-between">
           <div><p className="text-xs text-slate-400">일별</p><p className="font-bold text-slate-900">일별 리포트</p></div>
@@ -52,6 +52,22 @@ function StatisticsContent() {
         <Link href="/statistics/custom" className="bg-white rounded-xl border border-slate-200 p-4 hover:bg-slate-50 transition-colors flex items-center justify-between">
           <div><p className="text-xs text-slate-400">사용자 정의</p><p className="font-bold text-slate-900">기간별 조회</p></div>
           <ArrowRight className="w-4 h-4 text-slate-300" />
+        </Link>
+      </div>
+
+      {/* Quick Links - Analysis */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Link href="/statistics/period" className="bg-blue-50 rounded-xl border border-blue-200 p-4 hover:bg-blue-100 transition-colors flex items-center justify-between">
+          <div><p className="text-xs text-blue-500">환자분석</p><p className="font-bold text-blue-900">기간별 환자현황</p></div>
+          <ArrowRight className="w-4 h-4 text-blue-300" />
+        </Link>
+        <Link href="/statistics/diagnosis" className="bg-purple-50 rounded-xl border border-purple-200 p-4 hover:bg-purple-100 transition-colors flex items-center justify-between">
+          <div><p className="text-xs text-purple-500">병명분석</p><p className="font-bold text-purple-900">다빈도 질환 현황</p></div>
+          <ArrowRight className="w-4 h-4 text-purple-300" />
+        </Link>
+        <Link href="/reports" className="bg-orange-50 rounded-xl border border-orange-200 p-4 hover:bg-orange-100 transition-colors flex items-center justify-between">
+          <div><p className="text-xs text-orange-500">보고서</p><p className="font-bold text-orange-900">규제 보고서</p></div>
+          <ArrowRight className="w-4 h-4 text-orange-300" />
         </Link>
       </div>
 
