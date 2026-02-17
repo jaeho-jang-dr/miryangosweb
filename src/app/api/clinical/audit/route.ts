@@ -9,12 +9,20 @@ import type { AuditLogInput } from '@/types/security';
  * POST /api/clinical/audit — Record an audit log entry
  * Body: { action, collection, documentId, before?, after?, description?, metadata? }
  *
- * Accepts both authenticated (Bearer token) and unauthenticated requests.
- * Unauthenticated requests are still logged but without user identity.
+ * Requires authentication via Bearer token. Returns 401 if no token is provided.
  */
 export async function POST(req: NextRequest) {
   try {
     initAdmin();
+
+    // Authentication required — reject unauthenticated requests
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authentication required. Provide a Bearer token in the Authorization header.' },
+        { status: 401 }
+      );
+    }
 
     const body = await req.json();
     const { action, collection, documentId, before, after, description, metadata } = body;
@@ -26,27 +34,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Try to extract user info from auth token (optional)
+    // Extract user info from auth token
     let userId: string | undefined;
     let userEmail: string | undefined;
     let userName: string | undefined;
     let userRole: string | undefined;
 
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.split('Bearer ')[1];
-        const decoded = await getAuth().verifyIdToken(token);
-        userId = decoded.uid;
-        userEmail = decoded.email || undefined;
-        userName = decoded.name || undefined;
+    try {
+      const token = authHeader.split('Bearer ')[1];
+      const decoded = await getAuth().verifyIdToken(token);
+      userId = decoded.uid;
+      userEmail = decoded.email || undefined;
+      userName = decoded.name || undefined;
 
-        // Fetch role from users collection
-        const userDoc = await getFirestore().collection('users').doc(decoded.uid).get();
-        userRole = userDoc.data()?.role;
-      } catch {
-        // Token invalid — still log the event, just without user info
-      }
+      // Fetch role from users collection
+      const userDoc = await getFirestore().collection('users').doc(decoded.uid).get();
+      userRole = userDoc.data()?.role;
+    } catch {
+      // Token provided but invalid — return 401
+      return NextResponse.json(
+        { error: 'Invalid authorization token' },
+        { status: 401 }
+      );
     }
 
     const logInput: AuditLogInput = {

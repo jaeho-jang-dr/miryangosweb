@@ -30,7 +30,7 @@ class NoterangConfig:
     notebooklm_app_password: str = ""  # 형식: "xxxx xxxx xxxx xxxx"
 
     # 타임아웃 설정 (초)
-    timeout_slides: int = 300       # 5분
+    timeout_slides: int = 600       # 10분 (300은 부족!)
     timeout_research: int = 120     # 2분
     timeout_download: int = 60      # 1분
     timeout_login: int = 120        # 2분

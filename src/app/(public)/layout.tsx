@@ -24,9 +24,10 @@ export default function PublicLayout({
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
+        const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
-            console.log('🔐 Auth state changed:', currentUser?.email);
 
             if (currentUser) {
                 try {
@@ -34,8 +35,8 @@ export default function PublicLayout({
                     const userDocRef = doc(db, 'users', currentUser.uid);
                     const userDoc = await getDoc(userDocRef);
 
-                    // Auto-grant admin role for drjang00@gmail.com
-                    const isAdminEmail = currentUser.email === 'drjang00@gmail.com';
+                    // Auto-grant admin role if email matches configured admin
+                    const isAdminEmail = ADMIN_EMAIL && currentUser.email === ADMIN_EMAIL;
 
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
@@ -45,15 +46,11 @@ export default function PublicLayout({
                         if (isAdminEmail && !hasAdminRole) {
                             const { setDoc } = await import('firebase/firestore');
                             await setDoc(userDocRef, { ...userData, role: 'admin' }, { merge: true });
-                            console.log('✅ Admin role granted to:', currentUser.email);
                             setIsAdmin(true);
                         } else {
-                            console.log('👤 User data:', { email: currentUser.email, role: userData?.role, isAdmin: hasAdminRole });
                             setIsAdmin(hasAdminRole);
                         }
                     } else {
-                        console.log('⚠️ User document not found in Firestore for:', currentUser.email);
-
                         // Create user document with admin role if admin email
                         if (isAdminEmail) {
                             const { setDoc } = await import('firebase/firestore');
@@ -64,24 +61,21 @@ export default function PublicLayout({
                                 role: 'admin',
                                 createdAt: new Date()
                             });
-                            console.log('✅ Admin user document created for:', currentUser.email);
                             setIsAdmin(true);
                         } else {
                             setIsAdmin(false);
                         }
                     }
                 } catch (error) {
-                    console.error('❌ Error checking admin role:', error);
+                    console.error('Error checking admin role:', error);
                     // Fallback: if it's admin email, grant admin anyway
-                    if (currentUser.email === 'drjang00@gmail.com') {
-                        console.log('⚠️ Error occurred but granting admin to drjang00@gmail.com');
+                    if (ADMIN_EMAIL && currentUser.email === ADMIN_EMAIL) {
                         setIsAdmin(true);
                     } else {
                         setIsAdmin(false);
                     }
                 }
             } else {
-                console.log('🚪 User logged out');
                 setIsAdmin(false);
             }
         });
@@ -100,6 +94,18 @@ export default function PublicLayout({
         holidayInfo: '일요일, 공휴일 휴무'
     });
     const pathname = usePathname();
+
+    // Lock body scroll when mobile menu is open
+    useEffect(() => {
+        if (isMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isMenuOpen]);
 
     // Fetch Clinic Info on Mount with Real-time Updates
     useEffect(() => {
@@ -149,12 +155,12 @@ export default function PublicLayout({
                         {/* Desktop Nav */}
                         <nav className="hidden md:flex items-center space-x-8">
                             <NavLink href="/" label="홈" active={pathname === '/'} />
-                            <NavLink href="/about" label="병원소개" active={pathname === '/about'} />
-                            <NavLink href="/staff" label="의료진" active={pathname === '/staff'} />
-                            <NavLink href="/archives" label="자료실" active={pathname === '/archives'} />
-                            <NavLink href="/notices" label="공지사항" active={pathname === '/notices'} />
+                            <NavLink href="/about" label="병원소개" active={pathname.startsWith('/about')} />
+                            <NavLink href="/staff" label="의료진" active={pathname.startsWith('/staff')} />
+                            <NavLink href="/archives" label="자료실" active={pathname.startsWith('/archives')} />
+                            <NavLink href="/notices" label="공지사항" active={pathname.startsWith('/notices')} />
 
-                            <NavLink href="/inquiry" label="예약/문의" active={pathname === '/inquiry'} />
+                            <NavLink href="/inquiry" label="예약/문의" active={pathname.startsWith('/inquiry')} />
                         </nav>
 
                         <div className="hidden md:flex items-center space-x-4">

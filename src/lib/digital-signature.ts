@@ -152,9 +152,11 @@ export function verifyVisitSignature(
 ): boolean {
   const fieldsToVerify: Record<string, unknown> = {};
   for (const key of signedFields) {
-    if (visitData[key] !== undefined) {
-      fieldsToVerify[key] = visitData[key];
+    // 서명된 필드가 삭제되었으면 변조로 판단 — 검증 실패
+    if (visitData[key] === undefined) {
+      return false;
     }
+    fieldsToVerify[key] = visitData[key];
   }
   return verifySignature(fieldsToVerify, signatureBase64, publicKeyPem);
 }

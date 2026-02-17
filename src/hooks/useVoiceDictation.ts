@@ -88,6 +88,13 @@ export function useVoiceDictation({ onFinalResult }: UseVoiceDictationProps = {}
             setIsSupported(false);
             setError("이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.");
         }
+
+        return () => {
+            if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch {}
+                recognitionRef.current = null;
+            }
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // 한 번만 생성 — 콜백은 ref로 추적
 

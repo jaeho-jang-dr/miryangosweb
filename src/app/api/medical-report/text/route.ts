@@ -6,6 +6,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request: Request) {
     try {
+        if (!process.env.GEMINI_API_KEY) {
+            return NextResponse.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 500 });
+        }
+
         const body = await request.json();
         const { topic } = body;
 
@@ -14,13 +18,6 @@ export async function POST(request: Request) {
         if (!topic) {
             return NextResponse.json({ error: 'Topic required' }, { status: 400 });
         }
-
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            console.error("[API] ❌ GEMINI_API_KEY is missing from process.env");
-            return NextResponse.json({ error: 'Server Config Error: API Key missing' }, { status: 500 });
-        }
-        console.log(`[API] API Key present. Length: ${apiKey.length}`);
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 

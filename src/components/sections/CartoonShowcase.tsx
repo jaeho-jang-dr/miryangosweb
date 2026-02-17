@@ -1,18 +1,15 @@
 'use client';
 
+import Image from 'next/image';
 import { Article } from '@/types/public-schemas';
-import { motion } from 'framer-motion';
 import { ArrowRight, BookOpen, Calendar, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
 
 interface CartoonShowcaseProps {
     cartoons: Article[];
 }
 
 export default function CartoonShowcase({ cartoons }: CartoonShowcaseProps) {
-    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
     if (!cartoons || cartoons.length === 0) return null;
 
     return (
@@ -52,17 +49,17 @@ export default function CartoonShowcase({ cartoons }: CartoonShowcaseProps) {
                             href={`/archives/${cartoon.id}`} 
                             key={cartoon.id}
                             className="group block h-full"
-                            onMouseEnter={() => setHoveredIndex(idx)}
-                            onMouseLeave={() => setHoveredIndex(null)}
                         >
                             <article className="h-full bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col">
                                 {/* Image Area */}
                                 <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
                                     {cartoon.images && cartoon.images.length > 0 ? (
-                                        <img 
-                                            src={cartoon.images[0]} 
+                                        <Image
+                                            src={cartoon.images[0]}
                                             alt={cartoon.title}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                            fill
+                                            className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                            unoptimized
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -86,7 +83,13 @@ export default function CartoonShowcase({ cartoons }: CartoonShowcaseProps) {
                                         </span>
                                         <span className="text-[10px] text-slate-400 flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
-                                            {cartoon.createdAt ? new Date(cartoon.createdAt.seconds * 1000).toLocaleDateString() : '최근'}
+                                            {cartoon.createdAt
+                                                ? typeof cartoon.createdAt === 'string'
+                                                    ? new Date(cartoon.createdAt).toLocaleDateString()
+                                                    : cartoon.createdAt instanceof Date
+                                                        ? cartoon.createdAt.toLocaleDateString()
+                                                        : new Date(cartoon.createdAt.seconds * 1000).toLocaleDateString()
+                                                : '최근'}
                                         </span>
                                     </div>
                                     

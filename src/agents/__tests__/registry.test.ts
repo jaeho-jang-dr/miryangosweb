@@ -17,7 +17,7 @@ describe('Agent Registry', () => {
         });
 
         it('should return undefined for an invalid role', () => {
-            // @ts-ignore - Testing invalid input
+            // @ts-expect-error - Testing invalid input
             const agent = getAgentByRole('Invalid_Role');
             expect(agent).toBeUndefined();
         });
@@ -33,7 +33,7 @@ describe('Agent Registry', () => {
         });
 
         it('should return empty array for invalid squad', () => {
-            // @ts-ignore - Testing invalid input
+            // @ts-expect-error - Testing invalid input
             const agents = getAgentsBySquad('invalid_squad');
             expect(agents).toEqual([]);
         });

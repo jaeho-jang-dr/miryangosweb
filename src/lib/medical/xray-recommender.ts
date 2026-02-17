@@ -38,16 +38,20 @@ export async function recommendXray(
   location: string
 ): Promise<XrayRecommendation[]> {
   
-  // 1. Rule-based check
+  // 1. Rule-based check — 다발 부위 모두 매칭 (첫 번째만이 아닌 전체)
+  const ruleMatches: XrayRecommendation[] = [];
   for (const [key, protocol] of Object.entries(XRAY_PROTOCOLS)) {
     if (location.includes(key) || symptoms.includes(key)) {
-      return [{
+      ruleMatches.push({
         bodyPart: key,
         views: protocol.views,
         reason: protocol.reason,
         confidence: 0.9
-      }];
+      });
     }
+  }
+  if (ruleMatches.length > 0) {
+    return ruleMatches;
   }
 
   // 2. AI Fallback

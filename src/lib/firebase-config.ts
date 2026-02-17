@@ -106,6 +106,10 @@ export function getFirebaseInstance(type: FirebaseAppType = 'default'): Firebase
             break;
     }
 
+    if (!db) {
+        throw new Error(`Failed to initialize Firestore for instance: ${type}`);
+    }
+
     // Auth와 Storage 초기화
     const auth = getAuth(app);
     const storage = getStorage(app);

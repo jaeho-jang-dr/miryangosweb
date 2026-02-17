@@ -26,6 +26,8 @@ async function ocrImageWithVision(imageBase64: string): Promise<string> {
         }]
     };
 
+    // Note: API key in URL query string is required by Google Vision REST API.
+    // Ensure this URL is never logged in production to prevent key exposure.
     const response = await fetch(`${VISION_API_URL}?key=${GOOGLE_VISION_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

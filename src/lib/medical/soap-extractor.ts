@@ -75,11 +75,9 @@ JSON 형식으로 출력하세요. 없으면 빈 문자열("")로 둡니다.
         treatmentResponse: ''
       },
       objective: {
-        vitalSigns: { // Default mock valid values
-            bloodPressure: '120/80',
-            heartRate: 72,
-            temperature: 36.5
-        },
+        vitalSigns: data.objective?.vitalSigns && Object.keys(data.objective.vitalSigns).length > 0
+            ? data.objective.vitalSigns
+            : undefined, // 대화에 없는 바이탈사인은 절대 지어내지 않음
         physicalFindings: data.objective?.physicalExam ? [data.objective.physicalExam] : [],
         imagingFindings: data.objective?.imaging ? [data.objective.imaging] : [],
         labResults: data.objective?.labs ? [data.objective.labs] : []

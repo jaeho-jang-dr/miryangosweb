@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase-public';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { Loader2, CheckCircle, AlertCircle, Calendar as CalendarIcon, Clock, MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { DayPicker } from 'react-day-picker';
-import { format, isSunday, isSaturday, setHours, setMinutes, addMinutes, isAfter, isBefore, addMonths } from 'date-fns';
+import { format, isSunday, isSaturday, setHours, setMinutes, addMinutes, isBefore, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { SocialLogin } from '@/components/social-login';
+import Image from 'next/image';
 
 export default function InquiryPage() {
     const router = useRouter();
@@ -37,6 +38,9 @@ export default function InquiryPage() {
         message: '',
         agreedToPolicy: false
     });
+
+    // Ref to track formData.name for use in auth useEffect without stale closure
+    const formDataNameRef = useRef(formData.name);
 
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -66,12 +70,17 @@ export default function InquiryPage() {
         fetchSettings();
     }, []);
 
+    // Keep formDataNameRef in sync with formData.name
+    useEffect(() => {
+        formDataNameRef.current = formData.name;
+    }, [formData.name]);
+
     // Auth Listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                if (!formData.name && currentUser.displayName) {
+                if (!formDataNameRef.current && currentUser.displayName) {
                     setFormData(prev => ({ ...prev, name: currentUser.displayName! }));
                 }
             } else {
@@ -81,7 +90,7 @@ export default function InquiryPage() {
                     try {
                         const localUser = JSON.parse(localUserStr);
                         setUser(localUser as any);
-                        if (!formData.name && localUser.displayName) {
+                        if (!formDataNameRef.current && localUser.displayName) {
                             setFormData(prev => ({ ...prev, name: localUser.displayName }));
                         }
                     } catch (e) {
@@ -147,7 +156,7 @@ export default function InquiryPage() {
             const timeString = format(startTime, 'HH:mm');
 
             // Skip lunch time on weekdays
-            if (!isSat && (isAfter(startTime, lunchStart) || startTime.getTime() === lunchStart.getTime()) && isBefore(startTime, lunchEnd)) {
+            if (!isSat && startTime.getTime() >= lunchStart.getTime() && isBefore(startTime, lunchEnd)) {
                 startTime = addMinutes(startTime, 30);
                 continue;
             }
@@ -181,7 +190,7 @@ export default function InquiryPage() {
         setHasSearched(false);
     };
 
-    const fetchMyReservations = async () => {
+    const fetchMyReservations = useCallback(async () => {
         setIsLoading(true);
         try {
             let q;
@@ -227,7 +236,7 @@ export default function InquiryPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user, checkForm.name, checkForm.contact]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -301,7 +310,7 @@ export default function InquiryPage() {
                 await updateDoc(doc(db, 'inquiries', editingRes.id), {
                     ...formData,
                     reservationDate: formData.type === 'reservation' ? format(selectedDate!, 'yyyy-MM-dd') : null,
-                    reservationTime: selectedTime,
+                    reservationTime: formData.type === 'reservation' ? selectedTime : null,
                     // Keep original ownership info
                     updatedAt: serverTimestamp(),
                 });
@@ -319,7 +328,7 @@ export default function InquiryPage() {
                 await addDoc(collection(db, 'inquiries'), {
                     ...formData,
                     reservationDate: formData.type === 'reservation' ? format(selectedDate!, 'yyyy-MM-dd') : null,
-                    reservationTime: selectedTime,
+                    reservationTime: formData.type === 'reservation' ? selectedTime : null,
                     userId: user?.uid || null,
                     userEmail: user?.email || null,
                     createdAt: serverTimestamp(),
@@ -411,7 +420,7 @@ export default function InquiryPage() {
         if (activeTab === 'check' && user) {
             fetchMyReservations();
         }
-    }, [activeTab, user]);
+    }, [activeTab, user, fetchMyReservations]);
 
     return (
         <div className="min-h-screen bg-white dark:bg-slate-950 pt-24 pb-12">
@@ -526,7 +535,7 @@ export default function InquiryPage() {
                                                 <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
                                                         {user.photoURL ? (
-                                                            <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full" />
+                                                            <Image src={user.photoURL} alt="Profile" width={40} height={40} className="w-10 h-10 rounded-full" unoptimized />
                                                         ) : (
                                                             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
                                                                 {user.displayName?.charAt(0) || 'U'}

@@ -25,6 +25,18 @@ export function useSessionTimeout(
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Stable refs for function props to avoid infinite re-render loops
+  const validateSessionRef = useRef(options?.validateSession);
+  const onTimeoutRef = useRef(onTimeout);
+
+  useEffect(() => {
+    validateSessionRef.current = options?.validateSession;
+  }, [options?.validateSession]);
+
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  }, [onTimeout]);
+
   const clearTimers = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (warningRef.current) clearTimeout(warningRef.current);
@@ -48,7 +60,7 @@ export function useSessionTimeout(
           return prev - 1;
         });
       }, 1000);
-    }, timeoutMs - warningMs);
+    }, Math.max(1000, timeoutMs - warningMs));
 
     // Logout timer
     timeoutRef.current = setTimeout(() => {
@@ -63,17 +75,18 @@ export function useSessionTimeout(
 
   // Session validation check (every 60s) — concurrent session detection
   useEffect(() => {
-    if (!options?.validateSession) return;
-    const validate = options.validateSession;
+    if (!validateSessionRef.current) return;
     const interval = setInterval(async () => {
+      const validate = validateSessionRef.current;
+      if (!validate) return;
       const valid = await validate();
       if (!valid) {
         clearTimers();
-        onTimeout();
+        onTimeoutRef.current();
       }
     }, 60 * 1000);
     return () => clearInterval(interval);
-  }, [options?.validateSession, onTimeout, clearTimers]);
+  }, [clearTimers]);
 
   useEffect(() => {
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];

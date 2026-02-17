@@ -1,16 +1,22 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-clinical';
-import { collection, doc, setDoc, serverTimestamp, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { startOfDay } from 'date-fns';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export async function GET(request: Request) {
+    // 보안: 프로덕션 환경에서는 테스트 데이터 시딩 완전 차단
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+            { error: 'Test seed is disabled in production' },
+            { status: 403 }
+        );
+    }
+
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode');
 
     try {
         if (mode === 'clear') {
-            // Optional: Clear existing data logic could go here, but for safety we skip
             return NextResponse.json({ message: "Clear not implemented for safety" });
         }
 

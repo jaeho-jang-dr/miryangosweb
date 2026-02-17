@@ -40,8 +40,8 @@ export function initAdmin() {
             }
         } catch (error) {
             console.error('Failed to initialize Firebase Admin:', error);
-            // Don't throw here to avoid crashing if only partial config exists, 
-            // but log clearly.
+            // 초기화 실패 시 에러를 전파하여 후속 호출이 명확한 원인을 파악할 수 있도록 함
+            throw new Error(`Firebase Admin initialization failed: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }

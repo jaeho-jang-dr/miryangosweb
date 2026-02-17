@@ -12,7 +12,7 @@ function FloatingIcon({
     initialY,
     size
 }: {
-    icon: any,
+    icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>,
     delay: number,
     duration: number,
     initialX: number,
@@ -55,7 +55,7 @@ export function DynamicBackground() {
         setIsMounted(true)
     }, [])
 
-    if (!isMounted) return null
+    if (!isMounted) return <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" />
 
     // Fixed set of background elements to prevent hydration mismatch
     // while still looking "random"

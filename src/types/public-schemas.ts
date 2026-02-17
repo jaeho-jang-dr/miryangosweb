@@ -26,5 +26,5 @@ export interface Article {
     images: string[]; // Pollinations URLs
     type: 'disease' | 'general';
     isVisible: boolean;
-    createdAt?: any;
+    createdAt?: { seconds: number; nanoseconds: number } | Date | string;
 }

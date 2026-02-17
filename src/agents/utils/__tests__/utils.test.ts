@@ -20,7 +20,7 @@ describe('Agent Utilities', () => {
         });
 
         it('should throw error for invalid agent role', () => {
-            // @ts-ignore
+            // @ts-expect-error - Testing invalid input
             expect(() => createAgentPrompt('Invalid_Role', 'input')).toThrow();
         });
     });
@@ -51,7 +51,7 @@ describe('Agent Utilities', () => {
         });
 
         it('should throw error for invalid squad', () => {
-            // @ts-ignore
+            // @ts-expect-error - Testing invalid input
             expect(() => createSquadWorkflow('invalid_squad', 'input')).toThrow();
         });
     });

@@ -30,8 +30,19 @@ export async function POST(req: Request) {
 
         // Determine filename
         // Priority: Client provided path > Generated filename
+        // 보안: 경로 탐색 공격 차단 — 허용된 접두사만 사용
+        const ALLOWED_PREFIXES = ['uploads/', 'articles/', 'images/', 'archives/'];
         let filename: string;
         if (clientPath) {
+            // 경로 탐색(..), 절대 경로, 비정상 문자 차단
+            if (clientPath.includes('..') || clientPath.startsWith('/') || clientPath.startsWith('\\')) {
+                return NextResponse.json({ success: false, error: "Invalid file path" }, { status: 400 });
+            }
+            // 허용된 접두사 확인
+            const hasValidPrefix = ALLOWED_PREFIXES.some(prefix => clientPath.startsWith(prefix));
+            if (!hasValidPrefix) {
+                return NextResponse.json({ success: false, error: "File path must start with an allowed prefix" }, { status: 400 });
+            }
             filename = clientPath;
         } else {
             const safeName = file.name.replace(/[^\w.\-() ]/g, "_");

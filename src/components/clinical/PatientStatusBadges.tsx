@@ -26,7 +26,6 @@ function getNavigationButtons(currentStatus: ClinicalStatus): NavigationTarget[]
             ];
         case 'consulting':
             return [
-                { status: 'consulting', label: '진료실로', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
                 { status: 'testing', label: '검사실로', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
                 { status: 'treatment', label: '치료실로', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' },
                 { status: 'completed', label: '수납으로', color: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },

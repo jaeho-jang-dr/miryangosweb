@@ -6,17 +6,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { diseaseName } = body;
 
     // 1. Basic Validation
     if (!diseaseName) {
       return NextResponse.json({ error: 'Disease name is missing' }, { status: 400 });
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("DEBUG: API Key missing in environment");
-      return NextResponse.json({ error: 'Server Config Error: API Key missing' }, { status: 500 });
     }
 
     console.log(`[API] Processing request for: ${diseaseName}`);

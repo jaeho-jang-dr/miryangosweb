@@ -39,7 +39,15 @@ JSON 형식으로 출력하세요:
 
   try {
     const result = await generateMedicalAnalysis(prompt);
-    return result.suggestions || [];
+    const suggestions: DiagnosisSuggestion[] = result.suggestions || [];
+    // AI 반환 결과 검증: confidence 범위 및 KCD/ICD-10 코드 형식 확인
+    return suggestions.filter(s =>
+      typeof s.confidence === 'number' &&
+      s.confidence >= 0 && s.confidence <= 1 &&
+      typeof s.icd10Code === 'string' &&
+      /^[A-Z]\d{2}(\.\d{1,2})?$/.test(s.icd10Code) &&
+      typeof s.name === 'string' && s.name.length > 0
+    );
   } catch (error) {
     console.error("Diagnosis suggestion failed:", error);
     return [];

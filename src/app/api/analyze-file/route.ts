@@ -295,18 +295,14 @@ async function executeAIModel(
                 });
             }
 
-            const message = await Promise.race([
-                anthropic.messages.create({
+            // Anthropic SDK — timeout goes in request options (2nd arg)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const message: any = await anthropic.messages.create({
                     model: "claude-opus-4-20250514",
                     max_tokens: 4096,
                     temperature: 0.1, // 정확도 우선
                     messages: [{ role: "user", content }],
-                }),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("Claude Timeout (45s)")), 45000)
-                )
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ]) as any;
+                }, { timeout: 45000 });
 
             return message.content[0].text;
         });
@@ -342,18 +338,14 @@ async function executeAIModel(
 
             console.log(`[ChatGPT] 이미지 포함: ${isImage ? 'Yes' : 'No'}, 크기: ${buffer.length} bytes`);
 
-            const completion = await Promise.race([
-                openai.chat.completions.create({
+            // OpenAI SDK — timeout goes in request options (2nd arg)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const completion: any = await openai.chat.completions.create({
                     model: "gpt-4o",
                     messages: messages,
                     max_tokens: 4096,
                     temperature: 0.2,
-                }),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("ChatGPT Timeout (60s)")), 60000)
-                )
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ]) as any;
+                }, { timeout: 60000 });
 
             if (!completion.choices || !completion.choices[0] || !completion.choices[0].message) {
                 throw new Error("ChatGPT 응답이 비어있습니다");
@@ -371,6 +363,10 @@ async function executeAIModel(
         // Gemini 2.0 Flash - 빠른 속도 (실험적)
         return await retryWithBackoff(async () => {
             const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+            // TODO: @google/generative-ai SDK does not support a native `timeout` option.
+            // Promise.race is used as a workaround. The actual API call may continue running
+            // in the background after timeout, consuming resources and API quota.
+            // Consider using AbortController with requestOptions when the SDK adds support.
             const result = await Promise.race([
                 model.generateContent({
                     contents: [{ role: "user", parts: [{ text: prompt }, ...contentParts] }],
@@ -399,6 +395,10 @@ async function executeAIModel(
         // Gemini 1.5 Pro - 최신 최고 성능 모델
         return await retryWithBackoff(async () => {
             const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+            // TODO: @google/generative-ai SDK does not support a native `timeout` option.
+            // Promise.race is used as a workaround. The actual API call may continue running
+            // in the background after timeout, consuming resources and API quota.
+            // Consider using AbortController with requestOptions when the SDK adds support.
             const result = await Promise.race([
                 model.generateContent({
                     contents: [{ role: "user", parts: [{ text: prompt }, ...contentParts] }],
@@ -410,7 +410,7 @@ async function executeAIModel(
                     },
                 }),
                 new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("Gemini 3 Pro Timeout (60s)")), 60000)
+                    setTimeout(() => reject(new Error("Gemini 1.5 Pro Timeout (60s)")), 60000)
                 )
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ]) as any;
@@ -471,7 +471,8 @@ function extractAndValidateJSON(responseText: string, fileName: string): Analysi
 
     // 카테고리 검증 (허용된 값만)
     const validCategories: AnalysisResult['category'][] = [
-        'disease', 'treatment', 'diagnosis', 'prevention', 'anatomy', 'etc'
+        'disease', 'treatment', 'diagnosis', 'prevention', 'anatomy',
+        'webtoon', 'guide', 'news', 'gallery', 'app', 'etc'
     ];
     if (!data.category || !validCategories.includes(data.category)) {
         data.category = "disease";
@@ -742,6 +743,6 @@ export async function POST(request: Request) {
             category: "disease",
             content: "## 내용\n\n분석에 실패했습니다. 다시 시도하거나 직접 입력해주세요.",
             images: []
-        }, { status: 200 }); // 200으로 반환하여 프론트엔드에서 처리 가능하도록
+        }, { status: 422 });
     }
 }

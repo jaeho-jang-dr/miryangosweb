@@ -76,7 +76,7 @@ export interface MedicalDocument {
         visit_purpose?: string;
         amount_total?: number;
         amount_paid?: number;
-        [key: string]: any;
+        [key: string]: unknown;
     };
     issuedAt: Timestamp;
     issuedBy: string;
