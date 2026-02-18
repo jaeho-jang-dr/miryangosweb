@@ -6,16 +6,20 @@
 - 멀티 에이전트 통합
 """
 import asyncio
-import json
+import logging
 import sys
 import time
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
+
+logger = logging.getLogger(__name__)
+
+# Console separator width
+_SEPARATOR_WIDTH = 60
 
 from .config import get_config, NoterangConfig
 from .auth import ensure_auth, sync_auth, check_auth
@@ -29,7 +33,8 @@ from .browser import NotebookLMBrowser
 
 @dataclass
 class WorkflowResult:
-    """워크플로우 결과"""
+    """Immutable result object returned from every Noterang workflow run."""
+
     success: bool = False
     notebook_id: Optional[str] = None
     notebook_title: Optional[str] = None
@@ -42,6 +47,11 @@ class WorkflowResult:
     error: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize the result to a JSON-compatible dictionary.
+
+        Returns:
+            Dictionary representation with Path objects converted to strings.
+        """
         return {
             "success": self.success,
             "notebook_id": self.notebook_id,
@@ -52,24 +62,32 @@ class WorkflowResult:
             "slide_count": self.slide_count,
             "sources_count": self.sources_count,
             "duration_seconds": self.duration_seconds,
-            "error": self.error
+            "error": self.error,
         }
 
 
 class Noterang:
-    """
-    노트랑 - NotebookLM 완전 자동화 에이전트
+    """NotebookLM full-automation agent.
 
-    Usage:
+    Orchestrates the complete pipeline: authentication, notebook management,
+    optional web research, slide generation, PDF download, and PPTX conversion.
+
+    Example::
+
         noterang = Noterang()
         result = await noterang.run(
             title="주제 제목",
             research_queries=["쿼리1", "쿼리2", "쿼리3"],
-            focus="핵심 주제"
+            focus="핵심 주제",
         )
     """
 
-    def __init__(self, config: NoterangConfig = None):
+    def __init__(self, config: Optional[NoterangConfig] = None) -> None:
+        """Initialize with an optional configuration.
+
+        Args:
+            config: NoterangConfig instance. Uses the global config when None.
+        """
         self.config = config or get_config()
         self.config.ensure_dirs()
 
@@ -104,21 +122,23 @@ class Noterang:
         result = WorkflowResult(notebook_title=title)
         lang = language or self.config.default_language
 
-        print("=" * 60)
+        logger.info("Starting automation for: %s", title)
+        print("=" * _SEPARATOR_WIDTH)
         print(f"노트랑 자동화: {title}")
-        print("=" * 60)
+        print("=" * _SEPARATOR_WIDTH)
 
         try:
             # Step 1: 인증 확인
             print("\n[1/6] 인증 확인...")
             if not await ensure_auth():
                 result.error = "인증 실패"
-                print("  ❌ 인증 실패 - 수동 로그인 필요")
+                logger.error("Authentication failed for title: %s", title)
+                print("  인증 실패 - 수동 로그인 필요")
                 return result
             print("  ✓ 인증 유효")
 
             # Step 2: 노트북 찾기/생성
-            print(f"\n[2/6] 노트북 확인/생성...")
+            print("\n[2/6] 노트북 확인/생성...")
             notebook_id = get_or_create_notebook(title)
             if not notebook_id:
                 result.error = "노트북 생성 실패"
@@ -129,18 +149,24 @@ class Noterang:
             # Step 3: 연구 수집
             total_sources = 0
             if not skip_research and research_queries:
-                print(f"\n[3/6] 연구 자료 수집...")
+                print("\n[3/6] 연구 자료 수집...")
                 await self._refresh_auth_if_needed()
-                for query in research_queries:
-                    count = await self._run_research(notebook_id, query)
-                    total_sources += count
+                # PERF: 연구 쿼리를 asyncio.gather로 병렬 실행
+                # 각 쿼리는 독립적인 API 호출이므로 병렬화 안전
+                counts = await asyncio.gather(
+                    *[self._run_research(notebook_id, query) for query in research_queries],
+                    return_exceptions=True
+                )
+                for c in counts:
+                    if isinstance(c, int):
+                        total_sources += c
                 print(f"  총 {total_sources}개 소스 추가")
             else:
                 print("\n[3/6] 연구 건너뜀")
             result.sources_count = total_sources
 
             # Step 4: 슬라이드 생성
-            print(f"\n[4/6] 슬라이드 생성...")
+            print("\n[4/6] 슬라이드 생성...")
             await self._refresh_auth_if_needed()
             artifact_id = await self._create_slides(notebook_id, lang, focus)
             if not artifact_id:
@@ -150,7 +176,7 @@ class Noterang:
 
             # Step 5: 다운로드 (API → Playwright fallback)
             if not skip_download:
-                print(f"\n[5/6] 다운로드...")
+                print("\n[5/6] 다운로드...")
                 await self._refresh_auth_if_needed()
                 pdf_path = await self._download_slides(notebook_id)
                 if pdf_path and pdf_path.exists():
@@ -158,13 +184,14 @@ class Noterang:
                     print(f"  ✓ PDF: {pdf_path.name}")
                 else:
                     result.error = "다운로드 실패"
-                    print("  ❌ 다운로드 실패")
+                    logger.warning("Download failed for notebook: %s", notebook_id)
+                    print("  다운로드 실패")
             else:
                 print("\n[5/6] 다운로드 건너뜀")
 
             # Step 6: PPTX 변환
             if not skip_convert and result.pdf_path:
-                print(f"\n[6/6] PPTX 변환...")
+                print("\n[6/6] PPTX 변환...")
                 if style:
                     converter = Converter(self.config.download_dir)
                     pptx_path, slide_count = converter.pdf_to_styled_pptx(
@@ -184,76 +211,106 @@ class Noterang:
 
         except Exception as e:
             result.error = str(e)
-            print(f"\n❌ 오류 발생: {e}")
+            logger.exception("Unexpected error during automation for '%s'", title)
+            print(f"\n오류 발생: {e}")
 
         result.duration_seconds = time.time() - start_time
 
-        # 결과 출력
-        print("\n" + "=" * 60)
+        print("\n" + "=" * _SEPARATOR_WIDTH)
         if result.success:
-            print("✓ 완료!")
+            print("완료!")
             if result.pdf_path:
                 print(f"  PDF:  {result.pdf_path}")
             if result.pptx_path:
                 print(f"  PPTX: {result.pptx_path}")
         else:
-            print(f"❌ 실패: {result.error}")
+            print(f"실패: {result.error}")
         print(f"  소요시간: {int(result.duration_seconds)}초")
-        print("=" * 60)
+        print("=" * _SEPARATOR_WIDTH)
 
         return result
 
-    async def _refresh_auth_if_needed(self):
-        """NLM 클라이언트 TTL 만료시 재인증"""
+    async def _refresh_auth_if_needed(self) -> None:
+        """Re-authenticate when the NLM client session has expired."""
         from .nlm_client import is_client_expired
         if is_client_expired():
+            logger.info("NLM client session expired; re-authenticating")
             print("  인증 갱신 중...")
             await ensure_auth()
 
     async def _run_research(self, notebook_id: str, query: str) -> int:
-        """연구 실행 및 소스 가져오기"""
+        """Start a research task and wait for completion, then import sources.
+
+        Args:
+            notebook_id: The target notebook identifier.
+            query: The research query string.
+
+        Returns:
+            Number of sources successfully imported.
+        """
         print(f"  쿼리: {query}")
 
         task_id = start_research(notebook_id, query)
         if not task_id:
             return 0
 
-        # 완료 대기
         max_wait = self.config.timeout_research
         start = time.time()
+        research_completed = False
 
         while time.time() - start < max_wait:
-            completed, status = check_research_status(notebook_id)
+            completed, _ = check_research_status(notebook_id)
             if completed:
+                research_completed = True
                 break
             await asyncio.sleep(5)
 
-        # 소스 가져오기
+        if not research_completed:
+            logger.warning("Research timed out after %ds for query: %s", max_wait, query)
+            print(f"    → 연구 타임아웃 ({max_wait}초) - 소스 가져오기 건너뜀")
+            return 0
+
         count = import_research(notebook_id, task_id)
         print(f"    → {count}개 소스 추가")
         return count
 
-    async def _create_slides(self, notebook_id: str, language: str, focus: str = None) -> Optional[str]:
-        """슬라이드 생성 및 완료 대기"""
-        artifact_id = create_slides(notebook_id, language, focus)
+    async def _create_slides(
+        self,
+        notebook_id: str,
+        language: str,
+        focus: Optional[str] = None,
+    ) -> Optional[str]:
+        """Request slide creation and wait until the artifact is ready.
 
+        Args:
+            notebook_id: The target notebook identifier.
+            language: Language code for the slides (e.g. ``"ko"``).
+            focus: Optional topic focus hint for the AI.
+
+        Returns:
+            The artifact ID string on success, or ``None`` on failure/timeout.
+        """
+        artifact_id = create_slides(notebook_id, language, focus)
         if not artifact_id:
             return None
 
-        # 완료 대기
         completed = await wait_for_completion(
             notebook_id,
             timeout=self.config.timeout_slides,
-            check_interval=10
+            check_interval=10,
         )
 
-        if completed:
-            return artifact_id
-        return None
+        return artifact_id if completed else None
 
     async def _download_slides(self, notebook_id: str) -> Optional[Path]:
-        """API로 슬라이드 다운로드 시도, 실패시 Playwright fallback"""
-        # Primary: API download (async)
+        """Download slides via API, falling back to Playwright on failure.
+
+        Args:
+            notebook_id: The target notebook identifier.
+
+        Returns:
+            Path to the downloaded PDF file, or ``None`` on failure.
+        """
         try:
             client = get_nlm_client()
             target_path = self.config.download_dir / f"{notebook_id[:8]}_slides.pdf"
@@ -262,71 +319,68 @@ class Noterang:
             )
             path = Path(downloaded)
             if path.exists() and path.stat().st_size > 0:
-                print(f"  ✓ API 다운로드 성공")
+                print("  ✓ API 다운로드 성공")
                 return path
         except Exception as e:
+            logger.warning("API download failed (%s); falling back to Playwright", e)
             print(f"  API 다운로드 실패 ({e}) - Playwright fallback...")
 
-        # Fallback: Playwright browser download
         return await download_with_retries(
             notebook_id,
             self.config.download_dir,
-            "slides"
+            "slides",
         )
 
     async def regenerate(
         self,
         notebook_id: str,
-        notebook_title: str = None,
-        language: str = None,
-        focus: str = None
+        notebook_title: Optional[str] = None,
+        language: Optional[str] = None,
+        focus: Optional[str] = None,
     ) -> WorkflowResult:
-        """
-        기존 노트북의 슬라이드 재생성
+        """Regenerate slides for an existing notebook.
 
         Args:
-            notebook_id: 노트북 ID
-            notebook_title: 제목 (파일명용)
-            language: 언어
-            focus: 집중 주제
+            notebook_id: Identifier of the existing notebook.
+            notebook_title: Human-readable title used in file naming.
+                Defaults to the first 8 characters of *notebook_id*.
+            language: Language code (e.g. ``"ko"``). Defaults to
+                :attr:`NoterangConfig.default_language`.
+            focus: Optional topic focus hint for the AI.
 
         Returns:
-            WorkflowResult
+            WorkflowResult describing the outcome.
         """
         start_time = time.time()
         result = WorkflowResult(
             notebook_id=notebook_id,
-            notebook_title=notebook_title or notebook_id[:8]
+            notebook_title=notebook_title or notebook_id[:8],
         )
         lang = language or self.config.default_language
 
-        print("=" * 60)
+        print("=" * _SEPARATOR_WIDTH)
         print(f"슬라이드 재생성: {result.notebook_title}")
-        print("=" * 60)
+        print("=" * _SEPARATOR_WIDTH)
 
         try:
-            # 인증 확인
             print("\n[1/4] 인증 확인...")
             if not await ensure_auth():
                 result.error = "인증 실패"
                 return result
             print("  ✓ 인증 유효")
 
-            # 슬라이드 생성
-            print(f"\n[2/4] 슬라이드 생성...")
+            print("\n[2/4] 슬라이드 생성...")
             artifact_id = await self._create_slides(notebook_id, lang, focus)
             result.artifact_id = artifact_id
 
-            # 다운로드 (API → Playwright fallback)
-            print(f"\n[3/4] 다운로드...")
+            print("\n[3/4] 다운로드...")
             pdf_path = await self._download_slides(notebook_id)
             if pdf_path and pdf_path.exists():
                 result.pdf_path = pdf_path
                 print(f"  ✓ PDF: {pdf_path.name}")
 
-            # 변환
             if result.pdf_path:
-                print(f"\n[4/4] PPTX 변환...")
+                print("\n[4/4] PPTX 변환...")
                 pptx_path, slide_count = pdf_to_pptx(result.pdf_path)
                 if pptx_path:
                     result.pptx_path = pptx_path
@@ -337,16 +391,28 @@ class Noterang:
 
         except Exception as e:
             result.error = str(e)
+            logger.exception("Error during regeneration for notebook '%s'", notebook_id)
 
         result.duration_seconds = time.time() - start_time
         return result
 
     def delete(self, notebook_id: str) -> bool:
-        """노트북 삭제"""
+        """Delete a notebook by ID.
+
+        Args:
+            notebook_id: The notebook identifier to remove.
+
+        Returns:
+            ``True`` on success, ``False`` otherwise.
+        """
         return delete_notebook(notebook_id)
 
-    def list(self) -> List[Dict]:
-        """노트북 목록"""
+    def list(self) -> List[Dict[str, Any]]:
+        """Return a list of all available notebooks.
+
+        Returns:
+            List of notebook metadata dictionaries.
+        """
         return list_notebooks()
 
     async def run_browser(
@@ -426,7 +492,7 @@ class Noterang:
                     # 완료 대기
                     if await browser.wait_for_slides(notebook_id):
                         # 다운로드
-                        pdf_path = await browser.download_slides(notebook_id)
+                        pdf_path = await browser.download_slides(notebook_id=notebook_id)
                         if pdf_path and pdf_path.exists():
                             result.pdf_path = pdf_path
                             print(f"  ✓ PDF: {pdf_path.name}")
@@ -461,27 +527,36 @@ class Noterang:
         if result.success:
             print("✓ 완료!")
         else:
-            print(f"❌ 실패: {result.error}")
-        print("=" * 60)
+            print(f"실패: {result.error}")
+        print("=" * _SEPARATOR_WIDTH)
 
         return result
 
 
 async def run_automation(
     title: str,
-    research_queries: List[str] = None,
-    focus: str = None,
-    language: str = "ko"
+    research_queries: Optional[List[str]] = None,
+    focus: Optional[str] = None,
+    language: str = "ko",
 ) -> WorkflowResult:
-    """
-    간편 자동화 함수
+    """Convenience coroutine to run the full automation pipeline.
 
-    Usage:
+    Example::
+
         result = await run_automation(
             title="견관절회전근개 파열",
             research_queries=["원인", "치료", "재활"],
-            focus="병인, 치료방법, 재활법"
+            focus="병인, 치료방법, 재활법",
         )
+
+    Args:
+        title: Notebook title.
+        research_queries: List of research queries to execute before slide creation.
+        focus: Optional topic focus hint for slide generation.
+        language: Language code for the output slides (default ``"ko"``).
+
+    Returns:
+        WorkflowResult for the completed run.
     """
     noterang = Noterang()
     return await noterang.run(title, research_queries, focus, language)
@@ -489,11 +564,21 @@ async def run_automation(
 
 def run_automation_sync(
     title: str,
-    research_queries: List[str] = None,
-    focus: str = None,
-    language: str = "ko"
+    research_queries: Optional[List[str]] = None,
+    focus: Optional[str] = None,
+    language: str = "ko",
 ) -> WorkflowResult:
-    """동기 버전 자동화"""
+    """Synchronous wrapper around :func:`run_automation`.
+
+    Args:
+        title: Notebook title.
+        research_queries: List of research queries.
+        focus: Optional topic focus hint.
+        language: Language code (default ``"ko"``).
+
+    Returns:
+        WorkflowResult for the completed run.
+    """
     return asyncio.run(run_automation(title, research_queries, focus, language))
 
 

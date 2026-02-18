@@ -13,14 +13,22 @@ Usage:
 import argparse
 import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
+logger = logging.getLogger(__name__)
 
-def main():
+# Minimum length to apply partial masking to sensitive values
+_MASK_MIN_LENGTH = 8
+
+
+def main() -> None:
+    """Entry point for the ``python -m noterang`` CLI."""
     parser = argparse.ArgumentParser(
         description="노트랑 - NotebookLM 완전 자동화",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -132,8 +140,8 @@ def main():
         cmd_prompts(args)
 
 
-def cmd_run(args):
-    """전체 자동화 실행"""
+def cmd_run(args: Any) -> None:
+    """Execute the full automation pipeline for a new notebook."""
     from .core import Noterang
 
     queries = args.queries.split(",") if args.queries else []
@@ -146,14 +154,14 @@ def cmd_run(args):
         language=args.language,
         skip_research=args.skip_research,
         skip_download=args.skip_download,
-        skip_convert=args.skip_convert
+        skip_convert=args.skip_convert,
     ))
 
     print(f"\n결과: {json.dumps(result.to_dict(), ensure_ascii=False, indent=2)}")
 
 
-def cmd_regenerate(args):
-    """슬라이드 재생성"""
+def cmd_regenerate(args: Any) -> None:
+    """Regenerate slides for an existing notebook."""
     from .core import Noterang
 
     noterang = Noterang()
@@ -161,14 +169,14 @@ def cmd_regenerate(args):
         notebook_id=args.notebook_id,
         notebook_title=args.title,
         language=args.language,
-        focus=args.focus
+        focus=args.focus,
     ))
 
     print(f"\n결과: {json.dumps(result.to_dict(), ensure_ascii=False, indent=2)}")
 
 
-def cmd_list():
-    """노트북 목록"""
+def cmd_list() -> None:
+    """Print all available notebooks."""
     from .notebook import list_notebooks
 
     notebooks = list_notebooks()
@@ -185,36 +193,50 @@ def cmd_list():
         print("-" * 60)
 
 
-def cmd_delete(args):
-    """노트북 삭제"""
+def cmd_delete(args: Any) -> None:
+    """Delete a notebook by ID."""
     from .notebook import delete_notebook
 
     if delete_notebook(args.notebook_id):
-        print(f"✓ 삭제 완료: {args.notebook_id}")
+        print(f"삭제 완료: {args.notebook_id}")
     else:
-        print(f"❌ 삭제 실패: {args.notebook_id}")
+        print(f"삭제 실패: {args.notebook_id}")
 
 
-def cmd_login(args):
-    """로그인"""
+def cmd_login(args: Any) -> None:
+    """Verify or perform automatic login."""
     from .auth import check_auth, run_auto_login
 
     if args.check:
         if check_auth():
-            print("✓ 인증 유효")
+            print("인증 유효")
         else:
-            print("❌ 인증 만료 또는 없음")
+            print("인증 만료 또는 없음")
         return
 
     success = run_auto_login(headless=not args.show)
     if success:
-        print("✓ 로그인 성공")
+        print("로그인 성공")
     else:
-        print("❌ 로그인 실패")
+        print("로그인 실패")
 
 
-def cmd_config(args):
-    """설정 관리"""
+def _mask_sensitive(value: str) -> str:
+    """Return a partially-masked version of a sensitive string.
+
+    Args:
+        value: The raw sensitive value.
+
+    Returns:
+        Masked string (first 4 and last 4 chars visible; ``****`` otherwise).
+    """
+    if len(value) > _MASK_MIN_LENGTH:
+        return value[:4] + "****" + value[-4:]
+    return "****"
+
+
+def cmd_config(args: Any) -> None:
+    """Display or update the application configuration."""
     from .config import get_config, init_config
 
     if args.show:
@@ -222,15 +244,13 @@ def cmd_config(args):
         print("\n현재 설정:")
         print("-" * 40)
         for key, value in config.to_dict().items():
-            # 민감 정보 마스킹
-            if 'key' in key.lower() or 'password' in key.lower():
-                if value:
-                    value = value[:4] + "****" + value[-4:] if len(str(value)) > 8 else "****"
-            print(f"  {key}: {value}")
+            display_value = value
+            if value and ('key' in key.lower() or 'password' in key.lower()):
+                display_value = _mask_sensitive(str(value))
+            print(f"  {key}: {display_value}")
         return
 
-    # 설정 업데이트
-    kwargs = {}
+    kwargs: dict = {}
     if args.apify_key:
         kwargs['apify_api_key'] = args.apify_key
     if args.app_password:
@@ -240,18 +260,18 @@ def cmd_config(args):
 
     if kwargs:
         init_config(**kwargs)
-        print("✓ 설정 저장 완료")
+        print("설정 저장 완료")
     else:
         print("설정할 값이 없습니다. --help로 옵션을 확인하세요.")
 
 
-def cmd_batch(args):
-    """배치 실행"""
+def cmd_batch(args: Any) -> None:
+    """Run automation for multiple topics defined in a JSON file."""
     from .core import run_batch
 
     topics_file = Path(args.topics_file)
     if not topics_file.exists():
-        print(f"❌ 파일 없음: {topics_file}")
+        print(f"파일 없음: {topics_file}")
         return
 
     with open(topics_file, 'r', encoding='utf-8') as f:
@@ -264,27 +284,27 @@ def cmd_batch(args):
     print(f"  성공: {success_count}/{len(results)}")
 
     for r in results:
-        status = "✓" if r.success else "❌"
-        print(f"  {status} {r.notebook_title}: {r.slide_count}슬라이드")
+        status = "성공" if r.success else "실패"
+        print(f"  [{status}] {r.notebook_title}: {r.slide_count}슬라이드")
 
 
-def cmd_convert(args):
-    """PDF to PPTX 변환"""
+def cmd_convert(args: Any) -> None:
+    """Convert a PDF file to PPTX."""
     from .convert import pdf_to_pptx
 
     pdf_path = Path(args.pdf_path)
     if not pdf_path.exists():
-        print(f"❌ 파일 없음: {pdf_path}")
+        print(f"파일 없음: {pdf_path}")
         return
 
     output_path = Path(args.output) if args.output else None
     pptx_path, count = pdf_to_pptx(pdf_path, output_path)
 
-    print(f"✓ 변환 완료: {pptx_path} ({count}슬라이드)")
+    print(f"변환 완료: {pptx_path} ({count}슬라이드)")
 
 
-def cmd_prompts(args):
-    """슬라이드 디자인 프롬프트 관리"""
+def cmd_prompts(args: Any) -> None:
+    """Manage and browse slide design prompts."""
     from .prompts import SlidePrompts
 
     prompts = SlidePrompts()

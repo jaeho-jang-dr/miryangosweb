@@ -93,8 +93,8 @@ def close_nlm_client():
     if _client is not None:
         try:
             _client.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("NLM 클라이언트 종료 중 오류 (무시됨): %s", e)
         _client = None
     _client_created_at = 0.0
 
@@ -117,5 +117,12 @@ def check_nlm_auth() -> bool:
         client = get_nlm_client()
         client.list_notebooks()
         return True
-    except Exception:
+    except NLMAuthError as e:
+        logger.warning("인증 확인 실패 (인증 오류): %s", e)
+        return False
+    except NLMClientError as e:
+        logger.warning("인증 확인 실패 (API 오류): %s", e)
+        return False
+    except Exception as e:
+        logger.warning("인증 확인 실패 (예상치 못한 오류): %s", e)
         return False

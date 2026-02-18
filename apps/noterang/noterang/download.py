@@ -81,22 +81,33 @@ async def _download_via_browser_impl(
         except Exception as e:
             print(f"  페이지 로드 중... ({e})")
 
-        # 페이지 로드 대기
-        await asyncio.sleep(8)
+        # PERF: 고정 8초 sleep 대신 스튜디오 패널 출현을 최대 8초 내 감지하여 조기 진행
+        # 스튜디오 패널의 더보기 버튼 또는 버튼 그룹이 나타나면 즉시 진행
+        try:
+            await page.wait_for_selector(
+                '[aria-label*="more" i], [aria-haspopup="menu"], button[data-id]',
+                timeout=8000
+            )
+        except Exception:
+            # 타임아웃이면 고정 대기 (폴백)
+            await asyncio.sleep(3)
 
-        # 방법 1: 좌표 기반 클릭 (더 빠르고 안정적)
-        downloaded_path = await _try_coordinate_download(page, output_path, artifact_type)
+        try:
+            # 방법 1: 좌표 기반 클릭 (더 빠르고 안정적)
+            downloaded_path = await _try_coordinate_download(page, output_path, artifact_type)
 
-        # 방법 2: 메뉴 순회 (폴백, 버튼 3개 제한)
-        if not downloaded_path:
-            downloaded_path = await _try_menu_download(page, output_path, artifact_type)
+            # 방법 2: 메뉴 순회 (폴백, 버튼 3개 제한)
+            if not downloaded_path:
+                downloaded_path = await _try_menu_download(page, output_path, artifact_type)
 
-        # 방법 3: 파일 감시
-        if not downloaded_path:
-            downloaded_path = await _wait_for_new_file(output_path, timeout=30)
-
-        await asyncio.sleep(2)
-        await context.close()
+            # 방법 3: 파일 감시
+            if not downloaded_path:
+                downloaded_path = await _wait_for_new_file(output_path, timeout=30)
+        finally:
+            try:
+                await context.close()
+            except Exception:
+                pass
 
     return downloaded_path
 
@@ -217,25 +228,30 @@ async def _try_coordinate_download(page, output_path: Path, artifact_type: str) 
 
 
 async def _wait_for_new_file(output_path: Path, timeout: int = 30) -> Optional[Path]:
-    """새 파일이 생성될 때까지 대기"""
+    """새 파일이 생성될 때까지 대기
+
+    PERF: time.monotonic() 사용으로 시스템 시간 변경에 강건함.
+    기존 파일 이름 집합만 비교하여 stat() 호출 최소화.
+    """
     import time
 
-    # 기존 파일 목록
-    before_files = set(output_path.glob("*.pdf"))
-    start_time = time.time()
+    # PERF: 파일명(문자열)만 저장하여 Path.stat() 호출을 비교에서 제외
+    before_names = frozenset(f.name for f in output_path.glob("*.pdf"))
+    start_time = time.monotonic()
 
     print("  파일 생성 대기 중...")
 
-    while time.time() - start_time < timeout:
-        current_files = set(output_path.glob("*.pdf"))
-        new_files = current_files - before_files
+    while time.monotonic() - start_time < timeout:
+        current_files = list(output_path.glob("*.pdf"))
+        new_files = [f for f in current_files if f.name not in before_names]
 
         if new_files:
+            # PERF: 최신 파일 한 번만 stat() 호출
             new_file = max(new_files, key=lambda f: f.stat().st_mtime)
             print(f"  ✓ 새 파일 감지: {new_file.name}")
             return new_file
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)  # PERF: 폴링 간격 2초 → 1초로 단축 (반응성 개선)
 
     return None
 
@@ -272,8 +288,9 @@ async def download_with_retries(
             return result
 
         if attempt < max_retries - 1:
-            print(f"  실패 - 10초 후 재시도...")
-            await asyncio.sleep(10)
+            # PERF: 재시도 대기 시간을 10초 → 5초로 단축 (브라우저 세션 종료 후 재시작이므로 긴 대기 불필요)
+            print(f"  실패 - 5초 후 재시도...")
+            await asyncio.sleep(5)
 
     print("  ❌ 모든 다운로드 시도 실패")
     return None
@@ -308,8 +325,11 @@ async def take_screenshot(notebook_id: str, output_path: Path = None) -> Optiona
         except Exception as e:
             print(f"  스크린샷 실패: {e}")
             screenshot_path = None
-
-        await context.close()
+        finally:
+            try:
+                await context.close()
+            except Exception:
+                pass
 
     return screenshot_path
 

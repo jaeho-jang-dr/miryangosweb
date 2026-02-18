@@ -8,20 +8,65 @@
 
 Uses notebooklm_tools Python API directly (no subprocess).
 """
+import logging
 import sys
+import time
 from typing import Optional, List, Dict, Tuple
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
-from .nlm_client import get_nlm_client, NLMClientError
+from .nlm_client import get_nlm_client, NLMClientError, NLMAuthError
+
+logger = logging.getLogger(__name__)
+
+
+def _with_retry(func, max_attempts: int = 3, delay: float = 2.0, backoff: float = 2.0):
+    """네트워크/API 호출에 대한 지수 백오프 재시도 헬퍼.
+
+    Args:
+        func: 재시도할 인수 없는 callable
+        max_attempts: 최대 시도 횟수 (1 이상)
+        delay: 초기 대기 시간(초)
+        backoff: 대기 시간 배수
+
+    Returns:
+        func()의 반환값
+
+    Raises:
+        마지막 시도에서 발생한 예외
+    """
+    if max_attempts < 1:
+        raise ValueError(f"max_attempts must be >= 1, got {max_attempts}")
+
+    last_error: Exception = RuntimeError("알 수 없는 오류")
+    for attempt in range(max_attempts):
+        try:
+            return func()
+        except NLMAuthError:
+            # 인증 오류는 재시도해도 소용없음 — 즉시 전파
+            raise
+        except Exception as e:
+            last_error = e
+            if attempt == max_attempts - 1:
+                break
+            wait = delay * (backoff ** attempt)
+            logger.warning(
+                "API 호출 시도 %d/%d 실패: %s. %.1f초 후 재시도...",
+                attempt + 1, max_attempts, e, wait
+            )
+            time.sleep(wait)
+    raise last_error
 
 
 def list_notebooks() -> List[Dict]:
-    """노트북 목록 조회"""
+    """노트북 목록 조회 (네트워크 오류 시 최대 3회 재시도)"""
     try:
-        client = get_nlm_client()
-        notebooks = client.list_notebooks()
+        def _call():
+            client = get_nlm_client()
+            return client.list_notebooks()
+
+        notebooks = _with_retry(_call)
         return [
             {
                 "id": nb.id,
@@ -30,7 +75,12 @@ def list_notebooks() -> List[Dict]:
             }
             for nb in notebooks
         ]
+    except NLMAuthError as e:
+        logger.error("노트북 목록 조회 인증 실패: %s", e)
+        print(f"  ❌ 인증 오류로 노트북 목록 조회 실패: {e}. 'nlm login'을 실행하세요.")
+        return []
     except Exception as e:
+        logger.error("노트북 목록 조회 실패: %s", e, exc_info=True)
         print(f"  ❌ 노트북 목록 조회 실패: {e}")
         return []
 
@@ -46,22 +96,37 @@ def find_notebook(title: str) -> Optional[Dict]:
 
 def create_notebook(title: str) -> Optional[str]:
     """
-    새 노트북 생성
+    새 노트북 생성 (네트워크 오류 시 최대 3회 재시도)
 
     Args:
-        title: 노트북 제목
+        title: 노트북 제목 (비어 있으면 오류)
 
     Returns:
         노트북 ID 또는 None
     """
+    if not title or not title.strip():
+        print("  ❌ 노트북 제목이 비어 있습니다.")
+        logger.error("create_notebook: 빈 제목이 전달됨")
+        return None
+
     try:
-        client = get_nlm_client()
-        result = client.create_notebook(title)
+        def _call():
+            client = get_nlm_client()
+            return client.create_notebook(title)
+
+        result = _with_retry(_call)
         if result and result.id:
             print(f"  ✓ 노트북 생성: {result.id[:8]}...")
+            logger.info("노트북 생성 완료: id=%s, title=%s", result.id[:8], title)
             return result.id
+        logger.warning("create_notebook: API가 결과를 반환했지만 id가 없음")
+        return None
+    except NLMAuthError as e:
+        logger.error("노트북 생성 인증 실패: %s", e)
+        print(f"  ❌ 인증 오류로 노트북 생성 실패: {e}. 'nlm login'을 실행하세요.")
         return None
     except Exception as e:
+        logger.error("노트북 생성 실패 (title=%s): %s", title, e, exc_info=True)
         print(f"  ❌ 노트북 생성 실패: {e}")
         return None
 
@@ -104,8 +169,9 @@ def get_or_create_notebook(title: str) -> Optional[str]:
     existing = find_notebook(title)
     if existing:
         notebook_id = existing.get('id')
-        print(f"  기존 노트북 발견: {notebook_id[:8]}...")
-        return notebook_id
+        if notebook_id:
+            print(f"  기존 노트북 발견: {notebook_id[:8]}...")
+            return notebook_id
 
     # 없으면 새로 생성
     return create_notebook(title)
@@ -177,31 +243,75 @@ def import_research(notebook_id: str, task_id: str) -> int:
 
 
 def get_notebook_sources(notebook_id: str) -> List[Dict]:
-    """노트북 소스 목록"""
+    """노트북 소스 목록 (네트워크 오류 시 최대 3회 재시도)"""
+    if not notebook_id:
+        logger.warning("get_notebook_sources: notebook_id가 비어 있음")
+        return []
     try:
-        client = get_nlm_client()
-        return client.get_notebook_sources_with_types(notebook_id)
-    except Exception:
+        def _call():
+            client = get_nlm_client()
+            return client.get_notebook_sources_with_types(notebook_id)
+
+        return _with_retry(_call) or []
+    except NLMAuthError as e:
+        logger.error("소스 목록 인증 실패 (notebook_id=%s): %s", notebook_id[:8], e)
+        print(f"  ❌ 인증 오류로 소스 목록 조회 실패: {e}")
+        return []
+    except Exception as e:
+        logger.error("소스 목록 조회 실패 (notebook_id=%s): %s", notebook_id[:8], e, exc_info=True)
+        print(f"  ❌ 소스 목록 조회 실패: {e}")
         return []
 
 
 def add_source_url(notebook_id: str, url: str) -> bool:
-    """URL 소스 추가"""
+    """URL 소스 추가 (네트워크 오류 시 최대 3회 재시도)"""
+    if not notebook_id:
+        logger.warning("add_source_url: notebook_id가 비어 있음")
+        return False
+    if not url or not url.startswith(('http://', 'https://')):
+        logger.warning("add_source_url: 유효하지 않은 URL: %s", url)
+        print(f"  ❌ 유효하지 않은 URL: {url} (http:// 또는 https://로 시작해야 합니다)")
+        return False
     try:
-        client = get_nlm_client()
-        result = client.add_url_source(notebook_id, url)
+        def _call():
+            client = get_nlm_client()
+            return client.add_url_source(notebook_id, url)
+
+        result = _with_retry(_call)
         return result is not None
-    except Exception:
+    except NLMAuthError as e:
+        logger.error("URL 소스 추가 인증 실패 (url=%s): %s", url, e)
+        print(f"  ❌ 인증 오류로 URL 소스 추가 실패: {e}")
+        return False
+    except Exception as e:
+        logger.error("URL 소스 추가 실패 (url=%s): %s", url, e, exc_info=True)
+        print(f"  ❌ URL 소스 추가 실패: {e}")
         return False
 
 
 def add_source_text(notebook_id: str, text: str, title: str = "텍스트 소스") -> bool:
-    """텍스트 소스 추가"""
+    """텍스트 소스 추가 (네트워크 오류 시 최대 3회 재시도)"""
+    if not notebook_id:
+        logger.warning("add_source_text: notebook_id가 비어 있음")
+        return False
+    if not text or not text.strip():
+        logger.warning("add_source_text: 빈 텍스트가 전달됨")
+        print("  ❌ 텍스트 소스 내용이 비어 있습니다.")
+        return False
     try:
-        client = get_nlm_client()
-        result = client.add_text_source(notebook_id, text, title=title)
+        def _call():
+            client = get_nlm_client()
+            return client.add_text_source(notebook_id, text, title=title)
+
+        result = _with_retry(_call)
         return result is not None
-    except Exception:
+    except NLMAuthError as e:
+        logger.error("텍스트 소스 추가 인증 실패 (title=%s): %s", title, e)
+        print(f"  ❌ 인증 오류로 텍스트 소스 추가 실패: {e}")
+        return False
+    except Exception as e:
+        logger.error("텍스트 소스 추가 실패 (title=%s): %s", title, e, exc_info=True)
+        print(f"  ❌ 텍스트 소스 추가 실패: {e}")
         return False
 
 

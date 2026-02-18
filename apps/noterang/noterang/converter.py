@@ -6,29 +6,42 @@
 PyMuPDF로 PDF 페이지를 이미지로 추출하고
 python-pptx로 PPTX 슬라이드에 삽입합니다.
 """
+import logging
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
+logger = logging.getLogger(__name__)
+
+# Slide dimensions for 16:9 widescreen output
+_SLIDE_WIDTH_INCHES: float = 13.333
+_SLIDE_HEIGHT_INCHES: float = 7.5
+_DEFAULT_DPI: int = 200
+# Blank slide layout index in python-pptx default layouts
+_BLANK_LAYOUT_INDEX: int = 6
+
 
 def pdf_to_pptx(
-    pdf_path: str,
-    pptx_path: str = None,
-    dpi: int = 200,
+    pdf_path: Union[str, Path],
+    pptx_path: Optional[Union[str, Path]] = None,
+    dpi: int = _DEFAULT_DPI,
 ) -> bool:
-    """
-    PDF를 PPTX로 변환
+    """Convert a PDF file to a PPTX presentation.
+
+    Each PDF page is rasterised at *dpi* and embedded as a full-slide image
+    in the resulting PPTX file.
 
     Args:
-        pdf_path: 입력 PDF 파일 경로
-        pptx_path: 출력 PPTX 파일 경로 (None이면 PDF와 같은 이름)
-        dpi: 이미지 해상도 (기본 200)
+        pdf_path: Path to the source PDF file (str or Path).
+        pptx_path: Destination PPTX path. Defaults to the same stem as
+            *pdf_path* with a ``.pptx`` extension.
+        dpi: Rasterisation resolution in dots-per-inch (default 200).
 
     Returns:
-        성공 여부
+        ``True`` on success, ``False`` otherwise.
     """
     try:
         import fitz  # PyMuPDF
@@ -36,63 +49,60 @@ def pdf_to_pptx(
         from pptx.util import Inches
         from io import BytesIO
     except ImportError as e:
+        logger.error("Missing required package: %s", e)
         print(f"필요한 패키지가 설치되지 않았습니다: {e}")
         print("설치: pip install pymupdf python-pptx")
         return False
 
     pdf_path = Path(pdf_path)
     if not pdf_path.exists():
+        logger.error("PDF file not found: %s", pdf_path)
         print(f"PDF 파일을 찾을 수 없습니다: {pdf_path}")
         return False
 
-    if pptx_path is None:
-        pptx_path = pdf_path.with_suffix('.pptx')
-    else:
-        pptx_path = Path(pptx_path)
+    pptx_path = Path(pptx_path) if pptx_path is not None else pdf_path.with_suffix('.pptx')
 
     try:
-        # PDF 열기
         pdf_doc = fitz.open(str(pdf_path))
         page_count = len(pdf_doc)
 
+        logger.info("Converting %s (%d pages)", pdf_path.name, page_count)
         print(f"PDF 변환 중: {pdf_path.name} ({page_count}페이지)")
 
-        # PPTX 생성 (16:9 비율)
         prs = Presentation()
-        prs.slide_width = Inches(13.333)  # 16:9
-        prs.slide_height = Inches(7.5)
+        prs.slide_width = Inches(_SLIDE_WIDTH_INCHES)
+        prs.slide_height = Inches(_SLIDE_HEIGHT_INCHES)
 
-        blank_layout = prs.slide_layouts[6]  # 빈 슬라이드
+        blank_layout = prs.slide_layouts[_BLANK_LAYOUT_INDEX]
+
+        # Build fitz render matrix once; cache slide dimensions to avoid repeated attribute access
+        mat = fitz.Matrix(dpi / 72, dpi / 72)
+        slide_w = prs.slide_width
+        slide_h = prs.slide_height
 
         for page_num in range(page_count):
             page = pdf_doc[page_num]
-
-            # 페이지를 이미지로 렌더링
-            mat = fitz.Matrix(dpi / 72, dpi / 72)
             pix = page.get_pixmap(matrix=mat)
-
-            # 이미지를 BytesIO로 변환
             img_bytes = BytesIO(pix.tobytes("png"))
 
-            # 슬라이드 추가
             slide = prs.slides.add_slide(blank_layout)
-
-            # 이미지 삽입 (전체 슬라이드 크기)
             slide.shapes.add_picture(
                 img_bytes,
                 Inches(0),
                 Inches(0),
-                width=prs.slide_width,
-                height=prs.slide_height,
+                width=slide_w,
+                height=slide_h,
             )
+
+            img_bytes.close()
+            pix = None
 
             print(f"  페이지 {page_num + 1}/{page_count} 변환 완료")
 
         pdf_doc.close()
 
-        # PPTX 저장
         prs.save(str(pptx_path))
-        print(f"✓ PPTX 저장 완료: {pptx_path}")
+        print(f"PPTX 저장 완료: {pptx_path}")
 
         return True
 
@@ -102,20 +112,19 @@ def pdf_to_pptx(
 
 
 def batch_convert(
-    pdf_dir: str,
-    output_dir: str = None,
-    dpi: int = 200,
+    pdf_dir: Union[str, Path],
+    output_dir: Optional[Union[str, Path]] = None,
+    dpi: int = _DEFAULT_DPI,
 ) -> int:
-    """
-    디렉토리 내 모든 PDF를 PPTX로 변환
+    """Convert all PDF files found in *pdf_dir* to PPTX.
 
     Args:
-        pdf_dir: PDF 파일이 있는 디렉토리
-        output_dir: 출력 디렉토리 (None이면 같은 디렉토리)
-        dpi: 이미지 해상도
+        pdf_dir: Directory containing source PDF files.
+        output_dir: Destination directory for PPTX files. Defaults to *pdf_dir*.
+        dpi: Rasterisation resolution in dots-per-inch (default 200).
 
     Returns:
-        변환 성공한 파일 수
+        Number of files converted successfully.
     """
     pdf_dir = Path(pdf_dir)
     if not pdf_dir.exists():
