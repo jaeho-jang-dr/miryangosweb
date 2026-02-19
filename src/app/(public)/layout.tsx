@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Phone, Calendar, Stethoscope } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase-public';
@@ -13,6 +13,17 @@ import dynamic from 'next/dynamic';
 
 const Background3D = dynamic(() => import('@/components/ui/Background3D'), { ssr: false });
 
+interface ClinicInfoState {
+    name: string;
+    phone: string;
+    address: string;
+    representative: string;
+    businessNumber: string;
+    lunchTime: string;
+    weekdayHours: string;
+    saturdayHours: string;
+    holidayInfo: string;
+}
 
 export default function PublicLayout({
     children,
@@ -23,10 +34,11 @@ export default function PublicLayout({
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    const closeMenu = useCallback(() => setIsMenuOpen(false), []);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
-            console.log('🔐 Auth state changed:', currentUser?.email);
 
             if (currentUser) {
                 try {
@@ -45,15 +57,11 @@ export default function PublicLayout({
                         if (isAdminEmail && !hasAdminRole) {
                             const { setDoc } = await import('firebase/firestore');
                             await setDoc(userDocRef, { ...userData, role: 'admin' }, { merge: true });
-                            console.log('✅ Admin role granted to:', currentUser.email);
                             setIsAdmin(true);
                         } else {
-                            console.log('👤 User data:', { email: currentUser.email, role: userData?.role, isAdmin: hasAdminRole });
                             setIsAdmin(hasAdminRole);
                         }
                     } else {
-                        console.log('⚠️ User document not found in Firestore for:', currentUser.email);
-
                         // Create user document with admin role if admin email
                         if (isAdminEmail) {
                             const { setDoc } = await import('firebase/firestore');
@@ -64,31 +72,28 @@ export default function PublicLayout({
                                 role: 'admin',
                                 createdAt: new Date()
                             });
-                            console.log('✅ Admin user document created for:', currentUser.email);
                             setIsAdmin(true);
                         } else {
                             setIsAdmin(false);
                         }
                     }
                 } catch (error) {
-                    console.error('❌ Error checking admin role:', error);
+                    console.error('Error checking admin role:', error);
                     // Fallback: if it's admin email, grant admin anyway
                     if (currentUser.email === 'drjang00@gmail.com') {
-                        console.log('⚠️ Error occurred but granting admin to drjang00@gmail.com');
                         setIsAdmin(true);
                     } else {
                         setIsAdmin(false);
                     }
                 }
             } else {
-                console.log('🚪 User logged out');
                 setIsAdmin(false);
             }
         });
         return () => unsubscribe();
     }, []);
 
-    const [clinicInfo, setClinicInfo] = useState({
+    const [clinicInfo, setClinicInfo] = useState<ClinicInfoState>({
         name: '밀양정형외과',
         phone: '055-123-4567',
         address: '경상남도 밀양시 시청로 123',
@@ -115,7 +120,7 @@ export default function PublicLayout({
                 // Use onSnapshot for real-time updates
                 unsubscribe = onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
-                        setClinicInfo(docSnap.data() as any);
+                        setClinicInfo(docSnap.data() as ClinicInfoState);
                     }
                 }, (error) => {
                     console.error("Failed to load clinic settings:", error);
@@ -134,12 +139,12 @@ export default function PublicLayout({
         <div className="flex min-h-screen flex-col font-sans relative">
             <Background3D />
             {/* Header */}
-            <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 dark:border-slate-800">
+            <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 dark:border-slate-800" role="banner">
                 <div className="container mx-auto px-4 md:px-6">
                     <div className="flex h-16 items-center justify-between">
 
                         <div className="flex items-center gap-4">
-                            <Link href="/" className="flex items-center space-x-2">
+                            <Link href="/" className="flex items-center space-x-2" aria-label={`${clinicInfo.name} 홈페이지로 이동`}>
                                 <span className="text-xl font-bold tracking-tighter text-blue-600 dark:text-blue-400">
                                     {clinicInfo.name}
                                 </span>
@@ -147,7 +152,7 @@ export default function PublicLayout({
                         </div>
 
                         {/* Desktop Nav */}
-                        <nav className="hidden md:flex items-center space-x-8">
+                        <nav className="hidden md:flex items-center space-x-8" aria-label="주 내비게이션">
                             <NavLink href="/" label="홈" active={pathname === '/'} />
                             <NavLink href="/about" label="병원소개" active={pathname === '/about'} />
                             <NavLink href="/staff" label="의료진" active={pathname === '/staff'} />
@@ -180,6 +185,7 @@ export default function PublicLayout({
                                             }
                                         }}
                                         className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                                        aria-label={`${user.displayName || '회원'}님 로그아웃`}
                                     >
                                         {user.displayName || '회원'}님
                                     </button>
@@ -208,22 +214,25 @@ export default function PublicLayout({
                         <button
                             className="md:hidden p-2 text-slate-600 dark:text-slate-300"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            aria-label={isMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+                            aria-expanded={isMenuOpen}
+                            aria-controls="mobile-nav"
                         >
-                            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                            {isMenuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
                         </button>
                     </div>
                 </div>
 
                 {/* Mobile Nav */}
                 {isMenuOpen && (
-                    <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 absolute w-full">
-                        <nav className="flex flex-col p-4 space-y-4">
-                            <MobileNavLink href="/" label="홈" onClick={() => setIsMenuOpen(false)} />
-                            <MobileNavLink href="/about" label="병원소개" onClick={() => setIsMenuOpen(false)} />
-                            <MobileNavLink href="/staff" label="의료진" onClick={() => setIsMenuOpen(false)} />
-                            <MobileNavLink href="/archives" label="자료실" onClick={() => setIsMenuOpen(false)} />
-                            <MobileNavLink href="/notices" label="공지사항" onClick={() => setIsMenuOpen(false)} />
-                            <MobileNavLink href="/inquiry" label="예약/문의" onClick={() => setIsMenuOpen(false)} />
+                    <div id="mobile-nav" className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 absolute w-full">
+                        <nav className="flex flex-col p-4 space-y-4" aria-label="모바일 내비게이션">
+                            <MobileNavLink href="/" label="홈" onClick={closeMenu} />
+                            <MobileNavLink href="/about" label="병원소개" onClick={closeMenu} />
+                            <MobileNavLink href="/staff" label="의료진" onClick={closeMenu} />
+                            <MobileNavLink href="/archives" label="자료실" onClick={closeMenu} />
+                            <MobileNavLink href="/notices" label="공지사항" onClick={closeMenu} />
+                            <MobileNavLink href="/inquiry" label="예약/문의" onClick={closeMenu} />
                         </nav>
                     </div>
                 )}
@@ -233,7 +242,7 @@ export default function PublicLayout({
                 {children}
             </main>
 
-            <footer className="border-t border-slate-200 bg-slate-50 dark:bg-slate-900 dark:border-slate-800">
+            <footer className="border-t border-slate-200 bg-slate-50 dark:bg-slate-900 dark:border-slate-800" role="contentinfo">
                 <div className="container mx-auto px-4 py-12 md:px-6">
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
                         <div className="space-y-4">

@@ -81,20 +81,35 @@ function NewRecordPageContent() {
         setFormData(prev => ({ ...prev, template: tmpl }));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!patientId || !patient) return;
+        if (submitting) return; // 중복 제출 방지
+
+        // 유효성 검사
+        if (!formData.cc.trim()) {
+            alert('주호소(C.C)를 입력해주세요.');
+            return;
+        }
+        if (!formData.diagnosis.trim()) {
+            alert('진단을 입력해주세요.');
+            return;
+        }
 
         setSubmitting(true);
         try {
             // 1. Create Visit Record
             await addDoc(collection(db, 'visits'), {
                 patientId: patientId,
+                patientName: patient.name,
                 date: serverTimestamp(),
+                chiefComplaint: formData.cc,
                 cc: formData.cc,
                 diagnosis: formData.diagnosis,
                 plan: formData.plan,
-                templateId: formData.template
+                templateId: formData.template,
+                status: 'completed',
+                type: 'return',
             });
 
             // 2. Update Patient's Last Visit
@@ -106,7 +121,7 @@ function NewRecordPageContent() {
             router.push(`/patients/${patientId}`);
         } catch (error) {
             console.error("Error saving record:", error);
-            alert("진료 기록 저장 중 오류가 발생했습니다.");
+            alert("진료 기록 저장 중 오류가 발생했습니다: " + (error as Error).message);
         } finally {
             setSubmitting(false);
         }
@@ -149,7 +164,8 @@ function NewRecordPageContent() {
                         <option value="digest">소화불량/위염</option>
                     </select>
                     <button
-                        onClick={handleSubmit}
+                        type="button"
+                        onClick={() => handleSubmit()}
                         disabled={submitting}
                         className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium shadow-sm"
                     >

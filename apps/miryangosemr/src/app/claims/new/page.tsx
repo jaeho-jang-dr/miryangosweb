@@ -25,33 +25,50 @@ function NewClaimContent() {
   const [saving, setSaving] = useState(false);
 
   const handleValidate = () => {
-    const result = validateClaimForDUR({
+    const warnings: string[] = [];
+    const parsedTotal = parseInt(totalAmount) || 0;
+    const parsedInsurance = parseInt(insuranceAmount) || 0;
+    const parsedCopay = parseInt(copayAmount) || 0;
+
+    if (!patientName.trim()) warnings.push('환자명을 입력해주세요.');
+    if (!visitDate) warnings.push('진료일을 입력해주세요.');
+    if (!doctorName.trim()) warnings.push('담당의를 입력해주세요.');
+
+    const claimResult = validateClaimForDUR({
       visitId: '', patientId: '', patientName,
       visitDate,
       diagnosisCodes: diagnosisCode ? [diagnosisCode] : [],
       diagnosisNames: diagnosisName ? [diagnosisName] : [],
       doctorName,
       items: [],
-      totalAmount: parseInt(totalAmount) || 0,
-      insuranceAmount: parseInt(insuranceAmount) || 0,
-      copayAmount: parseInt(copayAmount) || 0,
+      totalAmount: parsedTotal,
+      insuranceAmount: parsedInsurance,
+      copayAmount: parsedCopay,
       status: 'draft',
       durChecked: false,
     });
-    setDurWarnings(result.warnings);
-    return result.passed;
+    warnings.push(...claimResult.warnings);
+
+    // 금액 일관성 검사: 보험금 + 본인부담금 = 총액
+    if (parsedTotal > 0 && parsedInsurance + parsedCopay !== parsedTotal) {
+      warnings.push(`금액 불일치: 보험청구액(${parsedInsurance}원) + 본인부담금(${parsedCopay}원) ≠ 총진료비(${parsedTotal}원)`);
+    }
+
+    setDurWarnings(warnings);
+    return warnings.length === 0;
   };
 
   const handleSave = async () => {
     if (!handleValidate()) return;
+    if (saving) return;
     setSaving(true);
     try {
       await saveClaim({
-        visitId: '', patientId: '', patientName,
+        visitId: '', patientId: '', patientName: patientName.trim(),
         visitDate,
-        diagnosisCodes: [diagnosisCode],
-        diagnosisNames: [diagnosisName],
-        doctorName,
+        diagnosisCodes: diagnosisCode ? [diagnosisCode.trim()] : [],
+        diagnosisNames: diagnosisName ? [diagnosisName.trim()] : [],
+        doctorName: doctorName.trim(),
         items: [],
         totalAmount: parseInt(totalAmount) || 0,
         insuranceAmount: parseInt(insuranceAmount) || 0,

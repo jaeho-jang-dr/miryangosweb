@@ -72,8 +72,8 @@ function ClinicalSetupPageContent() {
             }
             addLog(`Seeding Complete. Added ${count} patients.`);
 
-        } catch (e: any) {
-            addLog(`Error: ${e.message}`);
+        } catch (e: unknown) {
+            addLog(`Error: ${e instanceof Error ? e.message : String(e)}`);
         } finally {
             setLoading(false);
         }
@@ -93,8 +93,8 @@ function ClinicalSetupPageContent() {
             });
             await batch.commit();
             addLog(`Deleted ${snap.size} visits.`);
-        } catch (e: any) {
-            addLog(`Error clearing visits: ${e.message}`);
+        } catch (e: unknown) {
+            addLog(`Error clearing visits: ${e instanceof Error ? e.message : String(e)}`);
         } finally {
             setLoading(false);
         }

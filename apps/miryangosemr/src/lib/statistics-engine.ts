@@ -54,7 +54,7 @@ export async function calculateDailyStats(date: Date): Promise<DailyStatistics> 
     visitsByInsurance: {
       nhis: visits.filter(v => v.insuranceType === 'nhis').length,
       auto: visits.filter(v => v.insuranceType === 'auto').length,
-      industrial: 0,
+      industrial: visits.filter(v => v.insuranceType === 'industrial').length,
       none: visits.filter(v => v.insuranceType === 'none' || !v.insuranceType).length,
     },
   };

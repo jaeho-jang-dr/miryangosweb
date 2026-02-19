@@ -12,12 +12,18 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
+        // pathname 제한으로 특정 프로젝트 버킷만 허용
+        pathname: '/v0/b/miryangosweb.firebasestorage.app/**',
       },
     ],
+    // 지원할 이미지 포맷 (WebP/AVIF 우선 적용으로 대역폭 절약)
+    formats: ['image/avif', 'image/webp'],
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb',
+      // 50mb는 DoS 공격에 취약. 이미지/파일 업로드 실제 요구에 맞춰 10mb로 제한.
+      // 대용량 파일이 필요한 경우 직접 Firebase Storage에 클라이언트 업로드 사용.
+      bodySizeLimit: '10mb',
     },
   },
   transpilePackages: ['react-markdown'],
@@ -113,6 +119,31 @@ const nextConfig: NextConfig = {
           {
             key: "Cross-Origin-Opener-Policy",
             value: "same-origin-allow-popups",
+          },
+          // HSTS는 proxy.ts(middleware)에서 설정되지만 next.config에서도 중복 적용으로 보장
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
+          // Clickjacking 방지 (proxy.ts와 중복이지만 정적 파일 경로 커버)
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          // MIME 스니핑 방지
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          // Referrer 정책
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          // Permissions Policy (음성진료 기능 마이크만 허용)
+          {
+            key: "Permissions-Policy",
+            value: "microphone=(self), camera=(), geolocation=(), payment=()",
           },
         ],
       },

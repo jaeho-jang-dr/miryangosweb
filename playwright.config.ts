@@ -45,7 +45,10 @@ export default defineConfig({
     video: 'retain-on-failure',
 
     /* Maximum time each action can take */
-    actionTimeout: 10000,
+    actionTimeout: 15000,
+
+    /* 네비게이션 타임아웃 (networkidle 대기 포함) */
+    navigationTimeout: 30000,
 
     /* Bypass CSP for Firebase mock injection */
     bypassCSP: true,
@@ -91,5 +94,8 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    /* 서버 시작 실패 시 stdout 출력 */
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 });

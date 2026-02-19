@@ -16,6 +16,9 @@ export function calculateCopay(
   insuranceType: InsuranceType,
   isInsuranceCovered: boolean
 ): { total: number; copay: number; insurance: number } {
+  if (basePrice < 0 || quantity <= 0) {
+    return { total: 0, copay: 0, insurance: 0 };
+  }
   const total = basePrice * quantity;
 
   if (!isInsuranceCovered) {
@@ -23,7 +26,9 @@ export function calculateCopay(
   }
 
   const copayRate = COPAY_RATES[insuranceType];
-  const copay = Math.round(total * copayRate);
+  // 건강보험법 시행규칙 제15조: 본인부담금은 10원 단위 미만 반올림
+  const rawCopay = total * copayRate;
+  const copay = insuranceType === 'nhis' ? roundTo10(rawCopay) : Math.round(rawCopay);
   const insurance = total - copay;
 
   return { total, copay, insurance };

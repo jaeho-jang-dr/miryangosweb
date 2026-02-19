@@ -6,7 +6,6 @@ import Image from "next/image"
 import { Menu, X, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { AnimatePresence, motion } from "framer-motion"
 import { InteractiveElement } from "@/components/ui/interactive-element"
 import { useLanguage } from "@/lib/language-context"
 import { auth, db } from "@/lib/firebase-public"
@@ -18,7 +17,7 @@ import { doc, getDoc } from "firebase/firestore"
 export function Navbar() {
     const [isOpen, setIsOpen] = React.useState(false)
     const [isScrolled, setIsScrolled] = React.useState(false)
-    const [isLogoHovered, setIsLogoHovered] = React.useState(false)
+    // isLogoHovered 상태 제거: 불필요한 리렌더링을 유발하므로 CSS group-hover로 대체
     const [isAdmin, setIsAdmin] = React.useState(false)
     const { language, toggleLanguage, t } = useLanguage()
 
@@ -75,12 +74,8 @@ export function Navbar() {
             >
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
                     <div className="flex items-center justify-between h-16 md:h-20">
-                        <div
-                            className="flex-shrink-0 relative z-50"
-                            onMouseEnter={() => setIsLogoHovered(true)}
-                            onMouseLeave={() => setIsLogoHovered(false)}
-                        >
-                            <InteractiveElement href="/">
+                        <div className="flex-shrink-0 relative z-50 group">
+                            <InteractiveElement href="/" ariaLabel={`${t.navbar.logoText}${t.navbar.logoSuffix} 홈페이지`}>
                                 <span className="text-xl md:text-2xl font-semibold tracking-tight relative z-10 transition-colors duration-300">
                                     {t.navbar.logoText}<span className="font-bold">{t.navbar.logoSuffix}</span>
                                 </span>
@@ -164,27 +159,17 @@ export function Navbar() {
                 )}
             </header>
 
-            {/* Hospital Image Overlay on Logo Hover */}
-            <AnimatePresence>
-                {isLogoHovered && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.15 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.5 }}
-                        className="fixed inset-0 z-40 pointer-events-none"
-                    >
-                        <Image
-                            src="/images/hospital.jpg"
-                            alt="Hospital Building"
-                            fill
-                            className="object-cover"
-                            priority
-                        />
-                        <div className="absolute inset-0 bg-white/50 mix-blend-lighten" />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Hospital Image Overlay on Logo Hover - CSS group-hover로 리렌더링 없이 처리 */}
+            <div className="fixed inset-0 z-40 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <Image
+                    src="/images/hospital.jpg"
+                    alt=""
+                    fill
+                    className="object-cover opacity-15"
+                    aria-hidden="true"
+                />
+                <div className="absolute inset-0 bg-white/50 mix-blend-lighten" aria-hidden="true" />
+            </div>
         </>
     )
 }

@@ -11,6 +11,7 @@ import { logAudit } from '@/lib/audit-client';
 import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 import { startOfDay, subDays, format, addDays, startOfDay as startOfDayFns, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface Appointment {
     id: string;
@@ -57,6 +58,7 @@ export default function ReceptionPage() {
 
     // Left Panel: Search
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [searchResults, setSearchResults] = useState<Patient[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -163,17 +165,23 @@ export default function ReceptionPage() {
         return () => unsubscribe();
     }, [selectedAppointmentDate, activeTab]);
 
-    const handleSearch = async (term: string) => {
+    const handleSearch = (term: string) => {
         setSearchTerm(term);
-        if (term.length < 2) { setSearchResults([]); return; }
-        setIsSearching(true);
-        try {
-            const q = query(collection(db, 'patients'), where('name', '>=', term), where('name', '<=', term + '\uf8ff'), limit(5));
-            const snapshot = await getDocs(q);
-            setSearchResults(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Patient)));
-        } catch (e) { console.error(e); } finally { setIsSearching(false); }
     };
 
+    useEffect(() => {
+        const term = debouncedSearchTerm;
+        if (term.length < 2) { setSearchResults([]); return; }
+        setIsSearching(true);
+        const fetchPatients = async () => {
+            try {
+                const q = query(collection(db, 'patients'), where('name', '>=', term), where('name', '<=', term + ''), limit(5));
+                const snapshot = await getDocs(q);
+                setSearchResults(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Patient)));
+            } catch (e) { console.error(e); } finally { setIsSearching(false); }
+        };
+        fetchPatients();
+    }, [debouncedSearchTerm]);
     const handleRegister = async (patient: Patient) => {
         if (!confirm(`${patient.name}님을 대기목록에 등록하시겠습니까?`)) return;
         try {
@@ -532,8 +540,9 @@ export default function ReceptionPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">예약 날짜 *</label>
+                                        <label htmlFor="appointment-date" className="block text-sm font-bold text-slate-700 mb-1">예약 날짜 *</label>
                                         <input
+                                            id="appointment-date"
                                             type="date"
                                             required
                                             value={appointmentFormData.appointmentDate}
@@ -542,8 +551,9 @@ export default function ReceptionPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">예약 시간 *</label>
+                                        <label htmlFor="appointment-time" className="block text-sm font-bold text-slate-700 mb-1">예약 시간 *</label>
                                         <select
+                                            id="appointment-time"
                                             value={appointmentFormData.appointmentTime}
                                             onChange={(e) => setAppointmentFormData(prev => ({ ...prev, appointmentTime: e.target.value }))}
                                             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
@@ -557,8 +567,9 @@ export default function ReceptionPage() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">담당의</label>
+                                        <label htmlFor="appointment-doctor" className="block text-sm font-bold text-slate-700 mb-1">담당의</label>
                                         <input
+                                            id="appointment-doctor"
                                             type="text"
                                             value={appointmentFormData.doctor}
                                             onChange={(e) => setAppointmentFormData(prev => ({ ...prev, doctor: e.target.value }))}
@@ -724,8 +735,8 @@ export default function ReceptionPage() {
                                     </h2>
                                     <p className="text-slate-500">발급할 서류를 선택하면 비용이 자동으로 합산됩니다.</p>
                                 </div>
-                                <button onClick={() => { setModalMode('none'); setSelectedDocuments([]); }} className="p-2 hover:bg-slate-100 rounded-full">
-                                    <X className="w-6 h-6 text-slate-400" />
+                                <button onClick={() => { setModalMode('none'); setSelectedDocuments([]); }} className="p-2 hover:bg-slate-100 rounded-full" aria-label="제증명 발급 모달 닫기" type="button">
+                                    <X className="w-6 h-6 text-slate-400" aria-hidden="true" />
                                 </button>
                             </div>
 
@@ -804,7 +815,7 @@ export default function ReceptionPage() {
                                 <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                                     <ShieldCheck className="w-8 h-8 text-emerald-600" /> 제증명 발급 신청
                                 </h3>
-                                <button onClick={() => setModalMode('none')} className="text-slate-400 hover:text-slate-600"><X className="w-6 h-6" /></button>
+                                <button onClick={() => setModalMode('none')} className="text-slate-400 hover:text-slate-600" aria-label="제증명 발급 신청 닫기" type="button"><X className="w-6 h-6" aria-hidden="true" /></button>
                             </div>
                             <p className="text-slate-500 mb-6">발급할 서류를 선택해주세요. 자동으로 합계 금액이 계산됩니다.</p>
 

@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import JSZip from 'jszip';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { extractPptxText, isPptxFile } from '@/lib/pptx-parser';
 import { bufferToBase64, getMemoryUsage } from '@/lib/performance-utils';
 
@@ -633,14 +633,22 @@ export async function POST(request: Request) {
         else if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.name.endsWith('.xlsx')) {
             console.log("📊 XLSX 파일 감지. 데이터 추출 중...");
             try {
-                const workbook = XLSX.read(buffer, { type: 'buffer' });
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
                 let allText = '';
 
                 // 모든 시트 읽기
-                workbook.SheetNames.forEach(sheetName => {
-                    const worksheet = workbook.Sheets[sheetName];
-                    const sheetData = XLSX.utils.sheet_to_csv(worksheet);
-                    allText += `[${sheetName}]\n${sheetData}\n\n`;
+                workbook.worksheets.forEach(sheet => {
+                    const rows: string[][] = [];
+                    sheet.eachRow((row) => {
+                        const values: string[] = [];
+                        row.eachCell({ includeEmpty: true }, (cell) => {
+                            values.push(cell.text ?? '');
+                        });
+                        rows.push(values);
+                    });
+                    const sheetData = rows.map(r => r.join(',')).join('\n');
+                    allText += `[${sheet.name}]\n${sheetData}\n\n`;
                 });
 
                 const text = allText.substring(0, 15000);

@@ -44,8 +44,33 @@ function NewPatientPageContent() {
         return `${yyyy}${mm}${dd}-${random}`;
     };
 
+    const validateBirthDate = (birthDate: string): boolean => {
+        if (birthDate.length !== 8 || !/^\d{8}$/.test(birthDate)) return false;
+        const year = parseInt(birthDate.substring(0, 4));
+        const month = parseInt(birthDate.substring(4, 6));
+        const day = parseInt(birthDate.substring(6, 8));
+        if (year < 1900 || year > new Date().getFullYear()) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // 생년월일 유효성 검사
+        if (!validateBirthDate(formData.birthDate)) {
+            alert('생년월일 형식이 올바르지 않습니다. YYYYMMDD 형식으로 입력해주세요. (예: 19800101)');
+            return;
+        }
+
+        // 이름 유효성 검사
+        if (!formData.name.trim() || formData.name.trim().length < 2) {
+            alert('이름은 2글자 이상 입력해주세요.');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -279,7 +304,7 @@ function NewPatientPageContent() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">특이사항_메모</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">특이사항 / 메모</label>
                             <textarea
                                 rows={3}
                                 value={formData.notes}

@@ -25,6 +25,12 @@ export function useSessionTimeout(
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // options?.validateSession을 ref로 안정화 → 불필요한 Effect 재실행 방지
+  const validateSessionRef = useRef(options?.validateSession);
+  useEffect(() => {
+    validateSessionRef.current = options?.validateSession;
+  }, [options?.validateSession]);
+
   const clearTimers = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (warningRef.current) clearTimeout(warningRef.current);
@@ -62,10 +68,11 @@ export function useSessionTimeout(
   }, [resetTimer]);
 
   // Session validation check (every 60s) — concurrent session detection
+  // validateSessionRef 사용으로 의존성 배열에서 options?.validateSession 제거 → 안정적인 effect
   useEffect(() => {
-    if (!options?.validateSession) return;
-    const validate = options.validateSession;
     const interval = setInterval(async () => {
+      const validate = validateSessionRef.current;
+      if (!validate) return;
       const valid = await validate();
       if (!valid) {
         clearTimers();
@@ -73,10 +80,10 @@ export function useSessionTimeout(
       }
     }, 60 * 1000);
     return () => clearInterval(interval);
-  }, [options?.validateSession, onTimeout, clearTimers]);
+  }, [onTimeout, clearTimers]); // validateSession은 ref로 추적하므로 의존성 불필요
 
   useEffect(() => {
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'] as const;
 
     const handleActivity = () => {
       if (!showWarning) {

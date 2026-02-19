@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Visit, ClinicalStatus } from '@/types/clinical';
 import { changeVisitStatus, STATUS_LABELS } from '@/lib/workflow-engine';
@@ -61,14 +61,14 @@ export default function PatientStatusBadges({ visit, className = '', currentPage
     const hasTestResult = !!visit.testResult?.trim() || visit.testStatus === 'completed';
     const hasTreatmentOrder = !!visit.treatmentNote?.trim();
 
-    const handleMouseEnter = () => {
+    const handleMouseEnter = useCallback(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsOpen(true);
-    };
+    }, []);
 
-    const handleMouseLeave = () => {
+    const handleMouseLeave = useCallback(() => {
         timeoutRef.current = setTimeout(() => setIsOpen(false), 200);
-    };
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -76,7 +76,7 @@ export default function PatientStatusBadges({ visit, className = '', currentPage
         };
     }, []);
 
-    const handleNavigate = async (e: React.MouseEvent, newStatus: ClinicalStatus) => {
+    const handleNavigate = useCallback(async (e: React.MouseEvent, newStatus: ClinicalStatus) => {
         e.stopPropagation();
         if (loading) return;
 
@@ -107,7 +107,8 @@ export default function PatientStatusBadges({ visit, className = '', currentPage
         } finally {
             setLoading(false);
         }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, visit.id, visit.status, router]);
 
     const navButtons = getNavigationButtons(visit.status)
         .filter(btn => !currentPage || btn.status !== currentPage);
@@ -118,6 +119,8 @@ export default function PatientStatusBadges({ visit, className = '', currentPage
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             ref={popoverRef}
+            role="group"
+            aria-label={`${visit.patientName} 환자 상태`}
         >
             {/* Always-visible badges */}
             <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>

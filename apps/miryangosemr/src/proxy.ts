@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Security Headers Proxy
+ * Security Headers Middleware
  * CSP는 next.config.ts에서 관리 — 여기서는 추가 보안 헤더만 담당
+ *
+ * 주의: 이 파일은 proxy.ts이지만 Next.js middleware로 동작하려면
+ * src/middleware.ts 파일에서 이 함수를 default export해야 합니다.
+ * middleware.ts를 참조하세요.
  */
 export function proxy(request: NextRequest) {
     const response = NextResponse.next();
@@ -29,7 +33,8 @@ export function proxy(request: NextRequest) {
         'microphone=(self), camera=(), geolocation=(), payment=()'
     );
 
-    // XSS Protection (레거시 브라우저 지원)
+    // X-XSS-Protection은 현대 브라우저에서 deprecated.
+    // CSP가 XSS 방어를 담당하며, 이 헤더는 IE/구형 브라우저 호환성만 제공.
     response.headers.set('X-XSS-Protection', '1; mode=block');
 
     return response;

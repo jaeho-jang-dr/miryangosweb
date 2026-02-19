@@ -57,8 +57,7 @@ function VoiceChartPageContent() {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'uploading' | 'saving' | 'completed' | 'error'>('idle');
     const [patientId] = useState(visitIdParam || 'demo-patient-001');
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [recognition, setRecognition] = useState<any>(null);
+    const [recognition, setRecognition] = useState<{ start: () => void; stop: () => void } | null>(null);
     const [autoAnalyzeCount, setAutoAnalyzeCount] = useState(0);
 
     // Refs for auto-analyze timer
@@ -367,8 +366,7 @@ function VoiceChartPageContent() {
 
             if (visitIdParam) {
                 const visitRef = doc(db, 'visits', visitIdParam);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const visitUpdate: Record<string, any> = {
+                const visitUpdate: Record<string, unknown> = {
                     chiefComplaint: cc,
                     history: history,
                     diagnosis: diagnosis,

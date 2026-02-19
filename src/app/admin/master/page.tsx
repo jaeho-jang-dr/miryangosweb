@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MOCK_MEDICAL_MASTER, MedicalStandardMaster, MasterCategory, InsuranceType } from '@/types/clinical-master';
 import { Search, Plus, Filter, FileSpreadsheet, Edit, MoreHorizontal, CheckCircle2, XCircle, Upload, Loader2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { collection, writeBatch, doc, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase-clinical'; // Make sure this path is correct
 
@@ -50,11 +50,29 @@ export default function MasterDataPage() {
 
         reader.onload = async (evt) => {
             try {
-                const bstr = evt.target?.result;
-                const wb = XLSX.read(bstr, { type: 'binary' });
-                const wsname = wb.SheetNames[0];
-                const ws = wb.Sheets[wsname];
-                const data = XLSX.utils.sheet_to_json(ws);
+                const arrayBuffer = evt.target?.result as ArrayBuffer;
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(arrayBuffer);
+                const sheet = workbook.worksheets[0];
+
+                // 첫 행을 헤더로, 나머지를 데이터로 변환
+                const headers: string[] = [];
+                const data: Record<string, unknown>[] = [];
+
+                sheet.eachRow((row, rowNumber) => {
+                    if (rowNumber === 1) {
+                        row.eachCell({ includeEmpty: true }, (cell) => {
+                            headers.push(cell.text ?? '');
+                        });
+                    } else {
+                        const rowObj: Record<string, unknown> = {};
+                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                            const header = headers[colNumber - 1];
+                            if (header) rowObj[header] = cell.text ?? '';
+                        });
+                        data.push(rowObj);
+                    }
+                });
 
                 await saveToFirestore(data);
             } catch (error) {
@@ -65,7 +83,7 @@ export default function MasterDataPage() {
                 if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     };
 
     // --- 3. Save Parsed Data to Firestore (Batch) ---

@@ -1,10 +1,42 @@
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-clinical';
-import { collection, doc, setDoc, serverTimestamp, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { startOfDay } from 'date-fns';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { initAdmin } from '@/lib/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-export async function GET(request: Request) {
+// 이 엔드포인트는 개발/테스트 환경에서만 사용해야 합니다.
+// 프로덕션에서는 이 라우트를 제거하거나 비활성화하세요.
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+export async function GET(request: NextRequest) {
+    // 프로덕션 환경에서는 완전 비활성화
+    if (IS_PRODUCTION) {
+        return NextResponse.json(
+            { error: 'This endpoint is disabled in production' },
+            { status: 403 }
+        );
+    }
+
+    // 관리자 인증 필요
+    try {
+        initAdmin();
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+            return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
+        }
+        const decoded = await getAuth().verifyIdToken(authHeader.split('Bearer ')[1]);
+        const adminDb = getFirestore();
+        const userDoc = await adminDb.collection('users').doc(decoded.uid).get();
+        const role = userDoc.data()?.role;
+        if (role !== 'admin') {
+            return NextResponse.json({ error: 'Admin access required for seed data' }, { status: 403 });
+        }
+    } catch {
+        return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode');
 

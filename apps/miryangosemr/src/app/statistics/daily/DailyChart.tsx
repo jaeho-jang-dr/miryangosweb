@@ -11,7 +11,9 @@ export default function DailyChart({ data }: { data: DailyStatistics[] }) {
   const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
   const barData = data.map(d => {
-    const date = new Date(d.date);
+    // YYYY-MM-DD 문자열을 UTC 기준 대신 로컬 시간 기준으로 파싱
+    const [year, month, day] = d.date.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return {
       name: `${date.getMonth() + 1}/${date.getDate()} (${dayNames[date.getDay()]})`,
       방문: d.totalVisits,

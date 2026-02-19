@@ -34,7 +34,7 @@ export interface Visit {
     testStatus?: 'ordered' | 'processing' | 'completed';
     type: 'new' | 'return'; // New patient or existing
     parentVisitId?: string; // 초진추가 시 원래 재진 visit ID
-    insuranceType?: 'nhis' | 'auto' | 'none'; // National Health, Auto Insurance, etc.
+    insuranceType?: 'nhis' | 'auto' | 'industrial' | 'none'; // National Health, Auto Insurance, Industrial, etc.
 
     // Clinical Data (Target for STT)
     chiefComplaint?: string; // CC
@@ -76,7 +76,7 @@ export interface MedicalDocument {
         visit_purpose?: string;
         amount_total?: number;
         amount_paid?: number;
-        [key: string]: any;
+        [key: string]: string | number | boolean | null | undefined;
     };
     issuedAt: Timestamp;
     issuedBy: string;

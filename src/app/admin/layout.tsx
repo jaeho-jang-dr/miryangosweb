@@ -56,7 +56,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     </h1>
                     <p className="text-xs text-slate-500 mt-1">Miryang OS Hospital</p>
                 </div>
-                <nav className="flex-1 p-4 space-y-1">
+                <nav className="flex-1 p-4 space-y-1" aria-label="관리자 내비게이션">
                     {/* Shortcuts */}
                     {user?.email === 'drjang00@gmail.com' && (
                         <div className="flex gap-2 mb-4 px-2">
@@ -99,8 +99,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     <button
                         onClick={signOut}
                         className="flex items-center w-full px-4 py-2 text-sm font-medium text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        aria-label="관리자 로그아웃"
                     >
-                        <LogOut className="h-4 w-4 mr-2" />
+                        <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
                         로그아웃
                     </button>
                 </div>
@@ -108,8 +109,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto">
-                <header className="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 md:hidden">
-                    <span className="font-bold text-lg">Admin Pannel</span>
+                <header className="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 md:hidden" role="banner">
+                    <span className="font-bold text-lg">Admin Panel</span>
                 </header>
                 <div className="p-8">
                     {children}

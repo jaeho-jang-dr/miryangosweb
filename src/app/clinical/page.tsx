@@ -104,7 +104,7 @@ export default function ClinicalDashboard() {
     // Helper for formatting time
     const formatTime = (timestamp: { toDate?: () => Date; seconds?: number }) => {
         if (!timestamp) return '-';
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+        const date = timestamp.toDate ? timestamp.toDate() : new Date((timestamp.seconds ?? 0) * 1000);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 

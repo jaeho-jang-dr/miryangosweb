@@ -24,11 +24,13 @@ function PrescriptionDetailContent() {
   }, [id]);
 
   const loadVisit = async () => {
+    if (!id) { setLoading(false); return; }
     try {
       const d = await getDoc(doc(db, 'visits', id));
       if (d.exists()) setVisit({ id: d.id, ...d.data() } as Visit);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error('처방전 상세 로드 실패:', e);
+    } finally { setLoading(false); }
   };
 
   if (loading) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -54,7 +56,7 @@ function PrescriptionDetailContent() {
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm mb-6">
           <div><span className="text-slate-400">환자명:</span> <span className="font-bold">{visit.patientName}</span></div>
-          <div><span className="text-slate-400">진료일:</span> {visit.date?.toDate?.()?.toLocaleDateString('ko-KR')}</div>
+          <div><span className="text-slate-400">진료일:</span> {visit.date?.toDate ? visit.date.toDate().toLocaleDateString('ko-KR') : '-'}</div>
           <div><span className="text-slate-400">진단:</span> {visit.diagnosis || '-'}</div>
           <div><span className="text-slate-400">담당의:</span> {visit.doctorName || '-'}</div>
         </div>

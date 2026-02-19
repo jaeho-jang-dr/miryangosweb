@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { CheckCircle, X, ArrowRight, FlaskConical, Stethoscope, CreditCard } from 'lucide-react';
 
 interface ConfirmCompleteModalProps {
@@ -33,16 +34,21 @@ export default function ConfirmCompleteModal({
     const dest = DEST_CONFIG[nextStatus] || DEST_CONFIG.completed;
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-modal-title"
+        >
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
                 {/* Header */}
                 <div className="bg-emerald-600 p-5 text-white flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <CheckCircle className="w-6 h-6" />
-                        <h3 className="text-lg font-bold">진료 완료 확인</h3>
+                        <CheckCircle className="w-6 h-6" aria-hidden="true" />
+                        <h3 id="confirm-modal-title" className="text-lg font-bold">진료 완료 확인</h3>
                     </div>
-                    <button onClick={onCancel} className="p-1 hover:bg-white/20 rounded-lg">
-                        <X className="w-5 h-5" />
+                    <button onClick={onCancel} aria-label="모달 닫기" className="p-1 hover:bg-white/20 rounded-lg">
+                        <X className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
 

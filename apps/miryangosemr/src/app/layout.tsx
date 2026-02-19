@@ -5,11 +5,14 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  // display: swap으로 FOUT 방지 및 CLS 개선
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -19,6 +22,11 @@ export const metadata: Metadata = {
   },
   description: "밀양 정형외과 통합 EMR 시스템 — 접수, 진료, 처방, 청구, 통계",
   manifest: "/manifest.json",
+  // robots: 의료 EMR 시스템은 검색엔진 인덱싱 차단
+  robots: {
+    index: false,
+    follow: false,
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
@@ -30,6 +38,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#4f46e5",
+  // 모바일 줌 방지 (EMR UI 레이아웃 보호)
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

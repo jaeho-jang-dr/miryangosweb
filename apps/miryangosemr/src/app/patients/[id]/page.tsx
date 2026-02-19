@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Plus, Clock, Stethoscope, Loader2 } from 'lucide-react';
@@ -14,17 +14,24 @@ interface Patient {
     birthDate: string;
     gender: 'male' | 'female';
     phone: string;
+    phoneMasked?: string;
     address: string;
     notes?: string;
-    lastVisit?: any;
+    lastVisit?: { seconds: number; nanoseconds: number } | null;
 }
 
 interface Visit {
     id: string;
-    date: any;
-    cc: string;
-    diagnosis: string;
-    plan: string;
+    date: { seconds: number; nanoseconds: number } | null;
+    cc?: string;
+    chiefComplaint?: string;
+    diagnosis?: string;
+    plan?: string;
+    treatmentNote?: string;
+    status?: string;
+    type?: string;
+    patientId?: string;
+    patientName?: string;
 }
 
 export default function PatientDetailPage() {
@@ -75,7 +82,7 @@ function PatientDetailPageContent() {
                     );
                     const querySnapshot = await getDocs(q);
                     const visitsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Visit));
-                    visitsData.sort((a, b) => b.date.seconds - a.date.seconds);
+                    visitsData.sort((a, b) => (b.date?.seconds ?? 0) - (a.date?.seconds ?? 0));
                     setVisits(visitsData);
                 }
 
@@ -152,9 +159,9 @@ function PatientDetailPageContent() {
                             <button className="text-xs text-blue-600 hover:underline">수정</button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <InfoItem icon={<Phone className="w-4 h-4" />} label="연락처" value={(patient as any).phoneMasked || patient.phone} />
+                            <InfoItem icon={<Phone className="w-4 h-4" />} label="연락처" value={patient.phoneMasked || patient.phone} />
                             <InfoItem icon={<MapPin className="w-4 h-4" />} label="주소" value={patient.address || '-'} />
-                            <InfoItem icon={<Calendar className="w-4 h-4" />} label="최근 내원" value={patient.lastVisit ? new Date(patient.lastVisit.seconds * 1000).toLocaleDateString() : '없음'} />
+                            <InfoItem icon={<Calendar className="w-4 h-4" />} label="최근 내원" value={patient.lastVisit ? (typeof patient.lastVisit === 'string' ? new Date(patient.lastVisit).toLocaleDateString('ko-KR') : new Date((patient.lastVisit as Timestamp).seconds * 1000).toLocaleDateString('ko-KR')) : '없음'} />
 
                             {patient.notes && (
                                 <div className="mt-4 pt-4 border-t border-slate-100">
@@ -179,47 +186,49 @@ function PatientDetailPageContent() {
 
                         <div className="p-6">
                             {visits.length > 0 ? (
-                                <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+                                <div className="space-y-4">
                                     {visits.map((visit) => (
-                                        <div key={visit.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-200 group-[.is-active]:bg-emerald-500 text-slate-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                                                <FileText className="w-5 h-5" />
+                                        <div key={visit.id} className="border border-slate-200 rounded-xl p-4 hover:border-emerald-300 transition-colors bg-slate-50/50">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded">진료</span>
+                                                    <span className="text-slate-900 font-medium">
+                                                        {visit.date?.seconds
+                                                            ? new Date(visit.date.seconds * 1000).toLocaleDateString('ko-KR')
+                                                            : '-'}
+                                                    </span>
+                                                    <span className="text-slate-400 text-xs flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
+                                                        {visit.date?.seconds
+                                                            ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                            : '-'}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => router.push(`/chart/${patient?.id}/${visit.id}`)}
+                                                    className="text-xs text-emerald-600 hover:text-emerald-800 font-medium bg-emerald-50 px-2 py-1 rounded hover:bg-emerald-100 transition-colors"
+                                                >
+                                                    상세보기
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <span className="text-xs font-bold text-slate-400 uppercase mr-2">C.C</span>
+                                                    <span className="text-slate-800 font-medium">{visit.cc || visit.chiefComplaint || '-'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs font-bold text-slate-400 uppercase mr-2">Diag</span>
+                                                    <span className="text-slate-700">{visit.diagnosis || '-'}</span>
+                                                </div>
+                                                {(visit.plan || visit.treatmentNote) && (
+                                                    <div className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-100 mt-2">
+                                                        <span className="font-bold text-slate-400 mr-2">Plan:</span>
+                                                        {visit.plan || visit.treatmentNote}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
-                                    <div className="space-y-4">
-                                        {visits.map((visit) => (
-                                            <div key={visit.id} className="border border-slate-200 rounded-xl p-4 hover:border-emerald-300 transition-colors bg-slate-50/50">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded">진료</span>
-                                                        <span className="text-slate-900 font-medium">
-                                                            {new Date(visit.date.seconds * 1000).toLocaleDateString()}
-                                                        </span>
-                                                        <span className="text-slate-400 text-xs flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                    </div>
-                                                    <button className="text-xs text-slate-400 hover:text-slate-600">상세보기</button>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <div>
-                                                        <span className="text-xs font-bold text-slate-400 uppercase mr-2">C.C</span>
-                                                        <span className="text-slate-800 font-medium">{visit.cc}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-xs font-bold text-slate-400 uppercase mr-2">Diag</span>
-                                                        <span className="text-slate-700">{visit.diagnosis}</span>
-                                                    </div>
-                                                    <div className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-100 mt-2">
-                                                        <span className="font-bold text-slate-400 mr-2">Plan:</span>
-                                                        {visit.plan}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
                                 </div>
                             ) : (
                                 <div className="text-center py-12 text-slate-500">

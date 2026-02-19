@@ -12,6 +12,7 @@ import PatientStatusBadges from '@/components/clinical/PatientStatusBadges';
 import { startOfDay, subDays, format, addDays, startOfDay as startOfDayFns, endOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import EMRLayout from '@/components/layout/EMRLayout';
+import { useDebounce } from '@shared/hooks/useDebounce';
 
 interface Appointment {
     id: string;
@@ -24,7 +25,6 @@ interface Appointment {
     notes: string;
     status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed';
     createdAt: Timestamp;
-    [key: string]: any;
 }
 
 const getStatusLabel = (status: string) => {
@@ -66,6 +66,7 @@ function ReceptionPageContent() {
 
     // Left Panel: Search
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [searchResults, setSearchResults] = useState<Patient[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -101,10 +102,12 @@ function ReceptionPageContent() {
     });
 
     useEffect(() => {
-        const today = subDays(startOfDay(new Date()), 7);
+        const todayStart = startOfDay(new Date());
+        const todayEnd = endOfDay(new Date());
         const q = query(
             collection(db, 'visits'),
-            where('date', '>=', today),
+            where('date', '>=', Timestamp.fromDate(todayStart)),
+            where('date', '<=', Timestamp.fromDate(todayEnd)),
             orderBy('date', 'asc')
         );
 
@@ -114,6 +117,9 @@ function ReceptionPageContent() {
                 ...doc.data()
             })) as Visit[];
             setTodayVisits(visits);
+            setLoading(false);
+        }, (error) => {
+            console.error('접수 목록 실시간 구독 오류:', error);
             setLoading(false);
         });
 
@@ -168,17 +174,26 @@ function ReceptionPageContent() {
         return () => unsubscribe();
     }, [selectedAppointmentDate, activeTab]);
 
-    const handleSearch = async (term: string) => {
+    const handleSearch = (term: string) => {
         setSearchTerm(term);
-        if (term.length < 2) { setSearchResults([]); return; }
-        setIsSearching(true);
-        try {
-            const q = query(collection(db, 'patients'), where('name', '>=', term), where('name', '<=', term + '\'), limit(5));
-            const snapshot = await getDocs(q);
-            setSearchResults(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Patient)));
-        } catch (e) { console.error(e); } finally { setIsSearching(false); }
     };
 
+    useEffect(() => {
+        const term = debouncedSearchTerm;
+        if (term.length < 2) { setSearchResults([]); return; }
+        setIsSearching(true);
+        const fetchPatients = async () => {
+            try {
+                const q = query(collection(db, 'patients'), where('name', '>=', term), where('name', '<=', term + ''), limit(10));
+                const snapshot = await getDocs(q);
+                setSearchResults(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Patient)));
+            } catch (e) {
+                console.error('환자 검색 오류:', e);
+                setSearchResults([]);
+            } finally { setIsSearching(false); }
+        };
+        fetchPatients();
+    }, [debouncedSearchTerm]);
     const handleRegister = async (patient: Patient) => {
         if (!confirm(`${patient.name}님을 대기목록에 등록하시겠습니까?`)) return;
         try {
@@ -212,7 +227,10 @@ function ReceptionPageContent() {
                 description: `접수 (${visitType === 'new' ? '초진' : '재진'})`,
             });
             setSearchTerm(''); setSearchResults([]);
-        } catch (e) { alert("접수 오류"); }
+        } catch (e) {
+            console.error('접수 등록 오류:', e);
+            alert('접수 등록 중 오류가 발생했습니다: ' + (e as Error).message);
+        }
     };
 
     // Toast state
@@ -299,7 +317,7 @@ function ReceptionPageContent() {
         setModalMode('documents');
     };
 
-    const triggerPreview = (type: any) => {
+    const triggerPreview = (type: DocumentType) => {
         setPreviewType(type);
         setModalMode('preview');
     };
@@ -694,14 +712,14 @@ function ReceptionPageContent() {
                                     { id: 'receipt', label: '진료비 영수증', price: 0, desc: '무료 발급' },
                                     { id: 'detailed_receipt', label: '진료비 상세내역서', price: 0, desc: '무료 발급' },
                                 ].map(docItem => (
-                                    <div key={docItem.id} className="p-4 border-2 border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50 cursor-pointer transition-all flex flex-col justify-between" onClick={() => triggerPreview(docItem.id as any)}>
+                                    <div key={docItem.id} className="p-4 border-2 border-slate-100 rounded-xl hover:border-emerald-200 hover:bg-emerald-50 cursor-pointer transition-all flex flex-col justify-between" onClick={() => triggerPreview(docItem.id as DocumentType)}>
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="font-bold text-slate-800 text-lg">{docItem.label}</span>
                                             <span className={`text-xs font-bold px-2 py-1 rounded ${docItem.price > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{docItem.price > 0 ? `${docItem.price.toLocaleString()}원` : '무료'}</span>
                                         </div>
                                         <p className="text-xs text-slate-400 mb-4">{docItem.desc}</p>
                                         <div className="flex gap-2 mt-auto">
-                                            <button onClick={(e) => { e.stopPropagation(); triggerPreview(docItem.id as any); }} className="flex-1 py-2 text-xs font-bold border border-slate-200 rounded-lg hover:bg-white text-slate-600">미리보기</button>
+                                            <button onClick={(e) => { e.stopPropagation(); triggerPreview(docItem.id as DocumentType); }} className="flex-1 py-2 text-xs font-bold border border-slate-200 rounded-lg hover:bg-white text-slate-600">미리보기</button>
                                             <button className="flex-1 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-sm" onClick={(e) => { e.stopPropagation(); alert(`${docItem.label} 발급 비용 ${docItem.price.toLocaleString()}원이 추가되었습니다.`); }}>발급/추가</button>
                                         </div>
                                     </div>

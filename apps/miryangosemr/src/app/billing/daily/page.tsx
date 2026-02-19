@@ -16,12 +16,19 @@ function DailyBillingContent() {
   const [date, setDate] = useState(new Date());
   const [billings, setBillings] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, [date]);
 
   const loadData = async () => {
     setLoading(true);
-    try { setBillings(await getDailyBillings(date)); } catch (e) { console.error(e); } finally { setLoading(false); }
+    setError(null);
+    try { setBillings(await getDailyBillings(date)); }
+    catch (e) {
+      console.error(e);
+      setError('수납 데이터를 불러오는데 실패했습니다.');
+    }
+    finally { setLoading(false); }
   };
 
   const prevDay = () => { const d = new Date(date); d.setDate(d.getDate() - 1); setDate(d); };
@@ -60,6 +67,7 @@ function DailyBillingContent() {
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? <tr><td colSpan={5} className="text-center py-8 text-slate-400">로딩 중...</td></tr> :
+            error ? <tr><td colSpan={5} className="text-center py-8 text-red-500">{error}</td></tr> :
             billings.length === 0 ? <tr><td colSpan={5} className="text-center py-8 text-slate-400">수납 내역이 없습니다.</td></tr> :
             billings.map(b => (
               <tr key={b.id} className="hover:bg-slate-50">

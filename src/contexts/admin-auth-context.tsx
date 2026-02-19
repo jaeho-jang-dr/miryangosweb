@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase-public';
 import { Loader2 } from 'lucide-react';
@@ -33,13 +33,20 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         return () => unsubscribe();
     }, []);
 
-    const signOut = async () => {
+    // useCallback으로 signOut 함수 메모이제이션 → 불필요한 하위 컴포넌트 재렌더링 방지
+    const signOut = useCallback(async () => {
         try {
             await firebaseSignOut(auth);
         } catch (error) {
             console.error('Logout error:', error);
         }
-    };
+    }, []);
+
+    // useMemo로 context value 메모이제이션 → user/loading 변경 시에만 새 객체 생성
+    const contextValue = useMemo<AdminAuthContextType>(
+        () => ({ user, loading, signOut }),
+        [user, loading, signOut]
+    );
 
     // Show loading spinner while checking auth state, except on login page (to avoid flash)
     if (loading) {
@@ -51,7 +58,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <AdminAuthContext.Provider value={{ user, loading, signOut }}>
+        <AdminAuthContext.Provider value={contextValue}>
             {children}
         </AdminAuthContext.Provider>
     );

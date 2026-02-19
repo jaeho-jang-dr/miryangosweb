@@ -16,6 +16,7 @@ export default function BillingOverviewPage() {
 function BillingOverviewContent() {
   const [billings, setBillings] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadBillings();
@@ -23,11 +24,13 @@ function BillingOverviewContent() {
 
   const loadBillings = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getDailyBillings(new Date());
       setBillings(data);
     } catch (e) {
       console.error('수납 로드 실패:', e);
+      setError('수납 데이터를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -82,6 +85,8 @@ function BillingOverviewContent() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr><td colSpan={6} className="text-center py-8 text-slate-400">로딩 중...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={6} className="text-center py-8 text-red-500">{error}</td></tr>
             ) : billings.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-8 text-slate-400">오늘 수납 내역이 없습니다.</td></tr>
             ) : (

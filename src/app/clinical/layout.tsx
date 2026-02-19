@@ -168,11 +168,13 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
 
                         {/* Mobile Menu Toggle */}
                         <button
-                            aria-label="Toggle Menu"
+                            aria-label={isMobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls="clinical-mobile-menu"
                             className="md:hidden p-2 text-slate-600"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            {isMobileMenuOpen ? <X /> : <Menu />}
+                            {isMobileMenuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
                         </button>
                     </div>
                 </nav>
@@ -182,10 +184,13 @@ function ClinicalLayoutContent({ children }: { children: React.ReactNode }) {
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
+                        id="clinical-mobile-menu"
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         className="fixed inset-x-4 top-24 z-40 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-4 border border-white/50 md:hidden"
+                        role="navigation"
+                        aria-label="진료 시스템 모바일 내비게이션"
                     >
                         <div className="flex flex-col gap-2">
                             <MobileNavItem href="/clinical" label="대시보드" onClick={() => setIsMobileMenuOpen(false)} active={pathname === '/clinical'} />
@@ -281,14 +286,12 @@ function MobileNavItem({ href, label, onClick, active }: { href: string; label: 
 
 function DynamicBackground() {
     return (
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
             {/* Soft Gradients */}
             <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-200/20 blur-3xl animate-blob mix-blend-multiply filter" />
             <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-200/20 blur-3xl animate-blob animation-delay-2000 mix-blend-multiply filter" />
             <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-indigo-200/20 blur-3xl animate-blob animation-delay-4000 mix-blend-multiply filter" />
-
-            {/* Grid Pattern Overlay (Optional, very subtle) */}
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 brightness-100 contrast-150 mix-blend-overlay"></div>
+            {/* 외부 CDN URL 의존성 제거: 노이즈 효과는 CSS로 대체 */}
         </div>
     );
 }

@@ -32,9 +32,29 @@ function FeeScheduleContent() {
   };
 
   const addItem = async () => {
-    if (!newItem.code || !newItem.name) return;
+    if (!newItem.code.trim() || !newItem.name.trim()) {
+      alert('수가 코드와 수가명은 필수 입력 항목입니다.');
+      return;
+    }
+    const parsedPrice = parseInt(newItem.basePrice) || 0;
+    if (parsedPrice < 0 || parsedPrice > 10000000) {
+      alert('단가는 0원 이상 1,000만원 이하로 입력해주세요.');
+      return;
+    }
+    // 중복 코드 검사
+    const duplicate = items.find(i => i.code.trim().toLowerCase() === newItem.code.trim().toLowerCase());
+    if (duplicate) {
+      alert(`수가 코드 "${newItem.code}"가 이미 존재합니다. 다른 코드를 사용해주세요.`);
+      return;
+    }
     try {
-      await addDoc(collection(db, 'fee_schedule'), { ...newItem, basePrice: parseInt(newItem.basePrice) || 0, updatedAt: serverTimestamp() });
+      await addDoc(collection(db, 'fee_schedule'), {
+        ...newItem,
+        code: newItem.code.trim(),
+        name: newItem.name.trim(),
+        basePrice: parsedPrice,
+        updatedAt: serverTimestamp()
+      });
       setShowAdd(false);
       setNewItem({ code: '', name: '', basePrice: '', category: 'consultation', unit: '회', insuranceCovered: true });
       loadItems();
@@ -42,8 +62,8 @@ function FeeScheduleContent() {
   };
 
   const deleteItem = async (id: string) => {
-    if (!confirm('삭제하시겠습니까?')) return;
-    try { await deleteDoc(doc(db, 'fee_schedule', id)); loadItems(); } catch (e) { alert('삭제 실패'); }
+    if (!confirm('이 수가 항목을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
+    try { await deleteDoc(doc(db, 'fee_schedule', id)); loadItems(); } catch (e) { alert('삭제 실패: ' + (e as Error).message); }
   };
 
   const filtered = items.filter(i => i.code.includes(search) || i.name.includes(search));

@@ -12,13 +12,14 @@ interface Appointment {
     id: string;
     patientName: string;
     patientPhone: string;
-    appointmentDate: any;
+    appointmentDate: Timestamp | string;
     appointmentTime: string;
     department: string;
     doctor: string;
     notes: string;
     status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed';
-    createdAt: any;
+    createdAt: Timestamp;
+    updatedAt?: Timestamp;
 }
 
 export default function AppointmentsPage() {
@@ -50,8 +51,8 @@ function AppointmentsPageContent() {
 
     // Real-time subscription
     useEffect(() => {
-        const startDate = startOfDay(selectedDate);
-        const endDate = endOfDay(selectedDate);
+        const startDate = Timestamp.fromDate(startOfDay(selectedDate));
+        const endDate = Timestamp.fromDate(endOfDay(selectedDate));
 
         const q = query(
             collection(db, 'appointments'),
@@ -68,6 +69,9 @@ function AppointmentsPageContent() {
 
             setAppointments(appointmentData);
             setLoading(false);
+        }, (error) => {
+            console.error('예약 목록 실시간 구독 오류:', error);
+            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -82,9 +86,23 @@ function AppointmentsPageContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        try {
-            const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}:00`);
+        if (!formData.patientName.trim()) {
+            alert('환자명을 입력해주세요.');
+            return;
+        }
+        if (!formData.appointmentDate) {
+            alert('예약 날짜를 선택해주세요.');
+            return;
+        }
 
+        // 과거 날짜 방지
+        const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}:00`);
+        if (isNaN(appointmentDateTime.getTime())) {
+            alert('예약 날짜 또는 시간이 올바르지 않습니다.');
+            return;
+        }
+
+        try {
             await addDoc(collection(db, 'appointments'), {
                 ...formData,
                 appointmentDate: Timestamp.fromDate(appointmentDateTime),
@@ -106,7 +124,7 @@ function AppointmentsPageContent() {
             alert('예약이 등록되었습니다.');
         } catch (error) {
             console.error('Error adding appointment:', error);
-            alert('예약 등록에 실패했습니다.');
+            alert('예약 등록에 실패했습니다: ' + (error as Error).message);
         }
     };
 
@@ -114,10 +132,12 @@ function AppointmentsPageContent() {
     const updateStatus = async (id: string, newStatus: Appointment['status']) => {
         try {
             await updateDoc(doc(db, 'appointments', id), {
-                status: newStatus
+                status: newStatus,
+                updatedAt: serverTimestamp()
             });
         } catch (error) {
-            console.error('Error updating status:', error);
+            console.error('예약 상태 업데이트 오류:', error);
+            alert('상태 업데이트 중 오류가 발생했습니다.');
         }
     };
 

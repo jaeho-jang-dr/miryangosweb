@@ -1,5 +1,7 @@
 // 의료 기초 데이터 (수가/약품 마스터) 정의
 
+import { Timestamp } from 'firebase/firestore';
+
 export type InsuranceType = 'care' | 'non_payment' | 'auto_insurance' | 'industrial'; // 급여 | 비급여 | 자보 | 산재
 export type MasterCategory = 'consultation' | 'injection' | 'medication_po' | 'procedure_os' | 'physical_therapy' | 'radiology' | 'test_lab' | 'material';
 
@@ -39,7 +41,7 @@ export interface MedicalStandardMaster {
 
     // --- 관리 정보 ---
     isActive: boolean;      // 사용 여부 (삭제 대신 비활성화)
-    updatedAt: any;         // 최종 수정일
+    updatedAt: Timestamp | Date;  // 최종 수정일 (Firestore Timestamp 또는 Date)
 }
 
 // --- 샘플 데이터 (예시) ---

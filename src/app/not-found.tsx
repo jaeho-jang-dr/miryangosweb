@@ -3,13 +3,13 @@ import { Button } from '@/components/ui/button';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-gray-100">
+    <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-gray-100" aria-labelledby="not-found-title">
       <div className="text-center space-y-6 max-w-md">
         <div className="space-y-3">
-          <h1 className="text-9xl font-bold text-gray-300">404</h1>
-          <h2 className="text-3xl font-bold text-gray-900">
+          <p className="text-9xl font-bold text-gray-300" aria-hidden="true">404</p>
+          <h1 id="not-found-title" className="text-3xl font-bold text-gray-900">
             페이지를 찾을 수 없습니다
-          </h2>
+          </h1>
           <p className="text-gray-600">
             요청하신 페이지가 존재하지 않거나 이동되었을 수 있습니다.
           </p>
@@ -34,6 +34,6 @@ export default function NotFound() {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -67,6 +67,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
+      aria-label="메인 네비게이션"
       className={clsx(
         'fixed top-0 left-0 h-screen bg-sidebar-bg text-sidebar-text flex flex-col z-40 transition-all duration-200 no-print',
         collapsed ? 'w-16' : 'w-60'
@@ -86,7 +87,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 scrollbar-thin">
+      <nav aria-label="사이드바 메뉴" className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5 scrollbar-thin">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -120,6 +121,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Collapse Toggle */}
       <button
         onClick={onToggle}
+        aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
         className="flex items-center justify-center h-10 border-t border-white/5 text-slate-500 hover:text-slate-300 transition-colors"
       >
         {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

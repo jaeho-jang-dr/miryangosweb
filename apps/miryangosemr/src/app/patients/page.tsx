@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, where, limit } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Plus, Search, User, Phone, MapPin, Calendar, MoreHorizontal, Loader2 } from 'lucide-react';
@@ -14,7 +14,8 @@ interface Patient {
     birthDate: string;
     gender: 'male' | 'female';
     phone: string;
-    lastVisit?: any;
+    phoneMasked?: string;
+    lastVisit?: { seconds: number; nanoseconds: number } | null;
 }
 
 export default function PatientsPage() {
@@ -60,11 +61,16 @@ function PatientsPageContent() {
         }
     };
 
-    const filteredPatients = patients.filter(p =>
-        p.name.includes(searchTerm) ||
-        p.phone.includes(searchTerm) ||
-        p.id.includes(searchTerm)
-    );
+    const filteredPatients = patients.filter(p => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            (p.name || '').toLowerCase().includes(term) ||
+            (p.phone || '').includes(term) ||
+            (p.phoneMasked || '').includes(term) ||
+            p.id.includes(term)
+        );
+    });
 
     return (
         <div className="max-w-6xl mx-auto">
@@ -129,10 +135,12 @@ function PatientsPageContent() {
                                         {patient.birthDate}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600">
-                                        {(patient as any).phoneMasked || patient.phone}
+                                        {patient.phoneMasked || patient.phone}
                                     </td>
                                     <td className="px-6 py-4 text-slate-500">
-                                        {patient.lastVisit ? new Date(patient.lastVisit.seconds * 1000).toLocaleDateString() : '-'}
+                                        {patient.lastVisit?.seconds
+                                            ? new Date(patient.lastVisit.seconds * 1000).toLocaleDateString('ko-KR')
+                                            : '-'}
                                     </td>
                                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                         <button className="p-2 text-slate-400 hover:text-emerald-600 rounded-full hover:bg-slate-100">

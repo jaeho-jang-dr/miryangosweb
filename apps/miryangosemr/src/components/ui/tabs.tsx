@@ -42,7 +42,7 @@ export function Tabs({ value, onValueChange, children, className }: TabsProps) {
 
 export function TabsList({ children, className }: TabsListProps) {
     return (
-        <div className={cn("flex gap-1 bg-slate-100 p-1 rounded-lg", className)}>
+        <div role="tablist" className={cn("flex gap-1 bg-slate-100 p-1 rounded-lg", className)}>
             {children}
         </div>
     );
@@ -54,6 +54,8 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
 
     return (
         <button
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onValueChange(value)}
             className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
@@ -71,5 +73,5 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
 export function TabsContent({ value, children, className }: TabsContentProps) {
     const { value: selectedValue } = React.useContext(TabsContext);
     if (selectedValue !== value) return null;
-    return <div className={cn("mt-3", className)}>{children}</div>;
+    return <div role="tabpanel" className={cn("mt-3", className)}>{children}</div>;
 }

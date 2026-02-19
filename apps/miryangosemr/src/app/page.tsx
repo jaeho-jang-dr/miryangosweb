@@ -2,13 +2,26 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
-// TODO: 개발 완료 후 인증 로직 복원
+/**
+ * 루트 페이지 — Firebase 인증 상태에 따라 라우팅:
+ * - 인증됨: /dashboard
+ * - 미인증: /login
+ */
 export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/dashboard');
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/login');
+      }
+    });
+    return () => unsubscribe();
   }, [router]);
 
   return (

@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       copayAmount: totalCopay,
       insuranceAmount: totalInsurance,
     });
-  } catch (error) {
-    return NextResponse.json({ error: 'Calculation failed' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Calculation failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

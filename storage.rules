@@ -1,36 +1,54 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Voice Charts — TODO: 개발 완료 후 request.auth != null 로 복원
+
+    // =========================================================
+    // Voice Charts (음성 차트) - 임상 스태프만 접근
+    // 기존 'if true' 개방 설정을 인증 필수로 교체 (의료법 제23조)
+    // =========================================================
     match /voice-charts/{patientId}/{fileName} {
-      allow read, write: if true;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024  // 50MB 제한
+                   && request.resource.contentType.matches('audio/.*');
     }
 
-    // Uploads (General files) — Authenticated users only
+    // =========================================================
+    // Uploads (일반 파일 업로드) - 인증 사용자만
+    // =========================================================
     match /uploads/{fileName} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null 
-                   && request.resource.size < 50 * 1024 * 1024; // 50MB limit
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024;  // 50MB 제한
     }
 
-    // Images (Processed images) — Authenticated users only
+    // =========================================================
+    // Images (처리된 이미지) - 인증 사용자만
+    // =========================================================
     match /images/{fileName} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null 
-                   && request.resource.size < 20 * 1024 * 1024 // 20MB limit
+      allow write: if request.auth != null
+                   && request.resource.size < 20 * 1024 * 1024  // 20MB 제한
                    && request.resource.contentType.matches('image/.*');
     }
 
-    // Articles (Blog attachments) — Authenticated users only
+    // =========================================================
+    // Articles (블로그 첨부파일) - 인증 사용자만
+    // 100MB는 지나치게 큰 제한. 문서/이미지 첨부는 20MB면 충분
+    // =========================================================
     match /articles/{fileName} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null 
-                   && request.resource.size < 100 * 1024 * 1024; // 100MB limit
+      allow write: if request.auth != null
+                   && request.resource.size < 20 * 1024 * 1024;  // 100MB → 20MB 축소
     }
 
-    // Default: Authenticated users only
+    // =========================================================
+    // Default Deny (기타 경로 차단)
+    // 기존 'if request.auth != null' 광범위 허용 → 완전 차단으로 변경
+    // 명시적으로 선언된 경로 외 모든 접근 차단
+    // =========================================================
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

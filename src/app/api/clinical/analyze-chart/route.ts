@@ -5,6 +5,9 @@ import { extractSoapNote } from '@/lib/medical/soap-extractor';
 import { recommendXray as suggestXray } from '@/lib/medical/xray-recommender';
 import { suggestDiagnosis } from '@/lib/medical/diagnosis-suggester';
 import { identifySpeakers, DiarizedSegment } from '@/lib/medical/speaker-diarization';
+import { initAdmin } from '@/lib/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import type { InitialVisitChart } from '@/lib/medical/templates/initial-visit-template';
 import type { SoapNote } from '@/lib/medical/templates/soap-note-template';
 
@@ -18,10 +21,43 @@ interface DiagnosisSuggestion {
   name: string;
 }
 
+// 최대 transcript 길이 (약 30분 분량의 대화 상정)
+const MAX_TRANSCRIPT_LENGTH = 50000;
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { transcript, visitType: requestedType, mode } = body;
+    // 인증 확인 (임상 분석은 의료진만 사용 가능)
+    initAdmin();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    let decoded;
+    try {
+      decoded = await getAuth().verifyIdToken(authHeader.split('Bearer ')[1]);
+    } catch {
+      return NextResponse.json({ error: 'Invalid authorization token' }, { status: 401 });
+    }
+
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(decoded.uid).get();
+    const role = userDoc.data()?.role;
+    if (!role || !['admin', 'manager', 'operator'].includes(role)) {
+      return NextResponse.json({ error: 'Clinical staff access required' }, { status: 403 });
+    }
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+
+    if (typeof body !== 'object' || body === null) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const { transcript, visitType: requestedType, mode } = body as Record<string, unknown>;
 
     // mode: 'realtime' = 녹음 중 실시간 분석 (AI 1회만 호출)
     //        'final'    = 녹음 완료 후 최종 분석 (전체 AI 호출)
@@ -30,6 +66,13 @@ export async function POST(req: NextRequest) {
 
     if (!transcript || typeof transcript !== 'string' || transcript.trim().length === 0) {
       return NextResponse.json({ error: 'Transcript is required and must be a non-empty string' }, { status: 400 });
+    }
+
+    // transcript 길이 제한 (DoS 방지)
+    if (transcript.length > MAX_TRANSCRIPT_LENGTH) {
+      return NextResponse.json({
+        error: `Transcript is too long. Maximum ${MAX_TRANSCRIPT_LENGTH} characters allowed.`
+      }, { status: 400 });
     }
 
     // 1. Detect Visit Type (실시간에서는 스킵 - visitType이 이미 지정됨)

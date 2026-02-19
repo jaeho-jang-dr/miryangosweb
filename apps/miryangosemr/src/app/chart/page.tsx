@@ -33,6 +33,14 @@ function ChartBrowserContent() {
       setPatients(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Patient[]);
     } catch (e) {
       console.error('환자 로드 실패:', e);
+      // lastVisit 인덱스 없을 경우 fallback
+      try {
+        const fallbackQ = query(collection(db, 'patients'), limit(50));
+        const fallbackSnap = await getDocs(fallbackQ);
+        setPatients(fallbackSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Patient[]);
+      } catch (fallbackErr) {
+        console.error('환자 로드 재시도 실패:', fallbackErr);
+      }
     } finally {
       setLoading(false);
     }

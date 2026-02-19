@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Plus, Activity, Dna, Pill, Heart } from "lucide-react"
+import { Plus, Activity, Dna, Pill, Heart, type LucideIcon } from "lucide-react"
 
 function FloatingIcon({
     icon: Icon,
@@ -12,7 +12,7 @@ function FloatingIcon({
     initialY,
     size
 }: {
-    icon: any,
+    icon: LucideIcon,
     delay: number,
     duration: number,
     initialX: number,
@@ -48,6 +48,24 @@ function FloatingIcon({
     )
 }
 
+// 안정적인 값으로 고정하여 Math.random()이 매 렌더마다 다른 값을 생성하는 문제를 방지
+const STABLE_ELEMENTS: Array<{
+    icon: LucideIcon;
+    x: string;
+    y: string;
+    delay: number;
+    duration: number;
+    size: number;
+}> = [
+    { icon: Plus,     x: "10%", y: "20%", delay: 0,   duration: 20, size: 80 },
+    { icon: Activity, x: "85%", y: "15%", delay: 2,   duration: 18, size: 60 },
+    { icon: Dna,      x: "20%", y: "80%", delay: 4,   duration: 22, size: 70 },
+    { icon: Pill,     x: "75%", y: "70%", delay: 1,   duration: 16, size: 50 },
+    { icon: Heart,    x: "50%", y: "40%", delay: 3,   duration: 24, size: 90 },
+    { icon: Plus,     x: "90%", y: "50%", delay: 5,   duration: 19, size: 55 },
+    { icon: Activity, x: "15%", y: "45%", delay: 0.5, duration: 21, size: 65 },
+];
+
 export function DynamicBackground() {
     const [isMounted, setIsMounted] = useState(false)
 
@@ -55,24 +73,13 @@ export function DynamicBackground() {
         setIsMounted(true)
     }, [])
 
+    // useMemo는 조건부 return 이전에 위치해야 하므로 STABLE_ELEMENTS 상수로 모듈 레벨에서 관리
+    // (이전 코드의 훅 규칙 위반 수정)
     if (!isMounted) return null
-
-    // Fixed set of background elements to prevent hydration mismatch
-    // while still looking "random"
-    // Generate stable random values once on mount
-    const elements = useMemo(() => [
-        { icon: Plus, x: "10%", y: "20%", delay: 0, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-        { icon: Activity, x: "85%", y: "15%", delay: 2, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-        { icon: Dna, x: "20%", y: "80%", delay: 4, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-        { icon: Pill, x: "75%", y: "70%", delay: 1, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-        { icon: Heart, x: "50%", y: "40%", delay: 3, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-        { icon: Plus, x: "90%", y: "50%", delay: 5, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-        { icon: Activity, x: "15%", y: "45%", delay: 0.5, duration: Math.random() * 10 + 15, size: Math.random() * 60 + 40 },
-    ], [])
 
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-            {elements.map((el: any, i: number) => (
+            {STABLE_ELEMENTS.map((el, i: number) => (
                 <div
                     key={i}
                     className="absolute"

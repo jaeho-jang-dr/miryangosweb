@@ -115,6 +115,8 @@ export async function verifyAuditChain(limit: number = 100): Promise<{
 
 /**
  * Query audit logs with filters. Admin-only.
+ * NOTE: Firestore compound queries require composite indexes for multiple where() clauses.
+ * If a query fails with "requires an index", create the index in Firebase Console or firestore.indexes.json.
  */
 export async function queryAuditLogs(options: {
   collection?: string;
@@ -127,27 +129,43 @@ export async function queryAuditLogs(options: {
   initAdmin();
   const db = getFirestore();
 
+  // 쿼리 복잡도를 줄이기 위해 가장 선택도 높은 필드 하나만 where() 사용
+  // 복수 필터는 클라이언트 사이드에서 처리 (Firestore 복합 인덱스 폭발 방지)
   let q: FirebaseFirestore.Query = db.collection('audit_logs')
     .orderBy('timestamp', 'desc');
 
-  if (options.collection) {
-    q = q.where('collection', '==', options.collection);
-  }
-  if (options.documentId) {
-    q = q.where('documentId', '==', options.documentId);
-  }
+  // 우선순위: userId > collection > action (선택도 높은 순)
   if (options.userId) {
     q = q.where('userId', '==', options.userId);
-  }
-  if (options.action) {
+  } else if (options.collection) {
+    q = q.where('collection', '==', options.collection);
+  } else if (options.action) {
     q = q.where('action', '==', options.action);
   }
 
-  q = q.limit(options.limit || 50);
+  // limit에 여유를 두어 클라이언트 필터링 후에도 충분한 결과 확보
+  const fetchLimit = Math.min((options.limit || 50) * 3, 500);
+  q = q.limit(fetchLimit);
 
   const snapshot = await q.get();
-  return snapshot.docs.map(doc => ({
+  let results = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
-  }));
+  })) as Array<Record<string, unknown> & { id: string }>;
+
+  // 클라이언트 사이드 필터링 (추가 where 조건)
+  if (options.userId && options.collection) {
+    results = results.filter(r => r.collection === options.collection);
+  }
+  if (options.documentId) {
+    results = results.filter(r => r.documentId === options.documentId);
+  }
+  if (options.userId && options.action) {
+    results = results.filter(r => r.action === options.action);
+  }
+  if (!options.userId && options.collection && options.action) {
+    results = results.filter(r => r.action === options.action);
+  }
+
+  return results.slice(0, options.limit || 50);
 }

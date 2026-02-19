@@ -7,6 +7,7 @@ import { Search, FileText, User, Calendar, Clock, ChevronRight, Activity, AlertC
 import { Patient, Visit } from '@shared/types/clinical';
 import { format } from 'date-fns';
 import EMRLayout from '@/components/layout/EMRLayout';
+import { useDebounce } from '@shared/hooks/useDebounce';
 
 export default function RecordsPage() {
     return (
@@ -19,6 +20,7 @@ export default function RecordsPage() {
 function RecordsPageContent() {
     // Search State
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [searchResults, setSearchResults] = useState<Patient[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -27,36 +29,40 @@ function RecordsPageContent() {
     const [patientHistory, setPatientHistory] = useState<Visit[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
-    // Search Patients
-    const handleSearch = async (term: string) => {
-        setSearchTerm(term);
+    // Search Patients (Firestore query triggered by debounced term)
+    useEffect(() => {
+        const term = debouncedSearchTerm;
         if (term.length < 2) {
             setSearchResults([]);
             return;
         }
 
         setIsSearching(true);
-        try {
-            const q = query(
-                collection(db, 'patients'),
-                where('name', '>=', term),
-                where('name', '<=', term + ''),
-                limit(10)
-            );
+        const fetchPatients = async () => {
+            try {
+                const q = query(
+                    collection(db, 'patients'),
+                    where('name', '>=', term),
+                    where('name', '<=', term + ''),
+                    limit(10)
+                );
 
-            const snapshot = await getDocs(q);
-            const results = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Patient[];
+                const snapshot = await getDocs(q);
+                const results = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })) as Patient[];
 
-            setSearchResults(results);
-        } catch (error) {
-            console.error("Error searching patients:", error);
-        } finally {
-            setIsSearching(false);
-        }
-    };
+                setSearchResults(results);
+            } catch (error) {
+                console.error("Error searching patients:", error);
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        fetchPatients();
+    }, [debouncedSearchTerm]);
 
     // Load Patient History
     const selectPatient = async (patient: Patient) => {
@@ -112,7 +118,7 @@ function RecordsPageContent() {
                             className="block w-full pl-10 pr-3 py-4 border border-slate-300 rounded-xl leading-5 bg-slate-50 text-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                             placeholder="환자 검색..."
                             value={searchTerm}
-                            onChange={(e) => handleSearch(e.target.value)}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             autoFocus
                         />
                     </div>

@@ -30,9 +30,10 @@ export default function WorkflowToastContainer({ toasts, onRemove }: WorkflowToa
                         <p className="flex-1 text-sm font-medium leading-snug">{toast.message}</p>
                         <button
                             onClick={() => onRemove(toast.id)}
+                            aria-label="알림 닫기"
                             className="flex-shrink-0 p-1 hover:bg-white/20 rounded-lg transition-colors"
                         >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                     </div>
                 );

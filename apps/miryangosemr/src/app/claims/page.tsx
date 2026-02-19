@@ -25,16 +25,21 @@ export default function ClaimsDashboardPage() {
 function ClaimsDashboardContent() {
   const [claims, setClaims] = useState<HIRAClaim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ClaimStatus | ''>('');
 
   useEffect(() => { loadClaims(); }, [filter]);
 
   const loadClaims = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getClaims(filter ? { status: filter as ClaimStatus } : undefined);
       setClaims(data);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) {
+      console.error(e);
+      setError('청구 데이터를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally { setLoading(false); }
   };
 
   return (
@@ -73,6 +78,7 @@ function ClaimsDashboardContent() {
           </tr></thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? <tr><td colSpan={5} className="text-center py-8 text-slate-400">로딩 중...</td></tr> :
+            error ? <tr><td colSpan={5} className="text-center py-8 text-red-500">{error}</td></tr> :
             claims.length === 0 ? <tr><td colSpan={5} className="text-center py-8 text-slate-400">청구 내역이 없습니다.</td></tr> :
             claims.map(c => (
               <tr key={c.id} className="hover:bg-slate-50">

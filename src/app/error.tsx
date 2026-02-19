@@ -17,15 +17,16 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-gray-100">
+    <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-gray-100" role="alert" aria-live="assertive">
       <Card className="max-w-md w-full p-8 space-y-6 text-center">
         <div className="space-y-2">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center" aria-hidden="true">
             <svg
               className="w-8 h-8 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -68,6 +69,6 @@ export default function Error({
           </Button>
         </div>
       </Card>
-    </div>
+    </main>
   );
 }

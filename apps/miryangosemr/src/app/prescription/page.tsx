@@ -26,6 +26,7 @@ export default function PrescriptionListPage() {
 function PrescriptionListContent() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -34,6 +35,7 @@ function PrescriptionListContent() {
 
   const loadPrescriptions = async () => {
     setLoading(true);
+    setError(null);
     try {
       const today = startOfDay(new Date());
       const q = query(
@@ -44,11 +46,12 @@ function PrescriptionListContent() {
       );
       const snap = await getDocs(q);
       const visits = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter((v: any) => v.prescription) as Prescription[];
+        .map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>))
+        .filter((v) => typeof v.prescription === 'string' && v.prescription.trim().length > 0) as unknown as Prescription[];
       setPrescriptions(visits);
     } catch (e) {
       console.error('처방전 로드 실패:', e);
+      setError('처방전을 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -89,6 +92,8 @@ function PrescriptionListContent() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr><td colSpan={4} className="text-center py-8 text-slate-400">로딩 중...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={4} className="text-center py-8 text-red-500">{error}</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={4} className="text-center py-8 text-slate-400">처방전이 없습니다.</td></tr>
             ) : (

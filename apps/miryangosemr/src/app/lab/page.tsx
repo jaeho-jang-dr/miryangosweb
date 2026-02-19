@@ -153,7 +153,7 @@ function LaboratoryPageContent() {
                                         )}
                                     </div>
                                     <p className="text-xs text-slate-500">
-                                        {new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 접수
+                                        {visit.date?.seconds ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'} 접수
                                     </p>
                                 </div>
                                 <button onClick={() => openResultModal(visit)} className={`p-2 rounded-full transition-colors ${visit.testStatus === 'completed' ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`} title="결과 입력">

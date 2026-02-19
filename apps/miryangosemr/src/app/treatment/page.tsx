@@ -413,7 +413,7 @@ function TreatmentPageContent() {
                                 <div className="text-sm text-slate-500 flex items-center gap-4 mb-2">
                                     <span className="flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
-                                        {visit.date ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                        {visit.date?.seconds ? new Date(visit.date.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                                     </span>
                                     {visit.diagnosis && (
                                         <span className="truncate max-w-[120px] text-slate-600">{visit.diagnosis}</span>

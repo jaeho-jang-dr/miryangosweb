@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Users, Clock, Calendar, Activity, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
-import { startOfDay, subDays } from 'date-fns';
+import { startOfDay, endOfDay } from 'date-fns';
 import { Visit } from '@shared/types/clinical';
 import EMRLayout from '@/components/layout/EMRLayout';
 import { Badge } from '@/components/ui/badge';
@@ -24,22 +24,29 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = subDays(startOfDay(new Date()), 7);
+    const todayStart = startOfDay(new Date());
+    const todayEnd = endOfDay(new Date());
     const q = query(
       collection(db, 'visits'),
-      where('date', '>=', today),
+      where('date', '>=', Timestamp.fromDate(todayStart)),
+      where('date', '<=', Timestamp.fromDate(todayEnd)),
       orderBy('date', 'asc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const visits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Visit[];
-      setWaitingList(visits);
+      // 완료되지 않은 방문만 대기 목록에 표시 (paid 제외)
+      const activeVisits = visits.filter(v => v.status !== 'paid');
+      setWaitingList(activeVisits);
       setStats({
         total: visits.length,
         waiting: visits.filter(v => v.status === 'reception').length,
         consulting: visits.filter(v => v.status === 'consulting').length,
-        completed: visits.filter(v => v.status === 'completed').length
+        completed: visits.filter(v => ['completed', 'paid'].includes(v.status)).length
       });
+      setLoading(false);
+    }, (error) => {
+      console.error('대시보드 실시간 구독 오류:', error);
       setLoading(false);
     });
 

@@ -9,24 +9,27 @@ interface InteractiveElementProps {
     href?: string
     className?: string
     children: React.ReactNode
-    as?: any // framer-motion component type
+    /** aria-label for accessibility when content is not descriptive text */
+    ariaLabel?: string
 }
 
-export function InteractiveElement({ href, className, children, as = motion.div }: InteractiveElementProps) {
-    const Component = as
-
+export function InteractiveElement({ href, className, children, ariaLabel }: InteractiveElementProps) {
     const content = (
-        <Component
+        <motion.div
             className={cn("cursor-pointer block", className)}
             whileHover={{ y: -5 }}
             transition={{ type: "spring", stiffness: 300 }}
         >
             {children}
-        </Component>
+        </motion.div>
     )
 
     if (href) {
-        return <Link href={href} className="block w-fit">{content}</Link>
+        return (
+            <Link href={href} className="block w-fit" aria-label={ariaLabel}>
+                {content}
+            </Link>
+        )
     }
 
     return content

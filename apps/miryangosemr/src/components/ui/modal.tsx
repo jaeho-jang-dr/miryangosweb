@@ -27,14 +27,23 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
 
     return (
         <>
-            <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className={cn(
-                "fixed left-[50%] top-[50%] z-[70] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-6 shadow-xl",
-                className
-            )}>
+            <div
+                className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+                onClick={onClose}
+                aria-hidden="true"
+            />
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-title"
+                className={cn(
+                    "fixed left-[50%] top-[50%] z-[70] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-6 shadow-xl",
+                    className
+                )}
+            >
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-                    <Button variant="ghost" size="icon" onClick={onClose}>
+                    <h2 id="modal-title" className="text-lg font-semibold text-slate-900">{title}</h2>
+                    <Button variant="ghost" size="icon" onClick={onClose} aria-label="모달 닫기">
                         <X className="h-4 w-4" />
                     </Button>
                 </div>

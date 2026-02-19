@@ -77,12 +77,24 @@ export async function createBillingRecord(
 export async function processBillingPayment(
   billingId: string,
   paidAmount: number,
-  paymentMethod: BillingRecord['paymentMethod']
+  paymentMethod: BillingRecord['paymentMethod'],
+  copayAmount: number
 ): Promise<void> {
+  if (paidAmount < 0) throw new Error('납부금액은 0원 이상이어야 합니다.');
+  const unpaidAmount = Math.max(0, copayAmount - paidAmount);
+  let paymentStatus: BillingRecord['paymentStatus'];
+  if (paidAmount <= 0) {
+    paymentStatus = 'pending';
+  } else if (paidAmount >= copayAmount) {
+    paymentStatus = 'paid';
+  } else {
+    paymentStatus = 'partial';
+  }
   await updateDoc(doc(db, 'billing', billingId), {
     paidAmount,
+    unpaidAmount,
     paymentMethod,
-    paymentStatus: 'paid',
+    paymentStatus,
     paidAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

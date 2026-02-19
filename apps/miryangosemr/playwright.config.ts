@@ -12,8 +12,12 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || 'http://localhost:3002',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'on-first-retry',
     actionTimeout: 10000,
-    bypassCSP: true,
+    // bypassCSP: true는 테스트에서 CSP 헤더를 무시하여 실제 보안 동작 검증 불가.
+    // 개발환경 CSP는 'unsafe-eval'/'unsafe-inline'을 허용하므로 bypass 불필요.
+    // CI 환경에서만 필요한 경우 process.env.CI로 조건부 설정.
+    bypassCSP: !!process.env.CI,
   },
 
   projects: [

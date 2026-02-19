@@ -29,12 +29,16 @@ function FeeCalcContent() {
   const [newCovered, setNewCovered] = useState(true);
 
   const addItem = () => {
-    if (!newName || !newPrice) return;
+    if (!newName.trim() || !newPrice) return;
+    const parsedPrice = parseInt(newPrice);
+    const parsedQty = parseInt(newQty) || 1;
+    if (isNaN(parsedPrice) || parsedPrice <= 0) return;
+    if (parsedQty <= 0 || parsedQty > 9999) return;
     setItems(prev => [...prev, {
       id: crypto.randomUUID(),
-      name: newName,
-      basePrice: parseInt(newPrice),
-      quantity: parseInt(newQty) || 1,
+      name: newName.trim(),
+      basePrice: parsedPrice,
+      quantity: parsedQty,
       isInsuranceCovered: newCovered,
     }]);
     setNewName(''); setNewPrice(''); setNewQty('1');

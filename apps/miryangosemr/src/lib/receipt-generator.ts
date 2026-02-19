@@ -54,16 +54,24 @@ export function generateReceiptNumber(): string {
   return `RCP-${dateStr}-${random}`;
 }
 
+// 의료법 시행규칙 제11조: 진료비 영수증 필수 기재 항목
+const CLINIC_INFO = {
+  name: process.env.NEXT_PUBLIC_CLINIC_NAME || '밀양 정형외과',
+  address: process.env.NEXT_PUBLIC_CLINIC_ADDRESS || '경남 밀양시',
+  phone: process.env.NEXT_PUBLIC_CLINIC_PHONE || '055-000-0000',
+  licenseNo: process.env.NEXT_PUBLIC_CLINIC_LICENSE_NO || '',
+};
+
 /** BillingRecord → 출력용 ReceiptData 변환 */
 export function generateReceiptData(record: BillingRecord): ReceiptData {
   return {
     receiptNumber: record.receiptNumber || generateReceiptNumber(),
-    clinicName: '밀양 정형외과',
-    clinicAddress: '경남 밀양시',
-    clinicPhone: '055-XXX-XXXX',
-    clinicLicenseNo: 'XXXXXXX',
+    clinicName: CLINIC_INFO.name,
+    clinicAddress: CLINIC_INFO.address,
+    clinicPhone: CLINIC_INFO.phone,
+    clinicLicenseNo: CLINIC_INFO.licenseNo,
     patientName: record.patientName,
-    visitDate: record.billedAt?.toDate?.()?.toLocaleDateString('ko-KR') || '-',
+    visitDate: record.billedAt?.toDate ? record.billedAt.toDate().toLocaleDateString('ko-KR') : '-',
     insuranceType: INSURANCE_LABELS[record.insuranceType] || '일반',
     items: record.items.map(item => ({
       category: item.insuranceCovered ? '급여' : '비급여',
