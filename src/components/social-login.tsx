@@ -49,8 +49,8 @@ export function SocialLogin({ className, onLoginSuccess }: SocialLoginProps) {
             await signInWithPopup(auth, provider);
             onLoginSuccess?.();
         } catch (error: any) {
-            console.error("Login failed:", error);
             if (error.code === 'auth/popup-closed-by-user') return;
+            console.error("Login failed:", error);
             alert(`Google 로그인 실패: ${error.message}`);
         } finally {
             setIsLoading(false);

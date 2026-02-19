@@ -37,6 +37,8 @@ export default function PublicLayout({
     const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
     useEffect(() => {
+        const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
 
@@ -46,8 +48,8 @@ export default function PublicLayout({
                     const userDocRef = doc(db, 'users', currentUser.uid);
                     const userDoc = await getDoc(userDocRef);
 
-                    // Auto-grant admin role for drjang00@gmail.com
-                    const isAdminEmail = currentUser.email === 'drjang00@gmail.com';
+                    // Auto-grant admin role if email matches configured admin
+                    const isAdminEmail = ADMIN_EMAIL && currentUser.email === ADMIN_EMAIL;
 
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
@@ -106,6 +108,18 @@ export default function PublicLayout({
     });
     const pathname = usePathname();
 
+    // Lock body scroll when mobile menu is open
+    useEffect(() => {
+        if (isMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isMenuOpen]);
+
     // Fetch Clinic Info on Mount with Real-time Updates
     useEffect(() => {
         let unsubscribe = () => { };
@@ -154,12 +168,12 @@ export default function PublicLayout({
                         {/* Desktop Nav */}
                         <nav className="hidden md:flex items-center space-x-8" aria-label="주 내비게이션">
                             <NavLink href="/" label="홈" active={pathname === '/'} />
-                            <NavLink href="/about" label="병원소개" active={pathname === '/about'} />
-                            <NavLink href="/staff" label="의료진" active={pathname === '/staff'} />
-                            <NavLink href="/archives" label="자료실" active={pathname === '/archives'} />
-                            <NavLink href="/notices" label="공지사항" active={pathname === '/notices'} />
+                            <NavLink href="/about" label="병원소개" active={pathname.startsWith('/about')} />
+                            <NavLink href="/staff" label="의료진" active={pathname.startsWith('/staff')} />
+                            <NavLink href="/archives" label="자료실" active={pathname.startsWith('/archives')} />
+                            <NavLink href="/notices" label="공지사항" active={pathname.startsWith('/notices')} />
 
-                            <NavLink href="/inquiry" label="예약/문의" active={pathname === '/inquiry'} />
+                            <NavLink href="/inquiry" label="예약/문의" active={pathname.startsWith('/inquiry')} />
                         </nav>
 
                         <div className="hidden md:flex items-center space-x-4">

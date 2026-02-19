@@ -11,6 +11,7 @@ import io
 import os
 import sys
 import base64
+import concurrent.futures
 import requests
 from pathlib import Path
 from typing import List, Tuple, Optional
@@ -53,6 +54,15 @@ class GoogleVisionOCR:
         if not self.api_key:
             raise ValueError("GOOGLE_VISION_API_KEY가 필요합니다")
         self.api_url = "https://vision.googleapis.com/v1/images:annotate"
+        # PERF: 단일 requests.Session 재사용으로 TCP 커넥션 풀링 활용
+        self._session = requests.Session()
+
+    def __del__(self):
+        """세션 정리"""
+        try:
+            self._session.close()
+        except Exception:
+            pass
 
     def ocr_image(self, image_data: bytes) -> Tuple[str, List[TextBox]]:
         """
@@ -61,6 +71,7 @@ class GoogleVisionOCR:
         Returns:
             (전체 텍스트, 텍스트 박스 리스트)
         """
+        # PERF: base64 인코딩을 직접 decode하여 중간 bytes 객체 생성 방지
         payload = {
             "requests": [{
                 "image": {"content": base64.b64encode(image_data).decode('utf-8')},
@@ -68,7 +79,8 @@ class GoogleVisionOCR:
             }]
         }
 
-        response = requests.post(
+        # PERF: Session 재사용으로 TCP 핸드셰이크 오버헤드 제거
+        response = self._session.post(
             f"{self.api_url}?key={self.api_key}",
             json=payload,
             timeout=60
@@ -140,37 +152,58 @@ class VisionConverter:
     def __init__(self, api_key: str = None):
         self.ocr = GoogleVisionOCR(api_key)
 
-    def pdf_to_pages(self, pdf_path: Path, zoom: float = 2.0) -> List[PageOCR]:
-        """PDF를 페이지별 OCR 결과로 변환"""
+    def pdf_to_pages(self, pdf_path: Path, zoom: float = 2.0, max_workers: int = 4) -> List[PageOCR]:
+        """PDF를 페이지별 OCR 결과로 변환
+
+        PERF: ThreadPoolExecutor로 OCR API 호출을 병렬화.
+        Vision API는 I/O 바운드이므로 스레드 병렬성이 효과적.
+        max_workers=4는 API 쿼터와 균형을 맞춘 기본값.
+        """
         import fitz
 
         pdf_path = Path(pdf_path)
         doc = fitz.open(pdf_path)
-        pages = []
+        page_count = len(doc)
 
-        print(f"📄 PDF 처리 중: {pdf_path.name} ({len(doc)}페이지)")
+        print(f"📄 PDF 처리 중: {pdf_path.name} ({page_count}페이지)")
 
-        for page_num in range(len(doc)):
-            print(f"  🔍 페이지 {page_num + 1}/{len(doc)} OCR 중...")
-
+        # PERF: 모든 페이지 렌더링을 먼저 완료 (단일 fitz 문서 스레드 안전)
+        # Matrix 객체를 한 번만 생성하여 재사용
+        mat = fitz.Matrix(zoom, zoom)
+        page_images = []
+        for page_num in range(page_count):
             page = doc[page_num]
-            mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat)
-            img_data = pix.tobytes("png")
+            page_images.append((page_num, pix.width, pix.height, pix.tobytes("png")))
+            pix = None  # PERF: 픽셀맵 즉시 해제
 
-            # OCR 실행
+        doc.close()
+
+        # PERF: OCR API 호출을 ThreadPoolExecutor로 병렬화
+        # Vision API는 네트워크 I/O 바운드이므로 GIL 영향 최소
+        pages_dict = {}
+
+        def _ocr_page(page_info):
+            page_num, width, height, img_data = page_info
+            print(f"  🔍 페이지 {page_num + 1}/{page_count} OCR 중...")
             full_text, text_boxes = self.ocr.ocr_image(img_data)
-
-            pages.append(PageOCR(
+            return page_num, PageOCR(
                 page_num=page_num + 1,
-                width=pix.width,
-                height=pix.height,
+                width=width,
+                height=height,
                 image_data=img_data,
                 text_boxes=text_boxes,
                 full_text=full_text
-            ))
+            )
 
-        doc.close()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_ocr_page, info): info[0] for info in page_images}
+            for future in concurrent.futures.as_completed(futures):
+                page_num, page_ocr = future.result()
+                pages_dict[page_num] = page_ocr
+
+        # 페이지 순서 복원
+        pages = [pages_dict[i] for i in range(page_count)]
         return pages
 
     def create_pptx(

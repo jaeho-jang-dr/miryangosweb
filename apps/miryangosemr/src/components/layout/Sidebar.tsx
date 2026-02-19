@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  ClipboardList,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -48,8 +49,11 @@ const menuItems: MenuItem[] = [
   { href: '/treatment', label: '치료실', icon: HeartPulse },
   { href: '/billing', label: '수납/청구', icon: CreditCard },
   { href: '/claims', label: 'HIRA 청구', icon: Building2 },
+  { href: '/certificates', label: '제증명', icon: ClipboardList },
   { href: '/pharmacy', label: '약국 연동', icon: Store },
+  { href: '/inpatient', label: '입원관리', icon: Building2 },
   { href: '/statistics', label: '통계/리포트', icon: BarChart3 },
+  { href: '/reports', label: '규제 보고서', icon: FileText },
   { href: '/appointments', label: '예약 관리', icon: CalendarDays },
   { href: '/patients', label: '환자 관리', icon: Users },
   { href: '/records', label: '기록조회', icon: Archive },

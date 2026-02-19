@@ -158,6 +158,12 @@ export function useWorkflowEngine(options: {
         return () => unsubscribe();
     }, [applyTransition, enabled]);
 
+    // ─── activeVisits ref for stable interval access ──────
+    const activeVisitsRef = useRef(activeVisits);
+    useEffect(() => {
+        activeVisitsRef.current = activeVisits;
+    }, [activeVisits]);
+
     // ─── 타이머: 주기적 타임아웃 체크 ─────────────────────
     useEffect(() => {
         if (!enabled) return;
@@ -167,7 +173,7 @@ export function useWorkflowEngine(options: {
         const timer = setInterval(() => {
             const now = Date.now();
 
-            for (const visit of activeVisits) {
+            for (const visit of activeVisitsRef.current) {
                 const transition = checkTimeoutTransition(visit, now);
                 if (transition) {
                     applyTransition(visit, transition.status, transition.reason);
@@ -176,7 +182,7 @@ export function useWorkflowEngine(options: {
         }, intervalMs);
 
         return () => clearInterval(timer);
-    }, [activeVisits, applyTransition, enabled]);
+    }, [applyTransition, enabled]);
 
     return {
         activeVisits,

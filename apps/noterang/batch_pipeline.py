@@ -13,6 +13,7 @@ Usage:
 import argparse
 import asyncio
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -21,7 +22,9 @@ from typing import List, Dict, Any
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
-# noterang 패키지 경로 추가
+logger = logging.getLogger(__name__)
+
+# Ensure the noterang package located next to this script is importable
 sys.path.insert(0, str(Path(__file__).parent))
 
 # .env.local 로드
@@ -43,7 +46,12 @@ from run_pipeline import NoterangPipeline
 
 
 class BatchPipeline:
-    """병렬 배치 오케스트레이터"""
+    """Parallel batch orchestrator for multiple Noterang pipelines.
+
+    Runs up to *max_workers* pipelines concurrently using
+    :class:`asyncio.Semaphore`.  Each worker gets its own browser profile
+    so that sessions do not interfere with each other.
+    """
 
     def __init__(
         self,
@@ -54,7 +62,20 @@ class BatchPipeline:
         visible: bool = True,
         article_type: str = "disease",
         slide_count: int = 15,
-    ):
+    ) -> None:
+        """Initialize the batch pipeline.
+
+        Args:
+            titles: List of notebook titles to process.
+            design: Slide design preset name (default ``"인포그래픽"``).
+            max_workers: Maximum number of pipelines to run concurrently.
+                Capped at ``len(titles)``.
+            register: When ``True`` the finished slides are registered in the
+                web archive.
+            visible: When ``True`` the registered article is publicly visible.
+            article_type: Article type tag (e.g. ``"disease"``, ``"guide"``).
+            slide_count: Number of slides per notebook (default 15).
+        """
         self.titles = titles
         self.design = design
         self.max_workers = min(max_workers, len(titles))
@@ -64,7 +85,12 @@ class BatchPipeline:
         self.slide_count = slide_count
 
     async def run(self) -> List[Dict[str, Any]]:
-        """모든 노트북을 병렬로 실행"""
+        """Run all pipelines and return their results.
+
+        Returns:
+            List of result dictionaries, one per title, each containing at
+            minimum ``"success"`` (bool) and ``"title"`` (str) keys.
+        """
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -76,28 +102,22 @@ class BatchPipeline:
         print(f"  총 노트북: {len(self.titles)}")
         print("=" * 60)
 
-        # 1. 공통 인증 (1회)
         print("\n[사전] 인증 확인...")
         if not await ensure_auth():
-            print("  ❌ 인증 실패")
+            logger.error("Authentication failed; aborting batch")
+            print("  인증 실패")
             return [{"success": False, "error": "인증 실패", "title": t} for t in self.titles]
         print("  ✓ 인증 유효")
 
-        # 2. 세마포어로 동시 실행 제한
         semaphore = asyncio.Semaphore(self.max_workers)
+        tasks = [
+            self._run_worker(i, title, semaphore)
+            for i, title in enumerate(self.titles)
+        ]
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # 3. 각 노트북별 워커 생성
-        tasks = []
-        for i, title in enumerate(self.titles):
-            task = self._run_worker(i, title, semaphore)
-            tasks.append(task)
-
-        # 4. 병렬 실행 + 결과 수집
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # 5. 결과 처리
-        final_results = []
-        for i, result in enumerate(results):
+        final_results: List[Dict[str, Any]] = []
+        for i, result in enumerate(raw_results):
             if isinstance(result, Exception):
                 final_results.append({
                     "success": False,
@@ -108,15 +128,14 @@ class BatchPipeline:
                 final_results.append(result)
 
         elapsed = int(time.time() - start_time)
-
-        # 결과 요약
         success_count = sum(1 for r in final_results if r.get("success"))
+
         print("\n" + "=" * 60)
         print("  배치 실행 완료")
         print("=" * 60)
         for r in final_results:
-            status = "✓" if r.get("success") else "❌"
-            print(f"  {status} {r.get('title', '?')}: {r.get('error', 'OK')}")
+            status = "성공" if r.get("success") else "실패"
+            print(f"  [{status}] {r.get('title', '?')}: {r.get('error', 'OK')}")
         print(f"\n  성공: {success_count}/{len(self.titles)}")
         print(f"  소요시간: {elapsed}초")
         print("=" * 60)
@@ -124,18 +143,29 @@ class BatchPipeline:
         return final_results
 
     async def _run_worker(
-        self, worker_id: int, title: str, semaphore: asyncio.Semaphore
+        self,
+        worker_id: int,
+        title: str,
+        semaphore: asyncio.Semaphore,
     ) -> Dict[str, Any]:
-        """개별 워커: 독립 config + 독립 파이프라인"""
-        async with semaphore:
-            print(f"\n🔧 Worker {worker_id}: '{title}' 시작")
+        """Run a single pipeline for *title* inside the semaphore guard.
 
-            # 워커별 독립 config (브라우저 프로필 분리)
+        Args:
+            worker_id: Zero-based worker index used to isolate browser profiles.
+            title: Notebook title for this pipeline instance.
+            semaphore: Shared semaphore that limits concurrent executions.
+
+        Returns:
+            Pipeline result dictionary.
+        """
+        async with semaphore:
+            logger.info("Worker %d starting: %s", worker_id, title)
+            print(f"\nWorker {worker_id}: '{title}' 시작")
+
             config = NoterangConfig.load()
             config.worker_id = worker_id
             config.ensure_dirs()
 
-            # 파이프라인 실행
             pipeline = NoterangPipeline(
                 title=title,
                 design=self.design,
@@ -148,10 +178,12 @@ class BatchPipeline:
 
             try:
                 result = await pipeline.run()
-                print(f"\n🔧 Worker {worker_id}: '{title}' 완료")
+                logger.info("Worker %d completed: %s", worker_id, title)
+                print(f"\nWorker {worker_id}: '{title}' 완료")
                 return result
             except Exception as e:
-                print(f"\n🔧 Worker {worker_id}: '{title}' 실패 - {e}")
+                logger.exception("Worker %d failed for '%s'", worker_id, title)
+                print(f"\nWorker {worker_id}: '{title}' 실패 - {e}")
                 return {
                     "success": False,
                     "title": title,
@@ -159,7 +191,12 @@ class BatchPipeline:
                 }
 
 
-async def main():
+async def main() -> int:
+    """CLI entry point for the batch pipeline.
+
+    Returns:
+        Exit code: 0 when all titles succeeded, 1 otherwise.
+    """
     parser = argparse.ArgumentParser(
         description="노트랑 병렬 배치 파이프라인"
     )

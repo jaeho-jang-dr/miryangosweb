@@ -55,8 +55,25 @@ export default function PrescriptionModule({ onAddOrder }: PrescriptionModulePro
     const handleAdd = () => {
         if (!selectedDrug) return;
 
+        // 투약량 검증 — 환자안전: 0, 음수, 비정상 값 차단
+        const dosageNum = parseFloat(dosage);
+        if (isNaN(dosageNum) || dosageNum <= 0 || dosageNum > 20) {
+            alert('유효한 투약량을 입력하세요 (0 초과, 20 이하)');
+            return;
+        }
+        const daysNum = parseInt(days, 10);
+        if (isNaN(daysNum) || daysNum <= 0 || daysNum > 90) {
+            alert('유효한 투약일수를 입력하세요 (1~90일)');
+            return;
+        }
+        const freqNum = parseInt(frequency, 10);
+        if (isNaN(freqNum) || freqNum <= 0 || freqNum > 6) {
+            alert('유효한 투약횟수를 입력하세요 (1~6회)');
+            return;
+        }
+
         // Format: DrugName (Dosage / Freq * Days)
-        const orderText = `${selectedDrug.name} [ ${dosage}${selectedDrug.unit} / ${frequency}회 / ${days}일 ]`;
+        const orderText = `${selectedDrug.name} [ ${dosageNum}${selectedDrug.unit} / ${freqNum}회 / ${daysNum}일 ]`;
         onAddOrder(orderText);
         
         // Reset
@@ -154,16 +171,25 @@ export default function PrescriptionModule({ onAddOrder }: PrescriptionModulePro
                         {/* Days */}
                         <div>
                             <label className="block text-[10px] font-bold text-slate-400 mb-1">투약 일수 (일)</label>
-                            <div className="flex gap-1">
-                                {[3, 5, 7].map(d => (
+                            <div className="flex gap-1 flex-wrap">
+                                {[3, 5, 7, 14, 28, 30].map(d => (
                                     <button
                                         key={d}
                                         onClick={() => setDays(d.toString())}
-                                        className={`flex-1 text-xs rounded border ${days === d.toString() ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                                        className={`px-2 py-0.5 text-xs rounded border ${days === d.toString() ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
                                     >
                                         {d}
                                     </button>
                                 ))}
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="90"
+                                    value={days}
+                                    onChange={(e) => setDays(e.target.value)}
+                                    className="w-14 px-2 py-0.5 text-xs rounded border border-slate-300 text-center"
+                                    placeholder="직접"
+                                />
                             </div>
                         </div>
                     </div>

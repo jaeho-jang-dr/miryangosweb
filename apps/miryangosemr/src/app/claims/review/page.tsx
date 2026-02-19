@@ -5,6 +5,10 @@ import EMRLayout from '@/components/layout/EMRLayout';
 import { CheckCircle, AlertTriangle, Download, FileText, Eye, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+interface ClaimWithBilling extends HIRAClaim {
+  billing?: BillingRecord;
+}
+
 export default function ClaimsReviewPage() {
   return <EMRLayout><ClaimsReviewContent /></EMRLayout>;
 }

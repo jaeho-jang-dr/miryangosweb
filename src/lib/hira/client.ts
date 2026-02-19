@@ -56,10 +56,9 @@ let rateLimitState = {
 };
 
 function getTodayKST(): string {
-  const now = new Date();
-  // KST = UTC+9
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return kst.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+  }).format(new Date());
 }
 
 function checkRateLimit(): void {

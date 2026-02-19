@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, ChangeEvent, FormEvent } from 'react';
+import { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
+import Image from 'next/image';
 
 interface ProcessedImage {
   filename: string;
@@ -18,6 +19,14 @@ interface ProcessResult {
 }
 
 export default function ImageProcessor() {
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -40,7 +49,9 @@ export default function ImageProcessor() {
       // 미리보기 생성
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreview(reader.result as string);
+        if (mountedRef.current) {
+          setPreview(reader.result as string);
+        }
       };
       reader.readAsDataURL(selectedFile);
     }
@@ -106,10 +117,13 @@ export default function ImageProcessor() {
         {preview && (
           <div>
             <label className="block text-sm font-medium mb-2">원본 미리보기</label>
-            <img
+            <Image
               src={preview}
               alt="Preview"
+              width={448}
+              height={336}
               className="max-w-md rounded-lg shadow-md"
+              unoptimized
             />
           </div>
         )}
@@ -121,7 +135,7 @@ export default function ImageProcessor() {
             <input
               type="number"
               value={width}
-              onChange={(e) => setWidth(parseInt(e.target.value))}
+              onChange={(e) => setWidth(parseInt(e.target.value, 10) || 800)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
@@ -130,7 +144,7 @@ export default function ImageProcessor() {
             <input
               type="number"
               value={height}
-              onChange={(e) => setHeight(parseInt(e.target.value))}
+              onChange={(e) => setHeight(parseInt(e.target.value, 10) || 600)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
@@ -143,7 +157,7 @@ export default function ImageProcessor() {
               min="1"
               max="100"
               value={quality}
-              onChange={(e) => setQuality(parseInt(e.target.value))}
+              onChange={(e) => setQuality(parseInt(e.target.value, 10) || 80)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
@@ -205,10 +219,13 @@ export default function ImageProcessor() {
           {/* 처리된 이미지 */}
           <div>
             <h3 className="font-semibold mb-2">처리된 이미지</h3>
-            <img
+            <Image
               src={result.processed.url}
               alt="Processed"
+              width={result.processed.width}
+              height={result.processed.height}
               className="max-w-md rounded-lg shadow-md"
+              unoptimized
             />
             <a
               href={result.processed.url}

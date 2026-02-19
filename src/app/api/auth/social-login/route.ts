@@ -62,14 +62,15 @@ export async function POST(request: NextRequest) {
     const db = getFirestore();
 
     // Create or update user in Firebase Auth
+    // 보안: 클라이언트 UID를 절대 신뢰하지 않음 — 서버에서 생성/조회
     let firebaseUser;
     try {
-      // Try to get existing user
+      // Try to get existing user by email
       firebaseUser = await auth.getUserByEmail(email);
     } catch {
       // User doesn't exist, create new one
       firebaseUser = await auth.createUser({
-        uid: uid,
+        // uid를 지정하지 않아 Firebase가 안전한 UID를 자동 생성
         email: email,
         displayName: typeof displayName === 'string' ? displayName : undefined,
         photoURL: typeof photoURL === 'string' && photoURL.length > 0 ? photoURL : undefined,

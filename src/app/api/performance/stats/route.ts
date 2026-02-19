@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * 성능 통계 API
+ * 성능 통계 API (인증 필요)
  *
  * GET /api/performance/stats
  *

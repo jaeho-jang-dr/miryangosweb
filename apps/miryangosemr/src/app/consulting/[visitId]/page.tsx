@@ -19,10 +19,16 @@ import { signVisit } from '@shared/lib/signature-client';
 
 import dynamic from 'next/dynamic';
 import EMRLayout from '@/components/layout/EMRLayout';
+import { FeeScheduleItemFull, BundlePrescription } from '@/types/fee-schedule';
+import { BillingItem, InsuranceType } from '@/types/billing';
+import { resolve3TierPrice, feeItemToBillingItem, resolveBundleToBillingItems } from '@/lib/fee-engine';
+import { formatKRW, roundTo10 } from '@/lib/fee-calculator';
 
 // Dynamic imports for heavy components (3.6 optimization)
 const PrescriptionModule = dynamic(() => import('@/components/clinical/PrescriptionModule'), { ssr: false });
 const ConfirmCompleteModal = dynamic(() => import('@/components/clinical/ConfirmCompleteModal'), { ssr: false });
+const FeeScheduleSearch = dynamic(() => import('@/components/clinical/FeeScheduleSearch'), { ssr: false });
+const BundlePrescriptionPicker = dynamic(() => import('@/components/clinical/BundlePrescriptionPicker'), { ssr: false });
 
 interface DetectedOrder {
     id: string;
@@ -110,6 +116,14 @@ function ConsultingDetailPageContent() {
     // Toast messages (replacing alert)
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    // Fee-based prescription state (Phase 2)
+    const [prescriptionItems, setPrescriptionItems] = useState<BillingItem[]>([]);
+    const [prescriptionTab, setPrescriptionTab] = useState<'internal' | 'external'>('internal');
+    const [insuranceType] = useState<InsuranceType>('nhis');
+
+    // Waiting patients (Phase 2)
+    const [waitingPatients, setWaitingPatients] = useState<Visit[]>([]);
+
     // --- HELPER FUNCTIONS ---
 
     const addOrder = (type: MedicalOrder['type'], name: string) => {
@@ -180,6 +194,44 @@ function ConsultingDetailPageContent() {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 3000);
     }, []);
+
+    // Fee schedule item selection handler
+    const handleFeeItemSelect = (item: FeeScheduleItemFull) => {
+        const billingItem = feeItemToBillingItem(item, item.defaultQuantity || 1, insuranceType);
+        setPrescriptionItems(prev => [...prev, billingItem]);
+        // Also add to plan text
+        setFormData(prev => ({
+            ...prev,
+            plan: (prev.plan ? prev.plan + '\n' : '') + `[${item.prescriptionCode}] ${item.name}`
+        }));
+    };
+
+    // Bundle selection handler
+    const handleBundleSelect = async (bundle: BundlePrescription) => {
+        try {
+            const items = await resolveBundleToBillingItems(bundle, insuranceType);
+            setPrescriptionItems(prev => [...prev, ...items]);
+            setFormData(prev => ({
+                ...prev,
+                plan: (prev.plan ? prev.plan + '\n' : '') + `[묶음] ${bundle.name} (${items.length}항목)`
+            }));
+            showToast(`${bundle.name} 묶음처방이 추가되었습니다.`);
+        } catch (e) {
+            console.error('Bundle resolve error:', e);
+        }
+    };
+
+    const removePrescriptionItem = (id: string) => {
+        setPrescriptionItems(prev => prev.filter(i => i.id !== id));
+    };
+
+    // Billing preview totals (memoized)
+    const billingPreview = useMemo(() => {
+        const totalAmount = prescriptionItems.reduce((s, i) => s + i.totalPrice, 0);
+        const copayAmount = prescriptionItems.reduce((s, i) => s + i.copayAmount, 0);
+        const insuranceAmount = prescriptionItems.reduce((s, i) => s + i.insuranceAmount, 0);
+        return { totalAmount, copayAmount, insuranceAmount };
+    }, [prescriptionItems]);
 
     // Save chart version snapshot (1.5)
     const saveChartVersion = async () => {
@@ -460,6 +512,20 @@ function ConsultingDetailPageContent() {
         });
         return () => unsub();
     }, [visitId]);
+
+    // Subscribe to waiting patients (Phase 2)
+    useEffect(() => {
+        const q = query(
+            collection(db, 'visits'),
+            where('status', '==', 'reception'),
+            orderBy('date', 'asc'),
+            limit(20)
+        );
+        const unsub = onSnapshot(q, (snap) => {
+            setWaitingPatients(snap.docs.map(d => ({ id: d.id, ...d.data() } as Visit)));
+        });
+        return () => unsub();
+    }, []);
 
     useEffect(() => {
         const search = async () => {
@@ -763,10 +829,101 @@ function ConsultingDetailPageContent() {
                             </div>
                         )}
                     </div>
+
+                    {/* Fee-based Prescription Section (Phase 2) */}
+                    <div className="bg-white rounded-xl border-2 border-blue-200 p-6">
+                        <label className="block text-sm font-bold uppercase tracking-wider mb-3 text-blue-700">처방 입력 (수가 기반)</label>
+
+                        {/* Tab: Internal/External */}
+                        <div className="flex gap-2 mb-3">
+                            <button
+                                onClick={() => setPrescriptionTab('internal')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md border transition-colors ${prescriptionTab === 'internal' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-blue-50'}`}
+                            >원내처방</button>
+                            <button
+                                onClick={() => setPrescriptionTab('external')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md border transition-colors ${prescriptionTab === 'external' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-blue-50'}`}
+                            >원외처방</button>
+                        </div>
+
+                        {/* Fee Schedule Search */}
+                        <div className="space-y-2 mb-3">
+                            <FeeScheduleSearch onSelect={handleFeeItemSelect} placeholder="수가코드/처방명 검색하여 추가..." />
+                            <BundlePrescriptionPicker onSelectBundle={handleBundleSelect} />
+                        </div>
+
+                        {/* Prescription Items List */}
+                        {prescriptionItems.length > 0 && (
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <table className="w-full text-xs">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-2 py-1.5 text-left text-slate-500">코드</th>
+                                            <th className="px-2 py-1.5 text-left text-slate-500">명칭</th>
+                                            <th className="px-2 py-1.5 text-right text-slate-500">수량</th>
+                                            <th className="px-2 py-1.5 text-right text-slate-500">금액</th>
+                                            <th className="px-2 py-1.5 w-8"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {prescriptionItems.map(item => (
+                                            <tr key={item.id} className="hover:bg-slate-50">
+                                                <td className="px-2 py-1.5 font-mono text-blue-600">{item.feeCode}</td>
+                                                <td className="px-2 py-1.5 text-slate-800 truncate max-w-[200px]">{item.feeName}</td>
+                                                <td className="px-2 py-1.5 text-right text-slate-600">{item.quantity}</td>
+                                                <td className="px-2 py-1.5 text-right font-medium text-slate-800">{formatKRW(item.totalPrice)}</td>
+                                                <td className="px-2 py-1.5">
+                                                    <button onClick={() => removePrescriptionItem(item.id)} className="text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Billing Preview */}
+                        {prescriptionItems.length > 0 && (
+                            <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg grid grid-cols-3 gap-2 text-center text-xs">
+                                <div>
+                                    <p className="text-slate-500">총 진료비</p>
+                                    <p className="text-sm font-bold text-slate-800">{formatKRW(billingPreview.totalAmount)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-slate-500">보험 부담</p>
+                                    <p className="text-sm font-bold text-blue-600">{formatKRW(billingPreview.insuranceAmount)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-slate-500">본인 부담</p>
+                                    <p className="text-sm font-bold text-emerald-600">{formatKRW(billingPreview.copayAmount)}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right Column: Assistant - simplified for migration */}
                 <div className="w-[480px] border-l border-slate-200 bg-white hidden xl:flex flex-col shadow-inner">
+                    {/* Waiting Patients Quick-Switch (Phase 2) */}
+                    {waitingPatients.length > 0 && (
+                        <div className="p-2 border-b border-slate-100 bg-amber-50">
+                            <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">대기 환자 ({waitingPatients.length})</p>
+                            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                                {waitingPatients.slice(0, 8).map(wp => (
+                                    <button
+                                        key={wp.id}
+                                        onClick={async () => {
+                                            await handleSave(false);
+                                            router.push(`/consulting/${wp.id}`);
+                                        }}
+                                        className="shrink-0 px-2 py-1 text-xs bg-white border border-amber-200 rounded-md hover:bg-amber-100 text-slate-700 font-medium transition-colors"
+                                    >
+                                        {wp.patientName}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto no-scrollbar">
                         <button onClick={() => { setActiveOrderGroup('symptom'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'symptom' ? 'bg-white border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Activity className="w-5 h-5" />증상</button>
                         <button onClick={() => { setActiveOrderGroup('physical_exam'); setActiveSubGroupId(null); }} className={`flex-none w-20 flex flex-col items-center gap-1 py-3 text-[11px] font-bold transition-all border-b-2 ${activeOrderGroup === 'physical_exam' ? 'bg-white border-amber-600 text-amber-600' : 'border-transparent text-slate-400 hover:bg-white/50'}`}><Stethoscope className="w-5 h-5" />이학검사</button>

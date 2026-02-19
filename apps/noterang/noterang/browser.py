@@ -7,6 +7,7 @@
 """
 import asyncio
 import json
+import logging
 import sys
 import time
 import re
@@ -18,6 +19,8 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 from .config import get_config
+
+logger = logging.getLogger(__name__)
 
 
 class NotebookLMBrowser:
@@ -42,36 +45,67 @@ class NotebookLMBrowser:
         await self.close()
 
     async def start(self):
-        """브라우저 시작"""
-        from playwright.async_api import async_playwright
+        """브라우저 시작
 
-        self.playwright = await async_playwright().start()
-        self.context = await self.playwright.chromium.launch_persistent_context(
-            user_data_dir=str(self.config.browser_profile),
-            headless=self._headless,
-            args=[
-                '--disable-blink-features=AutomationControlled',
-                '--disable-infobars',
-            ],
-            viewport={
-                'width': self.config.browser_viewport_width,
-                'height': self.config.browser_viewport_height
-            },
-            accept_downloads=True,
-            downloads_path=str(self.config.download_dir),
-        )
-        self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+        Raises:
+            RuntimeError: 브라우저 시작에 실패한 경우
+        """
+        from playwright.async_api import async_playwright, Error as PlaywrightError
+
+        try:
+            self.playwright = await async_playwright().start()
+            self.context = await self.playwright.chromium.launch_persistent_context(
+                user_data_dir=str(self.config.browser_profile),
+                headless=self._headless,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                ],
+                viewport={
+                    'width': self.config.browser_viewport_width,
+                    'height': self.config.browser_viewport_height
+                },
+                accept_downloads=True,
+                downloads_path=str(self.config.download_dir),
+            )
+            self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+            logger.debug("브라우저 시작 완료 (headless=%s)", self._headless)
+        except PlaywrightError as e:
+            logger.error("브라우저 시작 실패: %s", e, exc_info=True)
+            raise RuntimeError(f"브라우저를 시작할 수 없습니다: {e}") from e
 
     async def close(self):
-        """브라우저 종료"""
+        """브라우저 종료 (항상 안전하게 실행)"""
         if self.context:
-            await self.context.close()
-        if self.playwright:
-            await self.playwright.stop()
+            try:
+                await self.context.close()
+            except Exception as e:
+                logger.debug("context.close() 중 오류 (무시됨): %s", e)
+            self.context = None
+        if hasattr(self, 'playwright') and self.playwright:
+            try:
+                await self.playwright.stop()
+            except Exception as e:
+                logger.debug("playwright.stop() 중 오류 (무시됨): %s", e)
+            self.playwright = None
 
     async def ensure_logged_in(self) -> bool:
         """로그인 확인 (완전 자동 로그인 포함)"""
-        await self.page.goto(self.base_url, wait_until='domcontentloaded', timeout=30000)
+        from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
+
+        if self.page is None:
+            self.page = await self.context.new_page()
+
+        try:
+            await self.page.goto(self.base_url, wait_until='domcontentloaded', timeout=30000)
+        except PlaywrightTimeoutError:
+            logger.warning("NotebookLM 메인 페이지 로드 타임아웃 - 계속 진행")
+            print("  ⚠️ 페이지 로드 타임아웃 - 계속 진행...")
+        except PlaywrightError as e:
+            logger.error("NotebookLM 접속 실패: %s", e)
+            print(f"  ❌ NotebookLM 접속 실패: {e}")
+            return False
+
         await asyncio.sleep(3)
 
         # 로그인 페이지로 리다이렉트 되었는지 확인
@@ -86,27 +120,39 @@ class NotebookLMBrowser:
                 if success:
                     # 자동 로그인 성공 후 브라우저 재시작
                     await self.close()
-                    from playwright.async_api import async_playwright
-                    self.playwright = await async_playwright().start()
-                    self.context = await self.playwright.chromium.launch_persistent_context(
-                        user_data_dir=str(BROWSER_PROFILE),
-                        headless=self._headless,
-                        args=['--disable-blink-features=AutomationControlled'],
-                        viewport={
-                            'width': self.config.browser_viewport_width,
-                            'height': self.config.browser_viewport_height
-                        },
-                        accept_downloads=True,
-                        downloads_path=str(self.config.download_dir),
-                    )
-                    self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
-                    await self.page.goto(self.base_url, timeout=30000)
-                    await asyncio.sleep(3)
-                    return True
+                    try:
+                        from playwright.async_api import async_playwright
+                        self.playwright = await async_playwright().start()
+                        self.context = await self.playwright.chromium.launch_persistent_context(
+                            user_data_dir=str(BROWSER_PROFILE),
+                            headless=self._headless,
+                            args=['--disable-blink-features=AutomationControlled'],
+                            viewport={
+                                'width': self.config.browser_viewport_width,
+                                'height': self.config.browser_viewport_height
+                            },
+                            accept_downloads=True,
+                            downloads_path=str(self.config.download_dir),
+                        )
+                        self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+                        await self.page.goto(self.base_url, timeout=30000)
+                        await asyncio.sleep(3)
+                        return True
+                    except PlaywrightError as e:
+                        logger.error("로그인 후 브라우저 재시작 실패: %s", e, exc_info=True)
+                        print(f"  ❌ 로그인 후 브라우저 재시작 실패: {e}")
+                        return False
+                else:
+                    logger.warning("완전 자동 로그인 반환값 False")
+            except ImportError as e:
+                logger.error("auto_login 모듈 임포트 실패: %s", e)
+                print(f"  ❌ 자동 로그인 모듈 임포트 실패: {e}")
             except Exception as e:
-                print(f"  완전 자동 로그인 실패: {e}")
+                logger.error("완전 자동 로그인 예외: %s", e, exc_info=True)
+                print(f"  ❌ 완전 자동 로그인 실패: {e}")
 
-            # 폴백: 수동 대기
+            # 폴백: 수동 대기 (최대 2분)
+            print("  폴백: 수동 로그인 대기 (120초)...")
             start = time.time()
             while time.time() - start < 120:
                 if 'notebooklm.google.com' in self.page.url and 'accounts.google' not in self.page.url:
@@ -120,7 +166,8 @@ class NotebookLMBrowser:
         try:
             password_input = await self.page.query_selector('input[type="password"]')
             if password_input:
-                clean_password = self.config.notebooklm_app_password.replace(' ', '')
+                app_password = self.config.notebooklm_app_password or ""
+                clean_password = app_password.replace(' ', '')
                 await password_input.fill(clean_password)
                 await asyncio.sleep(0.5)
 
@@ -133,7 +180,16 @@ class NotebookLMBrowser:
 
     async def list_notebooks(self) -> List[Dict]:
         """노트북 목록 조회"""
-        await self.page.goto(self.base_url, wait_until='domcontentloaded', timeout=30000)
+        from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
+
+        try:
+            await self.page.goto(self.base_url, wait_until='domcontentloaded', timeout=30000)
+        except PlaywrightTimeoutError:
+            logger.warning("list_notebooks: 페이지 로드 타임아웃 - 계속 진행")
+        except PlaywrightError as e:
+            logger.error("list_notebooks: 페이지 이동 실패: %s", e)
+            return []
+
         await asyncio.sleep(5)
 
         notebooks = []
@@ -152,7 +208,8 @@ class NotebookLMBrowser:
                         'id': notebook_id,
                         'title': title.strip()
                     })
-            except:
+            except PlaywrightError as e:
+                logger.debug("노트북 카드 처리 중 오류 (건너뜀): %s", e)
                 continue
 
         # 대체 방법: URL에서 노트북 ID 추출
@@ -161,17 +218,19 @@ class NotebookLMBrowser:
             for link in links:
                 try:
                     href = await link.get_attribute('href')
-                    if '/notebook/' in href:
-                        notebook_id = href.split('/notebook/')[-1].split('/')[0].split('?')[0]
-                        title_elem = await link.query_selector('h3, span, [class*="title"]')
-                        title = await title_elem.inner_text() if title_elem else notebook_id[:8]
+                    if not href or '/notebook/' not in href:
+                        continue
+                    notebook_id = href.split('/notebook/')[-1].split('/')[0].split('?')[0]
+                    title_elem = await link.query_selector('h3, span, [class*="title"]')
+                    title = await title_elem.inner_text() if title_elem else notebook_id[:8]
 
-                        if notebook_id and len(notebook_id) > 10:
-                            notebooks.append({
-                                'id': notebook_id,
-                                'title': title.strip()
-                            })
-                except:
+                    if notebook_id and len(notebook_id) > 10:
+                        notebooks.append({
+                            'id': notebook_id,
+                            'title': title.strip()
+                        })
+                except PlaywrightError as e:
+                    logger.debug("노트북 링크 처리 중 오류 (건너뜀): %s", e)
                     continue
 
         return notebooks
@@ -346,6 +405,82 @@ class NotebookLMBrowser:
 
         return False
 
+    async def add_source_via_search(self, query: str) -> bool:
+        """웹 검색으로 소스 추가
+
+        Args:
+            query: 검색 쿼리 문자열
+
+        Returns:
+            성공 여부
+        """
+        try:
+            # 소스 추가 버튼 찾기
+            add_btn = await self.page.query_selector(
+                'button:has-text("소스 추가"), '
+                'button:has-text("Add source"), '
+                '[aria-label*="Add source"]'
+            )
+
+            if not add_btn:
+                print("  ⚠️ 소스 추가 버튼을 찾을 수 없습니다")
+                return False
+
+            await add_btn.click()
+            await asyncio.sleep(1)
+
+            # 검색 옵션 선택
+            search_option = await self.page.query_selector(
+                'button:has-text("검색"), '
+                'button:has-text("Search"), '
+                'button:has-text("Web search")'
+            )
+
+            if search_option:
+                await search_option.click()
+                await asyncio.sleep(1)
+
+                # 검색어 입력
+                search_input = await self.page.query_selector(
+                    'input[type="search"], '
+                    'input[placeholder*="검색"], '
+                    'input[placeholder*="Search"]'
+                )
+                if search_input:
+                    await search_input.fill(query)
+                    await asyncio.sleep(0.5)
+                    await search_input.press("Enter")
+                    await asyncio.sleep(3)
+
+                    # 첫 번째 결과 선택
+                    result_item = await self.page.query_selector(
+                        '[role="listitem"]:first-child, '
+                        '[class*="result"]:first-child, '
+                        '[class*="search-result"]:first-child'
+                    )
+                    if result_item:
+                        await result_item.click()
+                        await asyncio.sleep(1)
+
+                    # 추가/확인 버튼
+                    submit_btn = await self.page.query_selector(
+                        'button[type="submit"], '
+                        'button:has-text("추가"), '
+                        'button:has-text("Add"), '
+                        'button:has-text("Insert")'
+                    )
+                    if submit_btn:
+                        await submit_btn.click()
+                        await asyncio.sleep(3)
+                        print(f"  ✓ 웹 검색 소스 추가: {query[:30]}...")
+                        return True
+
+            print(f"  ⚠️ 웹 검색 소스 추가 실패")
+            return False
+        except Exception as e:
+            print(f"  ⚠️ 웹 검색 소스 추가 오류: {e}")
+            return False
+
     async def create_slides(
         self,
         language: str = "Korean",
@@ -417,7 +552,8 @@ class NotebookLMBrowser:
 
         if not slide_btn:
             print("  ❌ 슬라이드 버튼을 찾을 수 없습니다")
-            await self.page.screenshot(path="debug_no_slide_btn.png")
+            debug_path = str(self.config.download_dir / "debug_no_slide_btn.png")
+            await self.page.screenshot(path=debug_path)
             return False
 
         # 슬라이드 버튼 클릭
@@ -591,7 +727,7 @@ class NotebookLMBrowser:
         start = time.time()
 
         while time.time() - start < max_wait:
-            ready, status = await self.check_slides_ready(notebook_id)
+            ready, status = await self.get_slide_status(notebook_id)
 
             if ready:
                 print(f"  ✓ 슬라이드 생성 완료")
@@ -647,6 +783,8 @@ class NotebookLMBrowser:
 
     async def _download_via_menu(self, save_path: Path) -> Optional[Path]:
         """메뉴를 통한 다운로드"""
+        from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
+
         menu_btns = await self.page.query_selector_all('[aria-haspopup="menu"], button[aria-label*="more"], button[aria-label*="더보기"]')
 
         for menu_btn in menu_btns[-10:]:
@@ -665,20 +803,30 @@ class NotebookLMBrowser:
 
                     download = await download_info.value
                     await download.save_as(str(save_path))
+                    logger.debug("메뉴 다운로드 성공: %s", save_path)
                     return save_path
 
                 await self.page.keyboard.press('Escape')
 
-            except Exception:
+            except PlaywrightTimeoutError:
+                logger.debug("다운로드 메뉴 타임아웃 - 다음 버튼 시도")
                 try:
                     await self.page.keyboard.press('Escape')
-                except:
+                except PlaywrightError:
+                    pass
+            except PlaywrightError as e:
+                logger.debug("다운로드 메뉴 클릭 실패 (건너뜀): %s", e)
+                try:
+                    await self.page.keyboard.press('Escape')
+                except PlaywrightError:
                     pass
 
         return None
 
     async def _download_via_button(self, save_path: Path) -> Optional[Path]:
         """다운로드 버튼 직접 클릭"""
+        from playwright.async_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
+
         dl_btn = await self.page.query_selector(
             'button:has-text("다운로드"), '
             'button:has-text("Download"), '
@@ -693,9 +841,12 @@ class NotebookLMBrowser:
 
                 download = await download_info.value
                 await download.save_as(str(save_path))
+                logger.debug("버튼 다운로드 성공: %s", save_path)
                 return save_path
-            except:
-                pass
+            except PlaywrightTimeoutError:
+                logger.debug("다운로드 버튼 타임아웃 (60초)")
+            except PlaywrightError as e:
+                logger.debug("다운로드 버튼 클릭 실패: %s", e)
 
         return None
 

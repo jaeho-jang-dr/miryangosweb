@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
 
     try {
         if (mode === 'clear') {
-            // Optional: Clear existing data logic could go here, but for safety we skip
             return NextResponse.json({ message: "Clear not implemented for safety" });
         }
 

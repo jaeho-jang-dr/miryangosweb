@@ -21,6 +21,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Validate state parameter for CSRF protection
+        // The state value must be a non-empty string. Naver's token endpoint also
+        // validates that the state matches the one sent in the initial authorization
+        // request, providing server-side CSRF protection.
+        // TODO: For full CSRF protection, store the generated state in a server-side
+        // session or signed cookie before the OAuth redirect, and validate it matches
+        // here before proceeding. Currently relying on Naver's server-side validation.
+        if (typeof state !== 'string' || state.trim().length === 0 || state.length > 256) {
+            return NextResponse.json(
+                { error: 'Invalid state parameter' },
+                { status: 400 }
+            );
+        }
+
         if (!NAVER_CLIENT_ID || !NAVER_CLIENT_SECRET) {
             return NextResponse.json(
                 { error: 'Naver OAuth credentials not configured' },

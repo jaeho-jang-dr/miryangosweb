@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import os from 'os';
 import { processImage, getImageInfo } from '@/lib/image-processor';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeApp, getApps } from 'firebase/app';
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     console.log('[ImageProcess] Starting image processing...');
 
     // 임시 디렉토리 생성
-    const tempDir = path.join(process.cwd(), 'public', 'temp');
+    const tempDir = path.join(os.tmpdir(), 'miryang-image-processing');
 
     if (!existsSync(tempDir)) {
       await mkdir(tempDir, { recursive: true });

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Article } from '@/types/public-schemas';
 import { ArrowRight, BookOpen, Calendar, Sparkles } from 'lucide-react';
 import Image from 'next/image';

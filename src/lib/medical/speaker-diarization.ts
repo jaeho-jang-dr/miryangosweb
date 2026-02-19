@@ -42,9 +42,8 @@ JSON 형식으로 출력하세요:
     return result.segments || [];
   } catch (error) {
     console.error("Speaker diarization failed:", error);
-    // Fallback: Return the whole text as 'patient' or 'doctor' (or unknown) if parsing fails, 
-    // but better to return empty or original as single chunk.
-    // Here we'll return a single chunk as 'patient' to avoid breaking UI, or maybe just empty.
-    return [{ speaker: 'patient', text: transcript }]; 
+    // AI 실패 시 빈 배열 반환 — 전체를 환자 발화로 잘못 분류하지 않음
+    // 호출측에서 빈 배열을 처리하여 원본 transcript를 그대로 표시해야 함
+    return [];
   }
 }

@@ -9,6 +9,7 @@
 Uses notebooklm_tools Python API directly (no subprocess).
 """
 import asyncio
+import logging
 import sys
 import time
 from typing import Optional, Dict, Tuple
@@ -17,7 +18,9 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 from .config import get_config
-from .nlm_client import get_nlm_client, NLMClientError
+from .nlm_client import get_nlm_client, NLMClientError, NLMAuthError
+
+logger = logging.getLogger(__name__)
 
 
 def create_slides(
@@ -30,7 +33,7 @@ def create_slides(
     슬라이드 생성 시작
 
     Args:
-        notebook_id: 노트북 ID
+        notebook_id: 노트북 ID (비어 있으면 오류)
         language: 언어 (기본: "ko" 한글)
         focus: 집중할 주제
         confirm: 자동 확인 (API에서는 무시)
@@ -38,6 +41,11 @@ def create_slides(
     Returns:
         Artifact ID 또는 None
     """
+    if not notebook_id:
+        logger.error("create_slides: notebook_id가 비어 있음")
+        print("  ❌ 노트북 ID가 필요합니다.")
+        return None
+
     config = get_config()
     lang = language or config.default_language  # 기본: 한글!
 
@@ -52,9 +60,20 @@ def create_slides(
         if result and result.get('artifact_id'):
             artifact_id = result['artifact_id']
             print(f"  Artifact ID: {artifact_id}")
+            logger.info("슬라이드 생성 시작: artifact_id=%s", artifact_id)
             return artifact_id
+        logger.warning("create_slides: API가 artifact_id 없이 응답함: %s", result)
+        return None
+    except NLMAuthError as e:
+        logger.error("슬라이드 생성 인증 실패: %s", e)
+        print(f"  ❌ 인증 오류: {e}. 'nlm login'을 실행하세요.")
+        return None
+    except NLMClientError as e:
+        logger.error("슬라이드 생성 API 오류 (notebook_id=%s): %s", notebook_id[:8], e)
+        print(f"  ❌ API 오류로 슬라이드 생성 실패: {str(e)[:100]}")
         return None
     except Exception as e:
+        logger.error("슬라이드 생성 예상치 못한 오류: %s", e, exc_info=True)
         print(f"  ❌ 생성 시작 실패: {str(e)[:100]}")
         return None
 
@@ -104,6 +123,10 @@ def check_studio_status(notebook_id: str) -> Tuple[str, Dict]:
         (status, full_response)
         status: "completed", "in_progress", "failed", "unknown"
     """
+    if not notebook_id:
+        logger.warning("check_studio_status: notebook_id가 비어 있음")
+        return "unknown", {"error": "notebook_id 없음"}
+
     try:
         client = get_nlm_client()
         artifacts = client.poll_studio_status(notebook_id)
@@ -115,7 +138,14 @@ def check_studio_status(notebook_id: str) -> Tuple[str, Dict]:
         latest = artifacts[0]
         status = latest.get('status', 'unknown')
         return status, latest
+    except NLMAuthError as e:
+        logger.error("스튜디오 상태 확인 인증 실패: %s", e)
+        return "unknown", {"error": f"인증 실패: {e}"}
+    except NLMClientError as e:
+        logger.warning("스튜디오 상태 확인 API 오류: %s", e)
+        return "unknown", {"error": str(e)}
     except Exception as e:
+        logger.error("스튜디오 상태 확인 예상치 못한 오류: %s", e, exc_info=True)
         return "unknown", {"error": str(e)}
 
 

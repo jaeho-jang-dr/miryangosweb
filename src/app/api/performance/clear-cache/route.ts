@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * 캐시 초기화 API
+ * 캐시 초기화 API (관리자 전용)
  *
  * POST /api/performance/clear-cache
  *

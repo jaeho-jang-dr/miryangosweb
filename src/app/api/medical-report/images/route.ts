@@ -7,9 +7,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export async function POST(request: Request) {
     let topic = '';
     try {
+        if (!process.env.GEMINI_API_KEY) {
+            return NextResponse.json({ error: 'GEMINI_API_KEY is not configured' }, { status: 500 });
+        }
+
         const body = await request.json();
         topic = body.topic;
-        const context = body.context;
 
         if (!topic) return NextResponse.json({ error: 'Topic required' }, { status: 400 });
 

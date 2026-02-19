@@ -642,7 +642,7 @@ export default function ReceptionPage() {
 
             {/* MODAL: Payment & Issuance Console */}
             {modalMode === 'invoice' && selectedVisit && (
-                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="invoice-modal-title">
                     <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex overflow-hidden h-[85vh] animate-in fade-in zoom-in duration-200">
                         {/* LEFT: Bill & Medical Info */}
                         <div className="w-1/3 bg-slate-50 border-r border-slate-200 p-6 flex flex-col">
@@ -729,7 +729,7 @@ export default function ReceptionPage() {
                         <div className="w-2/3 p-8 bg-white flex flex-col">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                                    <h2 id="invoice-modal-title" className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                                         <FileText className="w-7 h-7 text-indigo-600" />
                                         제증명 발급 및 수납
                                     </h2>
@@ -807,12 +807,12 @@ export default function ReceptionPage() {
 
             {/* MODAL: Documents Selection & Calculation */}
             {modalMode === 'documents' && selectedVisit && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="documents-modal-title">
                     <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex overflow-hidden max-h-[90vh]">
                         {/* Left: Document List */}
                         <div className="w-2/3 p-8 bg-white overflow-y-auto">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <h3 id="documents-modal-title" className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                                     <ShieldCheck className="w-8 h-8 text-emerald-600" /> 제증명 발급 신청
                                 </h3>
                                 <button onClick={() => setModalMode('none')} className="text-slate-400 hover:text-slate-600" aria-label="제증명 발급 신청 닫기" type="button"><X className="w-6 h-6" aria-hidden="true" /></button>
@@ -900,7 +900,7 @@ export default function ReceptionPage() {
 
             {/* MODAL: Document Preview (Printable) - Rendered on top if showPreview is true */}
             {(modalMode === 'preview' || showPreview) && selectedVisit && previewType && (
-                <div className="fixed inset-0 bg-slate-900/90 z-[60] flex flex-col items-center justify-center p-4 overflow-y-auto">
+                <div className="fixed inset-0 bg-slate-900/90 z-[60] flex flex-col items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label="서류 미리보기">
                     <div className="bg-white w-[210mm] min-h-[297mm] shadow-2xl p-16 text-slate-800 relative printable-area my-8 scale-[0.8] md:scale-100 origin-top">
                         {/* Header */}
                         <div className="text-center border-b-4 border-double border-slate-800 pb-6 mb-10">
@@ -1026,14 +1026,14 @@ export default function ReceptionPage() {
 
             {/* ═══ MODAL: 수납 후 다음 예약 확인 ═══ */}
             {modalMode === 'next_appointment' && paidVisitForAppointment && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="next-appointment-modal-title">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
                         {/* 헤더 */}
                         <div className="bg-emerald-600 p-6 text-white text-center">
                             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
                                 <CheckCircle className="w-8 h-8" />
                             </div>
-                            <h3 className="text-xl font-bold">수납이 완료되었습니다</h3>
+                            <h3 id="next-appointment-modal-title" className="text-xl font-bold">수납이 완료되었습니다</h3>
                             <p className="text-emerald-100 mt-1 text-sm">
                                 {paidVisitForAppointment.patientName}님
                             </p>

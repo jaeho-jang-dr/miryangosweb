@@ -8,9 +8,9 @@
 """
 import asyncio
 import json
+import logging
 import sys
 import time
-import traceback
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Callable, Dict, Any, List
@@ -22,7 +22,19 @@ import queue
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
+logger = logging.getLogger(__name__)
+
+# Default memory file path
+_DEFAULT_MEMORY_PATH = Path("G:/내 드라이브/notebooklm/agent_memory.json")
+# Factor applied to timeout thresholds after a timeout event (adaptive learning)
+_TIMEOUT_GROWTH_FACTOR: float = 1.1
+# Maximum retry attempts before an error is treated as terminal
+_MAX_RETRIES: int = 3
+
+
 class AgentStatus(Enum):
+    """Lifecycle states for a managed agent."""
+
     IDLE = "idle"
     RUNNING = "running"
     WAITING = "waiting"
@@ -30,15 +42,19 @@ class AgentStatus(Enum):
     COMPLETED = "completed"
     TIMEOUT = "timeout"
 
+
 class AgentType(Enum):
-    MAIN = "main"           # 메인 작업 에이전트
-    MONITOR = "monitor"     # 모니터링 에이전트
-    HELPER = "helper"       # 보조 에이전트 (타임아웃 시 투입)
-    RECOVERY = "recovery"   # 복구 에이전트 (버그 발생 시 투입)
+    """Roles that an agent can fulfil within the multi-agent system."""
+
+    MAIN = "main"           # Primary task executor
+    MONITOR = "monitor"     # Observes task progress
+    HELPER = "helper"       # Deployed on timeout to assist
+    RECOVERY = "recovery"   # Deployed on error to attempt recovery
 
 @dataclass
 class AgentTask:
-    """에이전트 작업 정보"""
+    """Represents a unit of work assigned to an agent."""
+
     task_id: str
     task_type: str
     params: Dict[str, Any]
@@ -49,53 +65,76 @@ class AgentTask:
     error: Optional[str] = None
     retries: int = 0
 
+
 @dataclass
 class Agent:
-    """에이전트 정보"""
+    """Represents a single agent instance within the manager."""
+
     agent_id: str
     agent_type: AgentType
     status: AgentStatus = AgentStatus.IDLE
     current_task: Optional[AgentTask] = None
     created_at: float = field(default_factory=time.time)
 
-class AgentMemory:
-    """에이전트 메모리 - 상태 및 학습 정보 저장"""
 
-    def __init__(self, memory_path: Path = None):
-        self.memory_path = memory_path or Path("G:/내 드라이브/notebooklm/agent_memory.json")
+class AgentMemory:
+    """Persistent memory for agent performance statistics and error patterns.
+
+    Stores task history, per-type timeout thresholds, and error recovery
+    strategies in a JSON file.  Thresholds are updated adaptively after
+    timeout events.
+    """
+
+    # Default timeout thresholds (seconds) per task type
+    _DEFAULT_TIMEOUTS: Dict[str, int] = {
+        "slides_create": 300,
+        "research": 120,
+        "download": 60,
+    }
+
+    def __init__(self, memory_path: Optional[Path] = None) -> None:
+        """Initialize agent memory storage.
+
+        Args:
+            memory_path: Path to the JSON persistence file.
+                Defaults to :data:`_DEFAULT_MEMORY_PATH`.
+        """
+        self.memory_path = memory_path or _DEFAULT_MEMORY_PATH
         self.memory_path.parent.mkdir(parents=True, exist_ok=True)
         self.data = self._load()
 
-    def _load(self) -> Dict:
+    def _load(self) -> Dict[str, Any]:
+        """Load persisted data from disk, returning defaults on failure."""
         if self.memory_path.exists():
             try:
                 with open(self.memory_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
-                pass
+            except Exception:
+                logger.warning("Failed to load agent memory; using defaults.", exc_info=True)
         return {
             "tasks_history": [],
             "error_patterns": {},
-            "timeout_thresholds": {
-                "slides_create": 300,  # 5분
-                "research": 120,       # 2분
-                "download": 60,        # 1분
-            },
+            "timeout_thresholds": dict(self._DEFAULT_TIMEOUTS),
             "recovery_strategies": {},
             "performance_stats": {
                 "total_tasks": 0,
                 "successful_tasks": 0,
                 "failed_tasks": 0,
                 "avg_completion_time": {},
-            }
+            },
         }
 
-    def save(self):
+    def save(self) -> None:
+        """Persist the current in-memory data to disk."""
         with open(self.memory_path, 'w', encoding='utf-8') as f:
             json.dump(self.data, f, ensure_ascii=False, indent=2)
 
-    def record_task(self, task: AgentTask):
-        """작업 기록"""
+    def record_task(self, task: AgentTask) -> None:
+        """Record the outcome of a completed task.
+
+        Args:
+            task: The completed :class:`AgentTask` instance.
+        """
         record = {
             "task_id": task.task_id,
             "task_type": task.task_type,
@@ -122,50 +161,78 @@ class AgentMemory:
 
         self.save()
 
-    def record_error(self, error_type: str, error_msg: str, recovery_action: str = None):
-        """에러 패턴 기록"""
-        if error_type not in self.data["error_patterns"]:
-            self.data["error_patterns"][error_type] = {
-                "count": 0,
-                "examples": [],
-                "recovery_actions": []
-            }
+    def record_error(
+        self,
+        error_type: str,
+        error_msg: str,
+        recovery_action: Optional[str] = None,
+    ) -> None:
+        """Record an error occurrence and optionally a recovery action taken.
 
-        pattern = self.data["error_patterns"][error_type]
+        Args:
+            error_type: Exception class name or descriptive category.
+            error_msg: Error message text (truncated to 200 chars in storage).
+            recovery_action: Description of the recovery strategy applied,
+                if any.
+        """
+        pattern = self.data["error_patterns"].setdefault(error_type, {
+            "count": 0,
+            "examples": [],
+            "recovery_actions": [],
+        })
+
         pattern["count"] += 1
         pattern["examples"].append({
             "message": error_msg[:200],
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         })
 
-        if recovery_action:
-            if recovery_action not in pattern["recovery_actions"]:
-                pattern["recovery_actions"].append(recovery_action)
+        if recovery_action and recovery_action not in pattern["recovery_actions"]:
+            pattern["recovery_actions"].append(recovery_action)
 
         self.save()
 
     def get_timeout_threshold(self, task_type: str) -> int:
-        """작업 타입별 타임아웃 임계값 반환"""
+        """Return the current timeout threshold for *task_type*.
+
+        Args:
+            task_type: The task type key (e.g. ``"slides_create"``).
+
+        Returns:
+            Threshold in seconds; defaults to 180 for unknown task types.
+        """
         return self.data["timeout_thresholds"].get(task_type, 180)
 
-    def update_timeout_threshold(self, task_type: str, new_value: int):
-        """타임아웃 임계값 업데이트 (학습)"""
+    def update_timeout_threshold(self, task_type: str, new_value: int) -> None:
+        """Update and persist the timeout threshold for *task_type*.
+
+        Args:
+            task_type: The task type key to update.
+            new_value: New threshold value in seconds.
+        """
         self.data["timeout_thresholds"][task_type] = new_value
         self.save()
 
     def get_recovery_strategy(self, error_type: str) -> Optional[str]:
-        """에러 타입에 대한 복구 전략 반환"""
+        """Return the first known recovery action for *error_type*.
+
+        Args:
+            error_type: Exception class name or error category.
+
+        Returns:
+            Recovery action string, or ``None`` if none are recorded.
+        """
         if error_type in self.data["error_patterns"]:
             actions = self.data["error_patterns"][error_type].get("recovery_actions", [])
             if actions:
-                return actions[0]  # 가장 최근 성공한 복구 전략
+                return actions[0]
         return None
 
 
 class AgentManager:
-    """멀티 에이전트 매니저"""
+    """Multi-agent manager responsible for spawning and monitoring agents."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.memory = AgentMemory()
         self.agents: Dict[str, Agent] = {}
         self.task_queue: queue.Queue = queue.Queue()
@@ -175,36 +242,71 @@ class AgentManager:
         self._lock = threading.Lock()
 
     def _generate_agent_id(self, agent_type: AgentType) -> str:
+        """Generate a unique agent ID.
+
+        Args:
+            agent_type: The role of the new agent.
+
+        Returns:
+            Unique string identifier combining type, counter, and timestamp.
+        """
         with self._lock:
             self._agent_counter += 1
             return f"{agent_type.value}_{self._agent_counter}_{int(time.time())}"
 
     def create_agent(self, agent_type: AgentType) -> Agent:
-        """새 에이전트 생성"""
+        """Instantiate and register a new agent.
+
+        Args:
+            agent_type: The role to assign to the new agent.
+
+        Returns:
+            The newly created :class:`Agent` instance.
+        """
         agent_id = self._generate_agent_id(agent_type)
         agent = Agent(agent_id=agent_id, agent_type=agent_type)
         self.agents[agent_id] = agent
+        logger.debug("Agent created: %s (%s)", agent_id[:20], agent_type.value)
         print(f"  [에이전트] {agent_type.value} 생성: {agent_id[:20]}...")
         return agent
 
     def spawn_helper_agent(self, task: AgentTask, reason: str) -> Agent:
-        """헬퍼 에이전트 투입"""
-        print(f"\n  ⚡ 헬퍼 에이전트 투입 (사유: {reason})")
+        """Deploy a helper agent in response to a timeout or performance issue.
+
+        Args:
+            task: The task that triggered helper deployment.
+            reason: Human-readable reason for deploying the helper.
+
+        Returns:
+            The newly created helper :class:`Agent`.
+        """
+        logger.info("Spawning helper agent (reason: %s)", reason)
+        print(f"\n  헬퍼 에이전트 투입 (사유: {reason})")
         helper = self.create_agent(AgentType.HELPER)
         helper.current_task = task
         helper.status = AgentStatus.RUNNING
         return helper
 
     def spawn_recovery_agent(self, error: str, task: AgentTask) -> Agent:
-        """복구 에이전트 투입"""
-        print(f"\n  🔧 복구 에이전트 투입 (에러: {error[:50]}...)")
+        """Deploy a recovery agent in response to an error.
+
+        Args:
+            error: String representation of the error that occurred.
+            task: The failing :class:`AgentTask`.
+
+        Returns:
+            The newly created recovery :class:`Agent`.
+        """
+        logger.info("Spawning recovery agent (error: %s)", error[:50])
+        print(f"\n  복구 에이전트 투입 (에러: {error[:50]}...)")
         recovery = self.create_agent(AgentType.RECOVERY)
         recovery.current_task = task
         recovery.status = AgentStatus.RUNNING
 
-        # 복구 전략 확인
-        strategy = self.memory.get_recovery_strategy(type(error).__name__ if isinstance(error, Exception) else "unknown")
+        error_type = "unknown"
+        strategy = self.memory.get_recovery_strategy(error_type)
         if strategy:
+            logger.info("Applying learned recovery strategy: %s", strategy)
             print(f"    학습된 복구 전략 적용: {strategy}")
 
         return recovery
@@ -214,18 +316,28 @@ class AgentManager:
         task: AgentTask,
         check_fn: Callable[[], bool],
         check_interval: int = 10,
-        on_timeout: Callable = None,
-        on_error: Callable = None
+        on_timeout: Optional[Callable] = None,
+        on_error: Optional[Callable] = None,
     ) -> bool:
-        """
-        작업 모니터링 - 주기적 체크, 타임아웃/에러 시 에이전트 투입
+        """Poll *task* until it completes, times out, or raises an error.
+
+        On timeout a helper agent is spawned and the threshold is adaptively
+        increased by :data:`_TIMEOUT_GROWTH_FACTOR`.  On error a recovery
+        agent is spawned and *on_error* is invoked.
 
         Args:
-            task: 모니터링할 작업
-            check_fn: 완료 여부 체크 함수 (True 반환 시 완료)
-            check_interval: 체크 간격 (초)
-            on_timeout: 타임아웃 시 콜백
-            on_error: 에러 시 콜백
+            task: The :class:`AgentTask` to monitor.
+            check_fn: Zero-argument callable that returns ``True`` when the
+                task is complete.
+            check_interval: Polling interval in seconds (default 10).
+            on_timeout: Async callback invoked with ``(task, helper_agent)``
+                on first timeout detection.
+            on_error: Async callback invoked with ``(task, recovery_agent, exc)``
+                on exception.  Should return ``True`` to indicate the error was
+                recovered and the monitoring loop should continue.
+
+        Returns:
+            ``True`` if the task completed successfully, ``False`` otherwise.
         """
         task.status = AgentStatus.RUNNING
         task.started_at = time.time()
@@ -234,6 +346,7 @@ class AgentManager:
         helper_spawned = False
         check_count = 0
 
+        logger.info("Monitoring task '%s' (timeout=%ds, interval=%ds)", task.task_type, timeout, check_interval)
         print(f"\n  [모니터] 작업 감시 시작: {task.task_type}")
         print(f"    타임아웃: {timeout}초, 체크 간격: {check_interval}초")
 
@@ -242,21 +355,19 @@ class AgentManager:
                 elapsed = time.time() - task.started_at
                 check_count += 1
 
-                # 완료 체크
                 if check_fn():
                     task.status = AgentStatus.COMPLETED
                     task.completed_at = time.time()
                     self.memory.record_task(task)
-                    print(f"\n  ✓ 작업 완료! (소요시간: {int(elapsed)}초)")
+                    print(f"\n  작업 완료! (소요시간: {int(elapsed)}초)")
                     return True
 
-                # 타임아웃 체크
                 if elapsed > timeout:
                     if not helper_spawned:
                         task.status = AgentStatus.TIMEOUT
-                        print(f"\n  ⏰ 타임아웃 감지 ({int(elapsed)}초 > {timeout}초)")
+                        logger.warning("Task '%s' timed out after %ds", task.task_type, int(elapsed))
+                        print(f"\n  타임아웃 감지 ({int(elapsed)}초 > {timeout}초)")
 
-                        # 헬퍼 에이전트 투입
                         helper = self.spawn_helper_agent(task, "timeout")
                         helper_spawned = True
 
@@ -264,11 +375,12 @@ class AgentManager:
                             try:
                                 await on_timeout(task, helper)
                             except Exception as e:
+                                logger.error("Helper agent callback error: %s", e)
                                 print(f"    헬퍼 에이전트 오류: {e}")
 
-                        # 타임아웃 임계값 학습 (10% 증가)
-                        new_timeout = int(timeout * 1.1)
+                        new_timeout = int(timeout * _TIMEOUT_GROWTH_FACTOR)
                         self.memory.update_timeout_threshold(task.task_type, new_timeout)
+                        logger.info("Timeout threshold updated: %ds → %ds", timeout, new_timeout)
                         print(f"    타임아웃 임계값 학습: {timeout}초 → {new_timeout}초")
 
                     # 추가 대기 (최대 2배까지)
@@ -289,28 +401,26 @@ class AgentManager:
                 task.error = str(e)
                 task.completed_at = time.time()
 
-                print(f"\n  ❌ 에러 발생: {e}")
+                logger.error("Task '%s' error: %s", task.task_type, e)
+                print(f"\n  에러 발생: {e}")
 
-                # 복구 에이전트 투입
                 recovery = self.spawn_recovery_agent(str(e), task)
 
-                # 에러 패턴 기록
-                self.memory.record_error(
-                    type(e).__name__,
-                    str(e),
-                    "retry" if task.retries < 3 else "skip"
-                )
+                recovery_action = "retry" if task.retries < _MAX_RETRIES else "skip"
+                self.memory.record_error(type(e).__name__, str(e), recovery_action)
 
                 if on_error:
                     try:
-                        result = await on_error(task, recovery, e)
-                        if result:  # 복구 성공
+                        recovered = await on_error(task, recovery, e)
+                        if recovered:
                             task.retries += 1
                             task.status = AgentStatus.RUNNING
                             task.error = None
+                            logger.info("Recovery succeeded; retry #%d", task.retries)
                             print(f"    복구 성공! 재시도 #{task.retries}")
                             continue
                     except Exception as recovery_error:
+                        logger.error("Recovery callback failed: %s", recovery_error)
                         print(f"    복구 실패: {recovery_error}")
 
                 self.memory.record_task(task)
@@ -320,14 +430,30 @@ class AgentManager:
 
 
 class NoterangMultiAgent:
-    """노트랑 멀티 에이전트 시스템"""
+    """High-level multi-agent facade for Noterang slide and research tasks.
 
-    def __init__(self):
+    Wraps :class:`AgentManager` and drives the ``nlm`` CLI to create slides
+    and run research, while monitoring for timeouts and errors.
+    """
+
+    def __init__(self) -> None:
         self.manager = AgentManager()
         self.nlm_exe = Path.home() / "AppData/Roaming/Python/Python313/Scripts/nlm.exe"
 
-    def run_nlm(self, args, timeout=120):
-        """nlm CLI 실행"""
+    def run_nlm(
+        self,
+        args: List[str],
+        timeout: int = 120,
+    ) -> tuple:
+        """Execute the ``nlm`` CLI with the given arguments.
+
+        Args:
+            args: Command-line arguments appended to the ``nlm`` executable.
+            timeout: Maximum execution time in seconds (default 120).
+
+        Returns:
+            Tuple of ``(success: bool, stdout: str, stderr: str)``.
+        """
         import subprocess
         import os
 
@@ -347,9 +473,18 @@ class NoterangMultiAgent:
         self,
         notebook_id: str,
         language: str = "ko",
-        focus: str = None
+        focus: Optional[str] = None,
     ) -> Optional[str]:
-        """슬라이드 생성 (모니터링 포함)"""
+        """Create slides for a notebook and monitor completion.
+
+        Args:
+            notebook_id: Target notebook identifier.
+            language: Slide language code (default ``"ko"``).
+            focus: Optional topic focus hint for the slide generator.
+
+        Returns:
+            Artifact ID string on success, or ``None`` on failure.
+        """
 
         # 작업 생성
         task = AgentTask(
@@ -367,7 +502,8 @@ class NoterangMultiAgent:
         success, stdout, stderr = self.run_nlm(args, timeout=60)
 
         if not success:
-            print(f"  ❌ 생성 시작 실패: {stderr[:100]}")
+            logger.error("Slide creation failed: %s", stderr[:100])
+            print(f"  생성 시작 실패: {stderr[:100]}")
             return None
 
         # Artifact ID 추출
@@ -380,35 +516,36 @@ class NoterangMultiAgent:
         print(f"  Artifact ID: {artifact_id}")
 
         # 완료 체크 함수
-        def check_completion():
-            success, stdout, _ = self.run_nlm(["studio", "status", notebook_id])
-            return success and '"status": "completed"' in stdout
+        def check_completion() -> bool:
+            ok, out, _ = self.run_nlm(["studio", "status", notebook_id])
+            return ok and '"status": "completed"' in out
 
-        # 타임아웃 시 콜백 (헬퍼 에이전트가 수행)
-        async def on_timeout(task, helper):
-            print(f"    [헬퍼] 상태 재확인 중...")
-            success, stdout, _ = self.run_nlm(["studio", "status", notebook_id])
-            print(f"    [헬퍼] 현재 상태: {stdout[:100]}...")
+        async def on_timeout(task: AgentTask, helper: Agent) -> None:
+            """Helper callback: re-check status and retry if failed."""
+            print("    [헬퍼] 상태 재확인 중...")
+            _, status_out, _ = self.run_nlm(["studio", "status", notebook_id])
+            print(f"    [헬퍼] 현재 상태: {status_out[:100]}...")
 
-            # 진행 중이면 계속 대기
-            if '"status": "in_progress"' in stdout:
-                print(f"    [헬퍼] 아직 진행 중 - 대기 계속")
+            if '"status": "in_progress"' in status_out:
+                logger.debug("Helper agent: slide generation still in progress")
+                print("    [헬퍼] 아직 진행 중 - 대기 계속")
                 return
 
-            # 실패한 경우 재시도
-            if '"status": "failed"' in stdout:
-                print(f"    [헬퍼] 실패 감지 - 재생성 시도")
+            if '"status": "failed"' in status_out:
+                logger.warning("Slide generation failed; retrying via helper agent")
+                print("    [헬퍼] 실패 감지 - 재생성 시도")
                 self.run_nlm(args, timeout=60)
 
-        # 에러 시 콜백 (복구 에이전트가 수행)
-        async def on_error(task, recovery, error):
+        async def on_error(task: AgentTask, recovery: Agent, error: Exception) -> bool:
+            """Recovery callback: re-authenticate or wait for transient errors."""
+            logger.info("Recovery analysis for error type: %s", type(error).__name__)
             print(f"    [복구] 에러 분석: {type(error).__name__}")
 
-            # 인증 에러면 재인증
-            if "auth" in str(error).lower() or "expired" in str(error).lower():
-                print(f"    [복구] 인증 재시도...")
-                from sync_auth import sync_auth
-                sync_auth()
+            error_str = str(error).lower()
+            if "auth" in error_str or "expired" in error_str:
+                print("    [복구] 인증 재시도...")
+                from .auth import ensure_auth as _ensure_auth
+                await _ensure_auth()
                 return True
 
             # 네트워크 에러면 재시도
@@ -436,91 +573,107 @@ class NoterangMultiAgent:
         self,
         notebook_id: str,
         query: str,
-        mode: str = "fast"
+        mode: str = "fast",
     ) -> tuple:
-        """연구 실행 (모니터링 포함)"""
+        """Run a research task and monitor it until completion.
 
+        Args:
+            notebook_id: Target notebook identifier.
+            query: Research query string.
+            mode: Research mode (e.g. ``"fast"``).
+
+        Returns:
+            Tuple of ``(success: bool, imported_count: int)``.
+        """
         task = AgentTask(
             task_id=f"research_{int(time.time())}",
             task_type="research",
-            params={"notebook_id": notebook_id, "query": query, "mode": mode}
+            params={"notebook_id": notebook_id, "query": query, "mode": mode},
         )
 
         print(f"\n[연구] 쿼리: {query}")
 
-        # 연구 시작
-        success, stdout, stderr = self.run_nlm([
+        success, stdout, _ = self.run_nlm([
             "research", "start", query,
             "--notebook-id", notebook_id,
-            "--mode", mode
+            "--mode", mode,
         ])
 
         if not success:
-            print(f"  ❌ 연구 시작 실패")
+            logger.error("Research start failed for query: %s", query)
+            print("  연구 시작 실패")
             return False, 0
 
-        # Task ID 추출
-        task_id = None
+        task_id: Optional[str] = None
         for line in stdout.split('\n'):
             if 'Task ID:' in line:
                 task_id = line.split('Task ID:')[1].strip()
                 break
 
-        # 완료 체크 함수
-        def check_completion():
-            success, stdout, _ = self.run_nlm(["research", "status", notebook_id])
-            return success and "completed" in stdout.lower()
+        def check_completion() -> bool:
+            ok, out, _ = self.run_nlm(["research", "status", notebook_id])
+            return ok and "completed" in out.lower()
 
-        # 모니터링
         completed = await self.manager.monitor_task(
             task=task,
             check_fn=check_completion,
-            check_interval=5
+            check_interval=5,
         )
 
         if completed and task_id:
-            # 소스 가져오기
-            success, stdout, _ = self.run_nlm(["research", "import", notebook_id, task_id])
+            _, import_out, _ = self.run_nlm(["research", "import", notebook_id, task_id])
             imported = 0
-            if "Imported" in stdout:
+            if "Imported" in import_out:
                 try:
-                    imported = int(stdout.split("Imported")[1].split("source")[0].strip())
-                except:
-                    pass
+                    imported = int(import_out.split("Imported")[1].split("source")[0].strip())
+                except ValueError:
+                    logger.warning("Could not parse imported source count from output")
             return True, imported
 
         return False, 0
 
-    def get_memory_stats(self) -> Dict:
-        """메모리 통계 반환"""
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Return a summary of agent performance and memory statistics.
+
+        Returns:
+            Dictionary with keys ``"performance"``, ``"error_patterns"``,
+            ``"timeout_thresholds"``, and ``"agents_created"``.
+        """
         return {
             "performance": self.manager.memory.data["performance_stats"],
             "error_patterns": list(self.manager.memory.data["error_patterns"].keys()),
             "timeout_thresholds": self.manager.memory.data["timeout_thresholds"],
-            "agents_created": len(self.manager.agents)
+            "agents_created": len(self.manager.agents),
         }
 
 
-# 전역 인스턴스
-_noterang_agent = None
+# Module-level singleton
+_noterang_agent: Optional[NoterangMultiAgent] = None
+
 
 def get_noterang_agent() -> NoterangMultiAgent:
-    """노트랑 멀티 에이전트 인스턴스 반환"""
+    """Return the module-level singleton :class:`NoterangMultiAgent` instance.
+
+    The instance is created on first call and reused thereafter.
+
+    Returns:
+        The shared :class:`NoterangMultiAgent` instance.
+    """
     global _noterang_agent
     if _noterang_agent is None:
         _noterang_agent = NoterangMultiAgent()
     return _noterang_agent
 
 
-async def main():
-    """테스트 실행"""
+async def main() -> None:
+    """Run a self-test of the multi-agent system and print memory statistics."""
     agent = get_noterang_agent()
 
+    logger.info("Noterang multi-agent system self-test starting")
     print("=" * 60)
     print("노트랑 멀티 에이전트 시스템 테스트")
     print("=" * 60)
 
-    # 메모리 통계 출력
     stats = agent.get_memory_stats()
     print(f"\n현재 메모리 상태:")
     print(f"  총 작업: {stats['performance']['total_tasks']}")
@@ -528,6 +681,7 @@ async def main():
     print(f"  실패: {stats['performance']['failed_tasks']}")
     print(f"  타임아웃 설정: {stats['timeout_thresholds']}")
 
+    logger.info("Self-test complete")
     print("\n테스트 완료!")
 
 

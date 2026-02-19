@@ -83,7 +83,7 @@ ${transcript}
     return {
       chiefComplaint: {
         complaint: data.complaint || '',
-        painLevel: data.painScore ?? 0,
+        painLevel: data.painScore != null ? data.painScore : undefined, // null은 "미평가"이므로 0(무통)으로 변환하지 않음
         onset: data.onset || ''
       },
       history: {

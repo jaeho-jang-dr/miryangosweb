@@ -26,6 +26,7 @@ import argparse
 import asyncio
 import base64
 import json
+import logging
 import os
 import re
 import shutil
@@ -37,6 +38,12 @@ from typing import Optional, List, Dict, Any, Tuple
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+)
+logger = logging.getLogger(__name__)
 
 # .env.local 로드 (Vision API 키 등)
 try:
@@ -50,7 +57,7 @@ try:
         if _env_path2.exists():
             load_dotenv(_env_path2)
 except ImportError:
-    pass
+    logger.debug("python-dotenv 미설치 - .env.local 파일을 수동으로 설정하세요.")
 
 # noterang 패키지 경로 추가
 sys.path.insert(0, str(Path(__file__).parent))
@@ -103,13 +110,40 @@ class PDFAnalyzer:
     """PDF 슬라이드 분석기 (PyMuPDF 사용)"""
 
     def __init__(self, pdf_path: Path):
+        """PDF 파일을 열어 분석 준비.
+
+        Args:
+            pdf_path: PDF 파일 경로
+
+        Raises:
+            FileNotFoundError: PDF 파일이 존재하지 않는 경우
+            ValueError: 파일이 PDF가 아닌 경우
+            RuntimeError: PyMuPDF 오류 발생 시
+        """
         import fitz
+
         self.pdf_path = Path(pdf_path)
-        self.doc = fitz.open(str(self.pdf_path))
+        if not self.pdf_path.exists():
+            raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {self.pdf_path}")
+        if self.pdf_path.suffix.lower() != '.pdf':
+            raise ValueError(f"PDF 파일이 아닙니다: {self.pdf_path.suffix}")
+
+        try:
+            self.doc = fitz.open(str(self.pdf_path))
+        except Exception as e:
+            raise RuntimeError(f"PDF 파일을 열 수 없습니다 ({self.pdf_path.name}): {e}") from e
+
         self.page_count = len(self.doc)
+        if self.page_count == 0:
+            self.doc.close()
+            raise ValueError(f"PDF에 페이지가 없습니다: {self.pdf_path.name}")
 
     def close(self):
-        self.doc.close()
+        """PDF 문서 닫기 (항상 안전하게)"""
+        try:
+            self.doc.close()
+        except Exception as e:
+            logger.debug("PDF 닫기 중 오류 (무시됨): %s", e)
 
     def extract_all_text(self) -> List[str]:
         """페이지별 텍스트 추출 (PyMuPDF → Vision OCR 폴백)"""
@@ -128,9 +162,13 @@ class PDFAnalyzer:
         return texts
 
     def _ocr_with_vision(self) -> Optional[List[str]]:
-        """Google Cloud Vision API로 OCR 폴백"""
+        """Google Cloud Vision API로 OCR 폴백
+
+        PERF: requests.Session 재사용 + 병렬 ThreadPoolExecutor로 페이지별 API 호출 병렬화
+        """
         import fitz
         import requests
+        import concurrent.futures
 
         api_key = os.getenv('GOOGLE_CLOUD_VISION_API_KEY') or os.getenv('GOOGLE_VISION_API_KEY')
         if not api_key:
@@ -138,14 +176,24 @@ class PDFAnalyzer:
             return None
 
         api_url = "https://vision.googleapis.com/v1/images:annotate"
-        texts = []
 
+        # PERF: 모든 페이지 이미지를 먼저 렌더링 (fitz 문서는 스레드 비안전하므로 사전 렌더링)
+        # Matrix를 한 번만 생성하여 재사용
+        mat = fitz.Matrix(2.0, 2.0)  # 2x 해상도
+        page_images = []
         for i, page in enumerate(self.doc):
-            # 페이지 → PNG 이미지 변환
-            mat = fitz.Matrix(2.0, 2.0)  # 2x 해상도
             pix = page.get_pixmap(matrix=mat)
-            img_bytes = pix.tobytes("png")
-            img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+            img_b64 = base64.b64encode(pix.tobytes("png")).decode('utf-8')
+            page_images.append((i, img_b64))
+            pix = None  # PERF: 픽셀맵 즉시 해제
+
+        # PERF: requests.Session 재사용으로 TCP 커넥션 풀링
+        session = requests.Session()
+        texts_dict = {}
+
+        def _ocr_single(page_info):
+            idx, img_b64 = page_info
+            from requests.exceptions import Timeout, ConnectionError as ReqConnectionError, RequestException
 
             payload = {
                 "requests": [{
@@ -153,28 +201,52 @@ class PDFAnalyzer:
                     "features": [{"type": "DOCUMENT_TEXT_DETECTION"}]
                 }]
             }
+            for attempt in range(3):
+                try:
+                    resp = session.post(
+                        f"{api_url}?key={api_key}",
+                        json=payload,
+                        timeout=60,
+                    )
+                    resp.raise_for_status()
+                    result = resp.json()
+                    if 'error' in result:
+                        err_msg = result['error']
+                        logger.warning("Vision API 오류 (페이지 %d): %s", idx + 1, err_msg)
+                        print(f"  ⚠️ Vision API 오류 (페이지 {idx+1}): {err_msg}")
+                        return idx, ""  # API 레벨 오류는 재시도 불필요
+                    responses = result.get('responses', [{}])
+                    full_text = responses[0].get('fullTextAnnotation', {}).get('text', '')
+                    print(f"  OCR 페이지 {idx+1}/{self.page_count}: {len(full_text)}자")
+                    return idx, full_text
+                except Timeout:
+                    wait = 2.0 * (2 ** attempt)
+                    logger.warning("Vision OCR 타임아웃 (페이지 %d, 시도 %d/3)", idx + 1, attempt + 1)
+                    if attempt < 2:
+                        time.sleep(wait)
+                    else:
+                        print(f"  ❌ 타임아웃 (페이지 {idx+1}) - 3회 시도 후 건너뜀")
+                        return idx, ""
+                except ReqConnectionError as e:
+                    logger.error("Vision OCR 네트워크 오류 (페이지 %d): %s", idx + 1, e)
+                    print(f"  ❌ 네트워크 오류 (페이지 {idx+1}): {e}")
+                    return idx, ""
+                except RequestException as e:
+                    logger.error("Vision OCR 요청 실패 (페이지 %d): %s", idx + 1, e)
+                    print(f"  ❌ Vision OCR 실패 (페이지 {idx+1}): {e}")
+                    return idx, ""
+            return idx, ""
 
-            try:
-                resp = requests.post(
-                    f"{api_url}?key={api_key}",
-                    json=payload,
-                    timeout=60,
-                )
-                result = resp.json()
+        # PERF: 최대 4 스레드로 Vision API 병렬 호출 (I/O 바운드)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(_ocr_single, info) for info in page_images]
+            for future in concurrent.futures.as_completed(futures):
+                idx, text = future.result()
+                texts_dict[idx] = text
 
-                if 'error' in result:
-                    print(f"  Vision API 오류 (페이지 {i+1}): {result['error']}")
-                    texts.append("")
-                    continue
+        session.close()
 
-                responses = result.get('responses', [{}])
-                full_text = responses[0].get('fullTextAnnotation', {}).get('text', '')
-                texts.append(full_text)
-                print(f"  OCR 페이지 {i+1}/{self.page_count}: {len(full_text)}자")
-            except Exception as e:
-                print(f"  Vision OCR 실패 (페이지 {i+1}): {e}")
-                texts.append("")
-
+        texts = [texts_dict.get(i, "") for i in range(self.page_count)]
         total = sum(len(t.strip()) for t in texts)
         print(f"  Vision OCR 완료: 총 {total}자")
         return texts if total > 0 else None
@@ -249,21 +321,43 @@ class PDFAnalyzer:
         return "\n\n\n".join(parts)
 
     def analyze(self) -> Dict[str, Any]:
-        """PDF 전체 분석"""
+        """PDF 전체 분석
+
+        PERF: extract_all_text()와 extract_slide_titles()를 별개로 호출하면
+        PDF를 두 번 순회함. 텍스트를 한 번 추출한 뒤 공유하도록 통합.
+        """
         print(f"  PDF 분석: {self.pdf_path.name} ({self.page_count}페이지)")
 
-        titles = self.extract_slide_titles()
+        # PERF: 텍스트를 한 번만 추출하여 titles/content/keywords에 재사용
         all_text = self.extract_all_text()
         full_text = " ".join(t.strip() for t in all_text if t.strip())
+
+        # 제목은 extract_slide_titles()가 별도의 "dict" 모드로 파싱하므로 한 번 호출
+        titles = self.extract_slide_titles()
 
         # 키워드 추출 (자주 등장하는 2글자 이상 단어)
         keywords = self._extract_keywords(full_text)
 
+        # PERF: build_summary()와 build_content()는 extract_all_text()를 내부 재호출하므로
+        # 직접 titles/all_text를 사용하여 중복 PDF 순회 방지
+        if titles:
+            summary_text = "\n".join(f"{i}. {t}" for i, t in enumerate(titles, 1))
+        else:
+            summary_text = ""
+
+        # build_content() 인라인 (extract_all_text() 중복 호출 방지)
+        content_parts = []
+        for i, text in enumerate(all_text, 1):
+            clean = self.clean_slide_text(text)
+            if clean:
+                content_parts.append(f"[슬라이드 {i}]\n{clean}")
+        content_text = "\n\n\n".join(content_parts)
+
         result = {
             "page_count": self.page_count,
             "titles": titles,
-            "summary": self.build_summary(),
-            "content": self.build_content(),
+            "summary": summary_text,
+            "content": content_text,
             "keywords": keywords,
             "total_chars": len(full_text),
         }
@@ -361,7 +455,6 @@ class NoterangPipeline:
         tags = ["자동생성", "노트랑", design_tag]
 
         # 부위 감지
-        all_text = self.title + " " + " ".join(pdf_keywords or [])
         body_part = match_body_part(pdf_keywords or [], self.title)
         if body_part != "etc":
             part_info = next((p for p in BODY_PARTS if p["id"] == body_part), None)
@@ -395,93 +488,133 @@ class NoterangPipeline:
 
     # ─── Step 2: PDF 분석 ────────────────────────────────
     def analyze_pdf(self, pdf_path: Path) -> Dict[str, Any]:
-        """PDF 슬라이드 분석 (텍스트, 제목, 키워드, 썸네일 추출)"""
-        analyzer = PDFAnalyzer(pdf_path)
+        """PDF 슬라이드 분석 (텍스트, 제목, 키워드, 썸네일 추출)
+
+        Raises:
+            FileNotFoundError: PDF 파일을 찾을 수 없는 경우
+            RuntimeError: PDF 파싱 실패 시
+        """
+        analyzer = PDFAnalyzer(pdf_path)  # 실패 시 예외 전파 (FileNotFoundError, ValueError, RuntimeError)
         try:
             result = analyzer.analyze()
             # 첫 페이지 썸네일 생성
-            result["thumbnail"] = analyzer.generate_thumbnail(0)
+            try:
+                result["thumbnail"] = analyzer.generate_thumbnail(0)
+            except Exception as e:
+                logger.warning("썸네일 생성 실패 (비치명적): %s", e)
+                result["thumbnail"] = None
             return result
         finally:
             analyzer.close()
 
+    def _init_firebase(self):
+        """Firebase Admin SDK 초기화 (멱등성 보장 - 이미 초기화된 경우 건너뜀).
+
+        Raises:
+            ImportError: firebase-admin 패키지가 없는 경우
+            RuntimeError: Firebase 초기화 실패 시
+        """
+        import firebase_admin
+
+        if firebase_admin._apps:
+            return  # 이미 초기화됨
+
+        # 서비스 계정 파일 탐색 우선순위:
+        # 1. 환경 변수 (FIREBASE_SERVICE_ACCOUNT_PATH)
+        # 2. ~/Downloads/miryangosweb-firebase-adminsdk-*.json
+        # 3. 프로젝트 루트/firebase-service-account.json
+        service_account_path: Optional[Path] = None
+
+        env_path_str = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+        if env_path_str:
+            candidate = Path(env_path_str)
+            if candidate.exists():
+                service_account_path = candidate
+            else:
+                logger.warning(
+                    "FIREBASE_SERVICE_ACCOUNT_PATH가 가리키는 파일이 없습니다: %s", env_path_str
+                )
+
+        if not service_account_path:
+            candidate = Path.home() / "Downloads" / "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json"
+            if candidate.exists():
+                service_account_path = candidate
+
+        if not service_account_path:
+            candidate = WEBAPP_DIR / "firebase-service-account.json"
+            if candidate.exists():
+                service_account_path = candidate
+
+        try:
+            if service_account_path:
+                print(f"  서비스 계정 사용: {service_account_path}")
+                cred = firebase_admin.credentials.Certificate(str(service_account_path))
+                firebase_admin.initialize_app(cred, {'storageBucket': STORAGE_BUCKET})
+            else:
+                print("  ⚠️ 서비스 계정 파일을 찾을 수 없습니다. ADC(Application Default Credentials)를 시도합니다.")
+                print("  환경 변수 FIREBASE_SERVICE_ACCOUNT_PATH를 설정하면 더 안전합니다.")
+                firebase_admin.initialize_app(options={
+                    'projectId': FIREBASE_PROJECT_ID,
+                    'storageBucket': STORAGE_BUCKET
+                })
+            print("  Firebase 초기화 완료")
+        except Exception as e:
+            logger.error("Firebase 초기화 실패: %s", e, exc_info=True)
+            raise RuntimeError(f"Firebase 초기화 실패: {e}") from e
+
     # ─── Step 3: PDF + 썸네일을 웹앱에 복사 ────────────────
     async def upload_to_firebase(self, pdf_path: Path, thumbnail: bytes = None) -> Tuple[str, Optional[str]]:
-        """PDF 파일과 썸네일을 Firebase Storage에 직접 업로드"""
+        """PDF 파일과 썸네일을 Firebase Storage에 직접 업로드.
+
+        firebase-admin이 없거나 초기화에 실패하면 로컬 복사 폴백을 사용합니다.
+        """
         try:
             import firebase_admin
             from firebase_admin import storage
         except ImportError:
-            print("  firebase-admin 미설치. pip install firebase-admin")
+            print("  ⚠️ firebase-admin 미설치. pip install firebase-admin")
+            print("  → 로컬 복사 폴백으로 전환합니다.")
             return self.copy_to_webapp(pdf_path, thumbnail)
 
-        # Firebase Admin 초기화
-        if not firebase_admin._apps:
-            try:
-                # 1. 환경 변수에서 경로 가져오기
-                # 2. Downloads 폴더 (사용자 이름 동적 처리)
-                # 3. 프로젝트 루트
-                service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
-                if service_account_path:
-                    service_account_path = Path(service_account_path)
-                
-                if not service_account_path or not service_account_path.exists():
-                    # 사용자 홈 디렉토리 기준으로 Downloads 폴더 시도
-                    service_account_path = Path.home() / "Downloads" / "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json"
-                
-                if not service_account_path.exists():
-                    # 프로젝트 루트 시도
-                    service_account_path = WEBAPP_DIR / "firebase-service-account.json"
+        try:
+            self._init_firebase()
+        except RuntimeError as e:
+            print(f"  ❌ Firebase 초기화 실패: {e}")
+            print("  → 로컬 복사 폴백으로 전환합니다.")
+            return self.copy_to_webapp(pdf_path, thumbnail)
 
-                if service_account_path.exists():
-                    print(f"  서비스 계정 사용: {service_account_path}")
-                    cred = firebase_admin.credentials.Certificate(str(service_account_path))
-                    firebase_admin.initialize_app(cred, {
-                        'storageBucket': STORAGE_BUCKET
-                    })
-                else:
-                    print("  ⚠️ 서비스 계정 파일을 찾을 수 없습니다. ADC(Application Default Credentials)를 시도합니다.")
-                    firebase_admin.initialize_app(options={
-                        'projectId': FIREBASE_PROJECT_ID,
-                        'storageBucket': STORAGE_BUCKET
-                    })
-                print("  Firebase Storage 초기화 완료")
-            except Exception as e:
-                print(f"  Firebase 초기화 실패: {e}")
-                return self.copy_to_webapp(pdf_path, thumbnail)
-
+        import uuid
         bucket = storage.bucket()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        import uuid
         unique_id = uuid.uuid4().hex[:8]
         safe_title = self.title.replace(" ", "_").replace("/", "-")
 
         # PDF 업로드
         pdf_name = f"articles/{timestamp}_{unique_id}_{safe_title}.pdf"
         blob = bucket.blob(pdf_name)
-        blob.upload_from_filename(str(pdf_path))
-        
-        # Public URL (Firebase Storage Download URL format)
-        # gsutil/admin SDK에서는 get_download_url이 없으므로 직접 구성하거나 make_public 사용
-        # 여기서는 클라이언트 사이드에서 처리하기 쉽도록 public access 부여 (보안 규칙에 따라 다름)
-        # blob.make_public()
-        # pdf_url = blob.public_url
-        
-        # 대신, 프로젝트 내부에서 사용하는 URL 패턴 (Storage 관점)
-        # 웹앱에서 getDownloadURL로 가져올 수 있도록 경로만 반환하거나 
-        # https://firebasestorage.googleapis.com/... 형식을 사용
-        # firebase-admin-python에서는 아래와 같이 서명된 URL을 생성하거나 public_url을 사용할 수 있음
+        try:
+            blob.upload_from_filename(str(pdf_path))
+        except Exception as e:
+            logger.error("Firebase PDF 업로드 실패: %s", e, exc_info=True)
+            print(f"  ❌ PDF 업로드 실패: {e}")
+            print("  → 로컬 복사 폴백으로 전환합니다.")
+            return self.copy_to_webapp(pdf_path, thumbnail)
+
         pdf_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{pdf_name.replace('/', '%2F')}?alt=media"
         print(f"  PDF 업로드 성공: {pdf_url}")
 
-        # 썸네일 업로드
+        # 썸네일 업로드 (실패해도 계속 진행 - 선택적 기능)
         thumb_url = None
         if thumbnail:
             thumb_name = f"articles/{timestamp}_{unique_id}_{safe_title}_thumb.png"
             thumb_blob = bucket.blob(thumb_name)
-            thumb_blob.upload_from_string(thumbnail, content_type='image/png')
-            thumb_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{thumb_name.replace('/', '%2F')}?alt=media"
-            print(f"  썸네일 업로드 성공: {thumb_url}")
+            try:
+                thumb_blob.upload_from_string(thumbnail, content_type='image/png')
+                thumb_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{thumb_name.replace('/', '%2F')}?alt=media"
+                print(f"  썸네일 업로드 성공: {thumb_url}")
+            except Exception as e:
+                logger.warning("Firebase 썸네일 업로드 실패 (비치명적): %s", e)
+                print(f"  ⚠️ 썸네일 업로드 실패 (PDF는 정상 등록됨): {e}")
 
         return pdf_url, thumb_url
 
@@ -491,7 +624,10 @@ class NoterangPipeline:
         import uuid
 
         ACTUAL_UPLOADS_DIR = UPLOADS_DIR
-        ACTUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            ACTUAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"업로드 디렉토리 생성 실패 ({ACTUAL_UPLOADS_DIR}): {e}") from e
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = uuid.uuid4().hex[:8]
@@ -500,7 +636,10 @@ class NoterangPipeline:
         # PDF 복사
         pdf_name = f"noterang_{timestamp}_{unique_id}_{safe_title}.pdf"
         pdf_dest = ACTUAL_UPLOADS_DIR / pdf_name
-        shutil.copy2(str(pdf_path), str(pdf_dest))
+        try:
+            shutil.copy2(str(pdf_path), str(pdf_dest))
+        except OSError as e:
+            raise RuntimeError(f"PDF 파일 복사 실패 ({pdf_path} → {pdf_dest}): {e}") from e
         pdf_url = f"/uploads/{pdf_name}"
         print(f"  ⚠️ [Fallback 로컬] PDF 복사: {pdf_dest}")
         print(f"  ⚠️ 로컬 저장은 다른 컴퓨터에서 접근 불가합니다!")
@@ -511,8 +650,12 @@ class NoterangPipeline:
         if thumbnail:
             thumb_name = f"noterang_{timestamp}_{unique_id}_{safe_title}_thumb.png"
             thumb_dest = ACTUAL_UPLOADS_DIR / thumb_name
-            thumb_dest.write_bytes(thumbnail)
-            thumb_url = f"/uploads/{thumb_name}"
+            try:
+                thumb_dest.write_bytes(thumbnail)
+                thumb_url = f"/uploads/{thumb_name}"
+            except OSError as e:
+                logger.warning("썸네일 로컬 저장 실패 (비치명적): %s", e)
+                print(f"  ⚠️ 썸네일 저장 실패 (PDF는 정상 복사됨): {e}")
 
         return pdf_url, thumb_url
 
@@ -525,43 +668,33 @@ class NoterangPipeline:
         notebook_id: str = None,
     ) -> Optional[str]:
         """Firestore articles 컬렉션에 문서 등록"""
+        if not pdf_url:
+            logger.error("register_to_firestore: pdf_url이 비어 있음")
+            print("  ❌ PDF URL이 필요합니다.")
+            return None
+
         try:
             import firebase_admin
             from firebase_admin import firestore as fs_admin
         except ImportError:
-            print("  firebase-admin 미설치. pip install firebase-admin")
+            print("  ❌ firebase-admin 미설치. pip install firebase-admin")
             return None
 
-        # STORAGE_BUCKET 사용을 위해 초기화 로직 수정
-        if not firebase_admin._apps:
-            try:
-                service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
-                if service_account_path:
-                    service_account_path = Path(service_account_path)
-                
-                if not service_account_path or not service_account_path.exists():
-                    service_account_path = Path.home() / "Downloads" / "miryangosweb-firebase-adminsdk-fbsvc-e139abbe14.json"
-                
-                if not service_account_path.exists():
-                    service_account_path = WEBAPP_DIR / "firebase-service-account.json"
+        # _init_firebase()로 초기화 로직 통합 (중복 제거)
+        try:
+            self._init_firebase()
+        except RuntimeError as e:
+            print(f"  ❌ Firebase 초기화 실패: {e}")
+            return None
 
-                if service_account_path.exists():
-                    cred = firebase_admin.credentials.Certificate(str(service_account_path))
-                    firebase_admin.initialize_app(cred, {
-                        'storageBucket': STORAGE_BUCKET
-                    })
-                else:
-                    firebase_admin.initialize_app(options={
-                        'projectId': FIREBASE_PROJECT_ID,
-                        'storageBucket': STORAGE_BUCKET
-                    })
-            except Exception as e:
-                print(f"  Firebase 초기화 실패: {e}")
-                return None
+        try:
+            db = fs_admin.client()
+        except Exception as e:
+            logger.error("Firestore 클라이언트 생성 실패: %s", e, exc_info=True)
+            print(f"  ❌ Firestore 클라이언트 생성 실패: {e}")
+            return None
 
-        db = fs_admin.client()
         tags = self.generate_tags(analysis.get("keywords", []))
-        page_count = analysis.get("page_count", 0)
         summary_text = analysis.get("summary", "")
 
         # 슬라이드 제목들로 요약 구성
@@ -570,8 +703,7 @@ class NoterangPipeline:
         # PyMuPDF 제목 추출 실패 시 → OCR content에서 [슬라이드 N] 패턴으로 폴백
         if not titles:
             full_content_for_titles = analysis.get("content", "")
-            import re as _re
-            _matches = _re.findall(
+            _matches = re.findall(
                 r'\[슬라이드\s*\d+\]\s*\n(.+?)(?:\n|$)', full_content_for_titles
             )
             titles = [m.strip() for m in _matches if len(m.strip()) >= 2]
@@ -627,9 +759,11 @@ class NoterangPipeline:
             doc_id = doc_ref.id
             print(f"  자료실 등록 완료: {doc_id}")
             print(f"  공개: {'예' if self.visible else '아니오 (관리자 검토 필요)'}")
+            logger.info("Firestore 등록 완료: doc_id=%s, title=%s", doc_id, self.title)
             return doc_id
         except Exception as e:
-            print(f"  Firestore 등록 실패: {e}")
+            logger.error("Firestore 문서 추가 실패: %s", e, exc_info=True)
+            print(f"  ❌ Firestore 등록 실패: {e}")
             return None
 
     # ─── 전체 파이프라인 ─────────────────────────────────
@@ -669,13 +803,23 @@ class NoterangPipeline:
 
         # Step 2: PDF 분석
         print("\n[2/4] PDF 슬라이드 분석...")
-        analysis = self.analyze_pdf(pdf_path)
+        try:
+            analysis = self.analyze_pdf(pdf_path)
+        except (FileNotFoundError, ValueError, RuntimeError) as e:
+            elapsed = int(time.time() - start_time)
+            logger.error("PDF 분석 실패: %s", e)
+            print(f"\n  ❌ PDF 분석 실패: {e}")
+            return {"success": False, "error": str(e), "duration": elapsed}
 
         # Step 3: 파일 업로드 (Firebase Storage)
         print("\n[3/4] Firebase Storage에 파일 업로드...")
-        pdf_url, thumb_url = await self.upload_to_firebase(
+        upload_result = await self.upload_to_firebase(
             pdf_path, analysis.get("thumbnail")
         )
+        if upload_result is None:
+            elapsed = int(time.time() - start_time)
+            return {"success": False, "error": "파일 업로드 실패", "duration": elapsed}
+        pdf_url, thumb_url = upload_result
 
         # Step 4: 자료실 등록
         doc_id = None
@@ -769,10 +913,37 @@ async def main():
 
     args = parser.parse_args()
 
+    # 입력 검증
+    if not args.title or not args.title.strip():
+        print("오류: --title이 비어 있습니다.")
+        return 1
+
+    if args.slides is not None and args.slides < 1:
+        print(f"오류: --slides는 1 이상이어야 합니다 (입력값: {args.slides}).")
+        return 1
+
+    if args.pdf:
+        pdf_check = Path(args.pdf)
+        if not pdf_check.exists():
+            print(f"오류: 지정한 PDF 파일이 없습니다: {args.pdf}")
+            return 1
+        if pdf_check.suffix.lower() != '.pdf':
+            print(f"오류: 지정한 파일이 PDF가 아닙니다: {args.pdf}")
+            return 1
+
     # 배치 모드
     if args.batch:
-        from batch_pipeline import BatchPipeline
+        try:
+            from batch_pipeline import BatchPipeline
+        except ImportError as e:
+            print(f"오류: batch_pipeline 모듈을 불러올 수 없습니다: {e}")
+            return 1
+
         titles = [t.strip() for t in args.batch.split(",") if t.strip()]
+        if not titles:
+            print("오류: --batch 값에서 유효한 제목을 찾을 수 없습니다.")
+            return 1
+
         batch = BatchPipeline(
             titles=titles,
             design=args.design,
@@ -782,7 +953,11 @@ async def main():
             article_type=args.type,
             slide_count=args.slides,
         )
-        results = await batch.run()
+        try:
+            results = await batch.run()
+        except KeyboardInterrupt:
+            print("\n사용자에 의해 중단되었습니다.")
+            return 1
         success_count = sum(1 for r in results if not isinstance(r, Exception) and r.get("success"))
         print(f"\n배치 완료: {success_count}/{len(titles)} 성공")
         return 0 if success_count == len(titles) else 1
@@ -793,12 +968,20 @@ async def main():
     # worker_id 설정 (병렬 실행시 독립 브라우저 프로필)
     config_override = None
     if args.worker_id is not None:
-        from noterang.config import NoterangConfig, set_config
-        config = NoterangConfig.load()
-        config.worker_id = args.worker_id
-        config.ensure_dirs()
-        set_config(config)
-        config_override = config
+        if args.worker_id < 0:
+            print(f"오류: --worker-id는 0 이상이어야 합니다 (입력값: {args.worker_id}).")
+            return 1
+        try:
+            from noterang.config import NoterangConfig, set_config
+            config = NoterangConfig.load()
+            config.worker_id = args.worker_id
+            config.ensure_dirs()
+            set_config(config)
+            config_override = config
+        except Exception as e:
+            logger.error("worker_id 설정 실패: %s", e)
+            print(f"오류: worker_id 설정 실패: {e}")
+            return 1
 
     pipeline = NoterangPipeline(
         title=args.title,
@@ -812,9 +995,17 @@ async def main():
         config_override=config_override,
     )
 
-    result = await pipeline.run()
-    print(f"\nRESULT:{json.dumps(result, ensure_ascii=False)}")
+    try:
+        result = await pipeline.run()
+    except KeyboardInterrupt:
+        print("\n사용자에 의해 중단되었습니다.")
+        return 1
+    except Exception as e:
+        logger.error("파이프라인 실행 중 예상치 못한 오류: %s", e, exc_info=True)
+        print(f"\n오류: 파이프라인 실행 실패: {e}")
+        return 1
 
+    print(f"\nRESULT:{json.dumps(result, ensure_ascii=False)}")
     return 0 if result.get("success") else 1
 
 

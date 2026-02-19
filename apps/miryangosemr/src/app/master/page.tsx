@@ -2,11 +2,13 @@
 
 import React from 'react';
 import EMRLayout from '@/components/layout/EMRLayout';
-import { Database, DollarSign, Pill, Package, Building, UserCircle, Shield, ArrowRight } from 'lucide-react';
+import { Database, DollarSign, Pill, Package, Building, UserCircle, Shield, ArrowRight, Layers, FileSearch } from 'lucide-react';
 import Link from 'next/link';
 
 const masterMenuItems = [
-  { href: '/master/fee-schedule', label: '수가 관리', desc: '건강보험 수가 코드 및 단가 관리', icon: DollarSign, color: 'bg-blue-50 text-blue-600' },
+  { href: '/master/fee-schedule', label: '처방자료관리', desc: '처방코드, 수가, 약가, 치료재료 통합 관리 (Ichart 38컬럼)', icon: DollarSign, color: 'bg-blue-50 text-blue-600' },
+  { href: '/master/bundles', label: '묶음처방 관리', desc: '의사별 묶음처방 템플릿 관리', icon: Layers, color: 'bg-teal-50 text-teal-600' },
+  { href: '/master/diagnosis', label: '병명자료 관리', desc: 'KCD 병명코드 조회 및 관리', icon: FileSearch, color: 'bg-amber-50 text-amber-600' },
   { href: '/master/drugs', label: '약품 관리', desc: '처방 가능 약품 목록 관리', icon: Pill, color: 'bg-purple-50 text-purple-600' },
   { href: '/master/materials', label: '재료 관리', desc: '의료 소모품 및 재료 관리', icon: Package, color: 'bg-orange-50 text-orange-600' },
   { href: '/master/departments', label: '진료과 설정', desc: '진료과목 및 코드 설정', icon: Building, color: 'bg-emerald-50 text-emerald-600' },

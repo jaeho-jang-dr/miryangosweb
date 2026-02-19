@@ -25,7 +25,14 @@ export async function POST(request: Request) {
         }
 
         // 설정 파싱
-        const config = configStr ? JSON.parse(configStr) : {};
+        let config: Record<string, unknown> = {};
+        if (configStr) {
+            try {
+                config = JSON.parse(configStr);
+            } catch {
+                return NextResponse.json({ error: 'Invalid config JSON' }, { status: 400 });
+            }
+        }
 
         console.log('[STT] 음성 인식 시작:', {
             filename: audioFile.name,

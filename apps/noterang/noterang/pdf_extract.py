@@ -143,13 +143,14 @@ class PDFExtractor:
         # (벡터 도형은 직접 변환이 어려우므로 이미지로 처리)
         drawings = page.get_drawings()
         if drawings:
-            # 텍스트 없이 도형만 렌더링
-            # 텍스트를 가리고 렌더링
-            mat = self.fitz.Matrix(2, 2)  # 2배 확대
+            # PERF: Matrix 객체를 지역 상수로 정의하여 매 페이지 호출마다 재생성 방지
+            _BG_MATRIX = self.fitz.Matrix(2, 2)  # 2배 확대
 
             # 원본 페이지를 이미지로 렌더링 (텍스트 포함)
-            pix = page.get_pixmap(matrix=mat)
+            pix = page.get_pixmap(matrix=_BG_MATRIX)
             content.background_image = pix.tobytes("png")
+            # PERF: 픽셀맵 즉시 해제
+            pix = None
 
         return content
 
@@ -158,10 +159,11 @@ class PDFExtractor:
         print(f"📄 PDF 추출 중: {pdf_path.name}")
 
         doc = self.fitz.open(pdf_path)
+        page_count = len(doc)
+        # PERF: 리스트 컴프리헨션으로 루프 오버헤드 절감
         pages = []
-
-        for page_num in range(len(doc)):
-            print(f"  📃 페이지 {page_num + 1}/{len(doc)}...")
+        for page_num in range(page_count):
+            print(f"  📃 페이지 {page_num + 1}/{page_count}...")
             page = doc[page_num]
             content = self.extract_page(page, page_num + 1)
             pages.append(content)

@@ -52,8 +52,8 @@ export async function GET(req: NextRequest) {
     // 숫자로 시작하면 성분코드, 아니면 성분명
     const isCode = /^\d/.test(code);
     const medication = await lookupMedicationAsFhir(
-      isCode ? code : code,
-      isCode ? code : undefined,
+      isCode ? '' : code,     // name (first param) - only meaningful when NOT a code
+      isCode ? code : undefined,   // code (second param) - only when IS a code
     );
 
     const bundle = buildSearchsetBundle([medication], 1);

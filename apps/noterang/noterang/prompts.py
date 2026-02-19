@@ -21,21 +21,34 @@ Usage:
     results = prompts.search("네온")
 """
 
+import logging
 import json
+import random
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
+logger = logging.getLogger(__name__)
+
+_DEFAULT_PROMPTS_FILENAME = "slide_prompts.json"
+
 
 class SlidePrompts:
-    """100개의 슬라이드 디자인 프롬프트 관리자"""
+    """Manager for up to 100 NotebookLM slide-design prompts.
 
-    def __init__(self, prompts_file: Optional[str] = None):
-        """
+    Prompts are loaded lazily from a JSON file on the first access.  The
+    class is intentionally designed for use as a singleton via
+    :func:`get_slide_prompts`.
+    """
+
+    def __init__(self, prompts_file: Optional[str] = None) -> None:
+        """Initialize the prompt manager.
+
         Args:
-            prompts_file: 프롬프트 JSON 파일 경로. 기본값은 패키지 내 slide_prompts.json
+            prompts_file: Path to the JSON prompts file.  Defaults to
+                ``slide_prompts.json`` located next to this module.
         """
         if prompts_file is None:
-            prompts_file = Path(__file__).parent / "slide_prompts.json"
+            prompts_file = Path(__file__).parent / _DEFAULT_PROMPTS_FILENAME
 
         self.prompts_file = Path(prompts_file)
         self._data: Optional[Dict[str, Any]] = None
@@ -44,28 +57,32 @@ class SlidePrompts:
         self._by_category: Optional[Dict[str, List[Dict[str, Any]]]] = None
 
     def _load(self) -> None:
-        """프롬프트 데이터 로드"""
+        """Load and index the prompts JSON file (idempotent).
+
+        Raises:
+            FileNotFoundError: If the prompts file does not exist.
+        """
         if self._data is not None:
             return
 
         if not self.prompts_file.exists():
-            raise FileNotFoundError(f"프롬프트 파일을 찾을 수 없습니다: {self.prompts_file}")
+            raise FileNotFoundError(
+                f"프롬프트 파일을 찾을 수 없습니다: {self.prompts_file}"
+            )
 
         with open(self.prompts_file, "r", encoding="utf-8") as f:
             self._data = json.load(f)
 
         self._styles = self._data.get("styles", [])
 
-        # 이름으로 인덱싱
+        # Index by name for O(1) lookups
         self._by_name = {style["name"]: style for style in self._styles}
 
-        # 카테고리로 그룹화
-        self._by_category = {}
+        # Group by category
+        self._by_category: Dict[str, List[Dict[str, Any]]] = {}
         for style in self._styles:
             category = style.get("category", "기타")
-            if category not in self._by_category:
-                self._by_category[category] = []
-            self._by_category[category].append(style)
+            self._by_category.setdefault(category, []).append(style)
 
     @property
     def source(self) -> str:
@@ -183,8 +200,11 @@ class SlidePrompts:
         return results
 
     def get_random(self) -> Dict[str, Any]:
-        """무작위 스타일 반환"""
-        import random
+        """Return a randomly selected style entry.
+
+        Returns:
+            A full style dictionary chosen at random from the loaded styles.
+        """
         self._load()
         return random.choice(self._styles)
 
@@ -192,11 +212,18 @@ class SlidePrompts:
         """기본 스타일의 프롬프트 반환"""
         return self.get_prompt(self.default_style)
 
-    def format_prompt(self, style_name: str, **kwargs) -> Optional[str]:
-        """
-        프롬프트에 사용자 정의 값 삽입 (확장용)
+    def format_prompt(self, style_name: str, **kwargs: Any) -> Optional[str]:
+        """Return the prompt for *style_name*, optionally with variable substitution.
 
-        현재는 원본 프롬프트 반환, 추후 템플릿 변수 지원 가능
+        Currently returns the raw prompt unchanged.  The *kwargs* parameter is
+        reserved for future template-variable support.
+
+        Args:
+            style_name: Name of the target style.
+            **kwargs: Reserved for future template variable overrides.
+
+        Returns:
+            Prompt text string, or ``None`` when the style does not exist.
         """
         return self.get_prompt(style_name)
 
@@ -216,12 +243,16 @@ class SlidePrompts:
         return style_name in self._by_name
 
 
-# 싱글톤 인스턴스
+# Module-level singleton instance
 _prompts_instance: Optional[SlidePrompts] = None
 
 
 def get_slide_prompts() -> SlidePrompts:
-    """SlidePrompts 싱글톤 인스턴스 반환"""
+    """Return the module-level :class:`SlidePrompts` singleton.
+
+    Returns:
+        The shared SlidePrompts instance (created on first call).
+    """
     global _prompts_instance
     if _prompts_instance is None:
         _prompts_instance = SlidePrompts()
@@ -229,17 +260,35 @@ def get_slide_prompts() -> SlidePrompts:
 
 
 def list_slide_styles() -> List[Dict[str, str]]:
-    """전체 슬라이드 스타일 목록"""
+    """Return the full list of available slide styles.
+
+    Returns:
+        List of ``{"name": ..., "category": ...}`` dictionaries.
+    """
     return get_slide_prompts().list_styles()
 
 
 def get_slide_prompt(style_name: str) -> Optional[str]:
-    """특정 스타일의 프롬프트 가져오기"""
+    """Return the prompt string for a named style.
+
+    Args:
+        style_name: The style name to look up.
+
+    Returns:
+        Prompt text, or ``None`` if the style does not exist.
+    """
     return get_slide_prompts().get_prompt(style_name)
 
 
 def search_slide_styles(query: str) -> List[Dict[str, str]]:
-    """스타일 검색"""
+    """Search styles by name substring.
+
+    Args:
+        query: Search term (case-insensitive substring match).
+
+    Returns:
+        List of matching ``{"name": ..., "category": ...}`` dictionaries.
+    """
     return get_slide_prompts().search(query)
 
 

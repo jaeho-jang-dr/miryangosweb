@@ -6,20 +6,33 @@
 - 슬라이드에 노트 추가
 """
 import io
+import logging
 import sys
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
+logger = logging.getLogger(__name__)
+
+# Default slide dimensions (16:9 widescreen)
+_SLIDE_WIDTH_INCHES: float = 13.333
+_SLIDE_HEIGHT_INCHES: float = 7.5
+_DEFAULT_ZOOM: float = 2.0
+_DEFAULT_TITLE_FONT_SIZE: int = 44
+_DEFAULT_BODY_FONT_SIZE: int = 24
+# Maximum characters kept from PDF pages for title and body
+_MAX_TITLE_CHARS: int = 100
+_MAX_BODY_CHARS: int = 1000
+
 
 def pdf_to_pptx(
     pdf_path: Path,
-    output_path: Path = None,
-    zoom: float = 2.0,
-    slide_width_inches: float = 13.333,
-    slide_height_inches: float = 7.5
+    output_path: Optional[Path] = None,
+    zoom: float = _DEFAULT_ZOOM,
+    slide_width_inches: float = _SLIDE_WIDTH_INCHES,
+    slide_height_inches: float = _SLIDE_HEIGHT_INCHES,
 ) -> Tuple[Path, int]:
     """
     PDF를 PPTX로 변환
@@ -41,6 +54,9 @@ def pdf_to_pptx(
     pdf_path = Path(pdf_path)
     out_path = Path(output_path) if output_path else pdf_path.with_suffix('.pptx')
 
+    # PERF: 단일 Matrix 객체 재사용 (루프마다 재생성 방지)
+    mat = fitz.Matrix(zoom, zoom)
+
     # PDF 열기
     doc = fitz.open(pdf_path)
 
@@ -48,6 +64,10 @@ def pdf_to_pptx(
     prs = Presentation()
     prs.slide_width = Inches(slide_width_inches)
     prs.slide_height = Inches(slide_height_inches)
+
+    # PERF: 슬라이드 크기를 지역 변수로 캐시 (반복 속성 조회 방지)
+    slide_w = prs.slide_width
+    slide_h = prs.slide_height
 
     # 빈 레이아웃 사용
     blank_layout = prs.slide_layouts[6]  # 완전 빈 레이아웃
@@ -57,8 +77,9 @@ def pdf_to_pptx(
         page = doc[page_num]
 
         # PDF 페이지를 이미지로 렌더링
-        mat = fitz.Matrix(zoom, zoom)
         pix = page.get_pixmap(matrix=mat)
+        # PERF: PNG 대신 JPEG 사용 시 파일 크기/메모리 절감 가능하나
+        # 품질 유지를 위해 PNG 유지. tobytes()는 in-memory이므로 직접 BytesIO로 전달
         img_data = pix.tobytes("png")
 
         # 슬라이드 추가
@@ -68,9 +89,13 @@ def pdf_to_pptx(
         slide.shapes.add_picture(
             io.BytesIO(img_data),
             Inches(0), Inches(0),
-            width=prs.slide_width,
-            height=prs.slide_height
+            width=slide_w,
+            height=slide_h
         )
+
+        # PERF: 각 페이지 렌더링 후 픽셀맵 명시 해제로 메모리 조기 반환
+        del img_data
+        pix = None
 
     doc.close()
     prs.save(out_path)
@@ -81,7 +106,7 @@ def pdf_to_pptx(
 def add_notes_to_pptx(
     pptx_path: Path,
     notes: List[str],
-    output_path: Path = None
+    output_path: Optional[Path] = None,
 ) -> Path:
     """
     PPTX 슬라이드에 노트 추가
@@ -124,21 +149,16 @@ def extract_text_from_pdf(pdf_path: Path) -> List[str]:
     import fitz
 
     doc = fitz.open(pdf_path)
-    texts = []
-
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        text = page.get_text()
-        texts.append(text)
-
+    # PERF: 리스트 컴프리헨션으로 루프 오버헤드 절감
+    texts = [page.get_text() for page in doc]
     doc.close()
     return texts
 
 
 def pdf_to_pptx_with_notes(
     pdf_path: Path,
-    output_path: Path = None,
-    custom_notes: List[str] = None
+    output_path: Optional[Path] = None,
+    custom_notes: Optional[List[str]] = None,
 ) -> Tuple[Path, int]:
     """
     PDF를 PPTX로 변환하고 노트 추가
@@ -167,9 +187,9 @@ def pdf_to_pptx_with_notes(
 
 def batch_convert(
     pdf_dir: Path,
-    output_dir: Path = None,
-    pattern: str = "*.pdf"
-) -> List[Tuple[Path, Path, int]]:
+    output_dir: Optional[Path] = None,
+    pattern: str = "*.pdf",
+) -> List[Tuple[Path, Optional[Path], int]]:
     """
     여러 PDF를 일괄 변환
 
@@ -193,9 +213,10 @@ def batch_convert(
         try:
             pptx_path, count = pdf_to_pptx(pdf_file, out_file)
             results.append((pdf_file, pptx_path, count))
-            print(f"  ✓ {pdf_file.name} → {pptx_path.name} ({count} slides)")
+            print(f"  {pdf_file.name} → {pptx_path.name} ({count} slides)")
         except Exception as e:
-            print(f"  ❌ {pdf_file.name} 변환 실패: {e}")
+            logger.error("Conversion failed for %s: %s", pdf_file.name, e)
+            print(f"  {pdf_file.name} 변환 실패: {e}")
             results.append((pdf_file, None, 0))
 
     return results
@@ -204,7 +225,7 @@ def batch_convert(
 def apply_template(
     pptx_path: Path,
     template_path: Path,
-    output_path: Path = None
+    output_path: Optional[Path] = None,
 ) -> Path:
     """
     PPTX에 템플릿 스타일 적용
@@ -246,19 +267,19 @@ def apply_template(
                     slide.background.fill.solid()
                     if template_slide.background.fill.type:
                         slide.background.fill._fill = deepcopy(template_slide.background.fill._fill)
-        except:
-            pass  # 배경 복사 실패 시 무시
+        except Exception:
+            logger.debug("Background copy from template failed; ignoring.", exc_info=True)
 
     prs.save(out_path)
     return out_path
 
 
 def create_styled_pptx(
-    content_data: List[dict],
+    content_data: List[Dict],
     output_path: Path,
     style: str = "modern",
-    title_font_size: int = 44,
-    body_font_size: int = 24
+    title_font_size: int = _DEFAULT_TITLE_FONT_SIZE,
+    body_font_size: int = _DEFAULT_BODY_FONT_SIZE,
 ) -> Path:
     """
     스타일이 적용된 PPTX 생성
@@ -277,6 +298,8 @@ def create_styled_pptx(
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    # PERF: MSO_SHAPE을 루프 밖에서 한 번만 import (기존 코드는 루프 내부에서 반복 import)
+    from pptx.enum.shapes import MSO_SHAPE
 
     # 스타일별 색상 테마
     STYLES = {
@@ -309,8 +332,8 @@ def create_styled_pptx(
     colors = STYLES.get(style, STYLES["modern"])
 
     prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
+    prs.slide_width = Inches(_SLIDE_WIDTH_INCHES)
+    prs.slide_height = Inches(_SLIDE_HEIGHT_INCHES)
 
     blank_layout = prs.slide_layouts[6]
 
@@ -361,7 +384,6 @@ def create_styled_pptx(
             )
 
         # 악센트 라인
-        from pptx.enum.shapes import MSO_SHAPE
         line = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
             Inches(0.5), Inches(1.8),
@@ -385,106 +407,147 @@ class Converter:
         self.templates_dir = Path(__file__).parent / "templates"
 
     def pdf_to_pptx(self, pdf_path: Path) -> Tuple[Optional[Path], int]:
-        """PDF를 PPTX로 변환"""
+        """Convert a PDF to PPTX, placing the output in :attr:`output_dir`.
+
+        Args:
+            pdf_path: Source PDF file path.
+
+        Returns:
+            Tuple of (output PPTX path, slide count). Returns ``(None, 0)`` on error.
+        """
         try:
             output_path = self.output_dir / Path(pdf_path).with_suffix('.pptx').name
             return pdf_to_pptx(pdf_path, output_path)
         except Exception as e:
-            print(f"  ❌ 변환 실패: {e}")
+            logger.error("PDF to PPTX conversion failed: %s", e)
+            print(f"  변환 실패: {e}")
             return None, 0
 
-    def pdf_to_pptx_with_notes(self, pdf_path: Path, notes: List[str] = None) -> Tuple[Optional[Path], int]:
-        """PDF를 PPTX로 변환 (노트 포함)"""
+    def pdf_to_pptx_with_notes(
+        self,
+        pdf_path: Path,
+        notes: Optional[List[str]] = None,
+    ) -> Tuple[Optional[Path], int]:
+        """Convert a PDF to PPTX and embed speaker notes.
+
+        Args:
+            pdf_path: Source PDF file path.
+            notes: Per-slide note strings. Uses extracted PDF text when ``None``.
+
+        Returns:
+            Tuple of (output PPTX path, slide count). Returns ``(None, 0)`` on error.
+        """
         try:
             output_path = self.output_dir / Path(pdf_path).with_suffix('.pptx').name
             return pdf_to_pptx_with_notes(pdf_path, output_path, notes)
         except Exception as e:
-            print(f"  ❌ 변환 실패: {e}")
+            logger.error("PDF to PPTX (with notes) conversion failed: %s", e)
+            print(f"  변환 실패: {e}")
             return None, 0
 
-    def batch_convert(self, pdf_dir: Path, pattern: str = "*.pdf") -> List[Tuple[Path, Path, int]]:
-        """일괄 변환"""
+    def batch_convert(
+        self,
+        pdf_dir: Path,
+        pattern: str = "*.pdf",
+    ) -> List[Tuple[Path, Optional[Path], int]]:
+        """Batch-convert all PDFs matching *pattern* in *pdf_dir*.
+
+        Args:
+            pdf_dir: Directory containing source PDF files.
+            pattern: Glob pattern to match files (default ``"*.pdf"``).
+
+        Returns:
+            List of ``(source_pdf, output_pptx, slide_count)`` tuples.
+        """
         return batch_convert(pdf_dir, self.output_dir, pattern)
 
     def pdf_to_styled_pptx(
         self,
         pdf_path: Path,
         style: str = "modern",
-        output_path: Path = None
+        output_path: Optional[Path] = None,
     ) -> Tuple[Optional[Path], int]:
-        """
-        PDF를 스타일이 적용된 PPTX로 변환
+        """Convert a PDF to a styled PPTX by extracting text from each page.
 
         Args:
-            pdf_path: PDF 파일 경로
-            style: 스타일 ("modern", "minimal", "corporate", "creative")
-            output_path: 출력 경로
+            pdf_path: Source PDF file path.
+            style: Visual style preset (``"modern"``, ``"minimal"``,
+                ``"corporate"``, or ``"creative"``).
+            output_path: Destination PPTX path. Auto-generated when ``None``.
 
         Returns:
-            (출력 파일 경로, 슬라이드 수)
+            Tuple of (output PPTX path, slide count). Returns ``(None, 0)`` on error.
         """
         try:
-            # 먼저 PDF에서 텍스트 추출
             texts = extract_text_from_pdf(pdf_path)
 
-            # 각 페이지를 슬라이드 데이터로 변환
-            content_data = []
+            content_data: List[Dict] = []
             for i, text in enumerate(texts):
                 lines = text.strip().split('\n')
-                title = lines[0] if lines else f"슬라이드 {i+1}"
+                title = lines[0] if lines else f"슬라이드 {i + 1}"
                 body = '\n'.join(lines[1:]) if len(lines) > 1 else ""
                 content_data.append({
-                    "title": title[:100],  # 제목 길이 제한
-                    "body": body[:1000],   # 본문 길이 제한
+                    "title": title[:_MAX_TITLE_CHARS],
+                    "body": body[:_MAX_BODY_CHARS],
                 })
 
-            # 출력 경로 설정
             if output_path is None:
                 output_path = self.output_dir / f"{Path(pdf_path).stem}_styled.pptx"
 
-            # 스타일 적용된 PPTX 생성
             result = create_styled_pptx(content_data, output_path, style=style)
-
             return result, len(content_data)
         except Exception as e:
-            print(f"  ❌ 스타일 변환 실패: {e}")
+            logger.error("Styled PPTX conversion failed: %s", e)
+            print(f"  스타일 변환 실패: {e}")
             return None, 0
 
     def apply_template(
         self,
         pptx_path: Path,
         template_path: Path,
-        output_path: Path = None
+        output_path: Optional[Path] = None,
     ) -> Optional[Path]:
-        """PPTX에 템플릿 적용"""
+        """Apply a PPTX template to an existing presentation.
+
+        Args:
+            pptx_path: Source PPTX file path.
+            template_path: Template PPTX file path.
+            output_path: Destination path. Auto-generated when ``None``.
+
+        Returns:
+            Path to the updated PPTX file, or ``None`` on failure.
+        """
         try:
             if output_path is None:
                 output_path = self.output_dir / f"{Path(pptx_path).stem}_templated.pptx"
             return apply_template(pptx_path, template_path, output_path)
         except Exception as e:
-            print(f"  ❌ 템플릿 적용 실패: {e}")
+            logger.error("Template application failed: %s", e)
+            print(f"  템플릿 적용 실패: {e}")
             return None
 
     def create_from_data(
         self,
-        content_data: List[dict],
+        content_data: List[Dict],
         title: str,
-        style: str = "modern"
+        style: str = "modern",
     ) -> Optional[Path]:
-        """
-        데이터에서 스타일 PPTX 생성
+        """Generate a styled PPTX from structured content data.
 
         Args:
-            content_data: [{"title": "제목", "body": "내용"}, ...]
-            title: 파일 제목
-            style: 스타일
+            content_data: List of slide content dicts with ``"title"`` and
+                optional ``"body"`` keys.
+            title: Base filename (without extension) for the output file.
+            style: Visual style preset (``"modern"``, ``"minimal"``,
+                ``"corporate"``, or ``"creative"``).
 
         Returns:
-            출력 파일 경로
+            Path to the generated PPTX file, or ``None`` on failure.
         """
         try:
             output_path = self.output_dir / f"{title}.pptx"
             return create_styled_pptx(content_data, output_path, style=style)
         except Exception as e:
-            print(f"  ❌ 생성 실패: {e}")
+            logger.error("PPTX creation from data failed: %s", e)
+            print(f"  생성 실패: {e}")
             return None

@@ -54,7 +54,7 @@ export function useSessionTimeout(
           return prev - 1;
         });
       }, 1000);
-    }, timeoutMs - warningMs);
+    }, Math.max(1000, timeoutMs - warningMs));
 
     // Logout timer
     timeoutRef.current = setTimeout(() => {
@@ -76,7 +76,7 @@ export function useSessionTimeout(
       const valid = await validate();
       if (!valid) {
         clearTimers();
-        onTimeout();
+        onTimeoutRef.current();
       }
     }, 60 * 1000);
     return () => clearInterval(interval);

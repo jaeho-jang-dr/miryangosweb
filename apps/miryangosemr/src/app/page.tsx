@@ -12,6 +12,7 @@ import { auth } from '@/lib/firebase';
  */
 export default function RootPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
